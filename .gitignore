@@ -21,6 +21,8 @@ Thumbs.db
 **/doc/api/
 build/
 coverage/
+**/node_modules/
+server/dist/
 
 # Flutter build and symbol files
 **/Flutter/ephemeral/

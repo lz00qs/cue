@@ -1,0 +1,69 @@
+name: cue
+
+services:
+  cue-db:
+    image: postgres:17-alpine
+    command: ["postgres", "-c", "timezone=${CUE_TIMEZONE:-Asia/Shanghai}"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cue}
+      POSTGRES_USER: ${POSTGRES_USER:-cue}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - cue-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  cue-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: cue-api:1.0.0
+    environment:
+      NODE_ENV: production
+      TZ: ${CUE_TIMEZONE:-Asia/Shanghai}
+      PORT: 3000
+      PGHOST: cue-db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-cue}
+      PGUSER: ${POSTGRES_USER:-cue}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      CUE_ADMIN_EMAIL: ${CUE_ADMIN_EMAIL:?Set CUE_ADMIN_EMAIL in .env}
+      CUE_ADMIN_PASSWORD: ${CUE_ADMIN_PASSWORD:-}
+      CUE_ADMIN_PASSWORD_HASH: ${CUE_ADMIN_PASSWORD_HASH:-}
+      CUE_JWT_SECRET: ${CUE_JWT_SECRET:?Set CUE_JWT_SECRET in .env}
+      CUE_REFRESH_SECRET: ${CUE_REFRESH_SECRET:?Set CUE_REFRESH_SECRET in .env}
+    depends_on:
+      cue-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  cue-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cue-web:1.0.0
+    ports:
+      - "127.0.0.1:${CUE_WEB_PORT:-8080}:80"
+    depends_on:
+      cue-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  cue-postgres-data:

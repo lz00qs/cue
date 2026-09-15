@@ -1,0 +1,13 @@
+.dart_tool
+.git
+.idea
+.metadata
+.vscode
+coverage
+*.iml
+*.log
+.env
+.env.*
+!.env.example
+server/node_modules
+server/dist

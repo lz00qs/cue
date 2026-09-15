@@ -1,0 +1,367 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../data/task_store.dart';
+import '../models/cue_task.dart';
+import 'cue_theme.dart';
+
+class CueActionButton extends StatelessWidget {
+  const CueActionButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.primary = true,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 108,
+      height: 36,
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: primary ? Colors.white : CueColors.primary,
+          backgroundColor: primary ? CueColors.accent : CueColors.subtle,
+          side: primary
+              ? BorderSide.none
+              : const BorderSide(color: CueColors.border),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: EdgeInsets.zero,
+          textStyle: const TextStyle(fontSize: 13, height: 18 / 13),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class CueViewTab extends StatelessWidget {
+  const CueViewTab({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.width = 88,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 36,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          foregroundColor: selected ? Colors.white : CueColors.primary,
+          backgroundColor: selected ? CueColors.accent : CueColors.subtle,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: EdgeInsets.zero,
+          textStyle: const TextStyle(fontSize: 13, height: 18 / 13),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+}
+
+class CuePriorityBadge extends StatelessWidget {
+  const CuePriorityBadge({super.key, required this.priority});
+
+  final int priority;
+
+  @override
+  Widget build(BuildContext context) {
+    final (background, foreground) = switch (priority) {
+      0 => (CueColors.dangerBackground, CueColors.danger),
+      1 => (CueColors.orangeBackground, CueColors.orange),
+      2 => (CueColors.selected, CueColors.accent),
+      _ => (CueColors.subtle, CueColors.secondary),
+    };
+
+    return Container(
+      width: 40,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'P$priority',
+        style: TextStyle(
+          color: foreground,
+          fontSize: 12,
+          height: 16 / 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
+  }
+}
+
+class CueTaskRow extends StatefulWidget {
+  const CueTaskRow({
+    super.key,
+    required this.task,
+    required this.onToggle,
+    required this.onOpen,
+    this.metaOverride,
+  });
+
+  final CueTask task;
+  final VoidCallback onToggle;
+  final VoidCallback onOpen;
+  final String? metaOverride;
+
+  @override
+  State<CueTaskRow> createState() => _CueTaskRowState();
+}
+
+class _CueTaskRowState extends State<CueTaskRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: _hovered ? const Color(0xFFFBFBFD) : CueColors.canvas,
+            border: Border.all(
+              color: _hovered ? const Color(0xFFD9DDEA) : CueColors.border,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: widget.onToggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: SvgPicture.asset(
+                      task.isCompleted
+                          ? 'assets/figma/checkbox-completed.svg'
+                          : 'assets/figma/checkbox.svg',
+                      width: 20,
+                      height: 20,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        decoration: task.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: task.isCompleted
+                            ? CueColors.secondary
+                            : CueColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.metaOverride ?? cueTaskMeta(task),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              CuePriorityBadge(priority: task.priority),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CueTaskCard extends StatefulWidget {
+  const CueTaskCard({
+    super.key,
+    required this.task,
+    required this.onOpen,
+    this.compact = false,
+  });
+
+  final CueTask task;
+  final VoidCallback onOpen;
+  final bool compact;
+
+  @override
+  State<CueTaskCard> createState() => _CueTaskCardState();
+}
+
+class _CueTaskCardState extends State<CueTaskCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: widget.compact ? 82 : 96,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: CueColors.canvas,
+            border: Border.all(
+              color: _hovered ? const Color(0xFFCDD4EB) : CueColors.border,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x121A1C26),
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+              BoxShadow(
+                color: Color(0x0A1A1C26),
+                blurRadius: 18,
+                spreadRadius: -6,
+                offset: Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.task.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      cueCompactTaskMeta(widget.task),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CuePriorityBadge(priority: widget.task.priority),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String cueTaskMeta(CueTask task) {
+  if (task.isCompleted && task.completedAt != null) {
+    return 'Completed ${_time(task.completedAt!)} · Product';
+  }
+  if (task.dueAt == null) return 'No due date · Personal';
+  final today = TaskStore.dateOnly(DateTime.now());
+  if (TaskStore.isSameDay(task.dueAt!, today)) {
+    return 'Today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''} · ${_area(task)}';
+  }
+  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day} · ${_area(task)}';
+}
+
+String cueCompactTaskMeta(CueTask task) {
+  if (task.isCompleted && task.completedAt != null) {
+    return 'Completed ${_time(task.completedAt!)}';
+  }
+  if (task.dueAt == null) return 'No due date';
+  final today = TaskStore.dateOnly(DateTime.now());
+  if (TaskStore.isSameDay(task.dueAt!, today)) {
+    return 'Today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+  }
+  if (TaskStore.isSameDay(task.dueAt!, today.add(const Duration(days: 1)))) {
+    return 'Tomorrow';
+  }
+  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day}';
+}
+
+String cueDueLabel(CueTask task) {
+  if (task.dueAt == null) return 'No due date';
+  final today = TaskStore.dateOnly(DateTime.now());
+  if (TaskStore.isSameDay(task.dueAt!, today)) {
+    return 'Due today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+  }
+  if (TaskStore.isSameDay(task.dueAt!, today.add(const Duration(days: 1)))) {
+    return 'Due tomorrow';
+  }
+  return 'Due ${_shortMonth(task.dueAt!)} ${task.dueAt!.day}';
+}
+
+String _area(CueTask task) {
+  if (task.title.contains('PCB')) return 'Hardware';
+  if (task.title.contains('thermal') || task.title.contains('signal')) {
+    return 'Simulation';
+  }
+  if (task.title.contains('report')) return 'Writing';
+  if (task.title.contains('lab')) return 'Operations';
+  return 'Product';
+}
+
+bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;
+
+String _time(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+String _shortMonth(DateTime date) => const [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+][date.month - 1];
