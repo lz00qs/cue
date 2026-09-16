@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/task_store.dart';
+import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
 import 'cue_theme.dart';
 
@@ -117,12 +118,14 @@ class CueTaskRow extends StatefulWidget {
     required this.onToggle,
     required this.onOpen,
     this.metaOverride,
+    this.referenceDate,
   });
 
   final CueTask task;
   final VoidCallback onToggle;
   final VoidCallback onOpen;
   final String? metaOverride;
+  final DateTime? referenceDate;
 
   @override
   State<CueTaskRow> createState() => _CueTaskRowState();
@@ -192,7 +195,12 @@ class _CueTaskRowState extends State<CueTaskRow> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      widget.metaOverride ?? cueTaskMeta(task),
+                      widget.metaOverride ??
+                          cueTaskMeta(
+                            context,
+                            task,
+                            today: widget.referenceDate,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,
@@ -216,11 +224,13 @@ class CueTaskCard extends StatefulWidget {
     required this.task,
     required this.onOpen,
     this.compact = false,
+    this.referenceDate,
   });
 
   final CueTask task;
   final VoidCallback onOpen;
   final bool compact;
+  final DateTime? referenceDate;
 
   @override
   State<CueTaskCard> createState() => _CueTaskCardState();
@@ -276,7 +286,11 @@ class _CueTaskCardState extends State<CueTaskCard> {
                 children: [
                   Expanded(
                     child: Text(
-                      cueCompactTaskMeta(widget.task),
+                      cueCompactTaskMeta(
+                        context,
+                        widget.task,
+                        today: widget.referenceDate,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.labelSmall,
@@ -294,53 +308,64 @@ class _CueTaskCardState extends State<CueTaskCard> {
   }
 }
 
-String cueTaskMeta(CueTask task) {
+String cueTaskMeta(BuildContext context, CueTask task, {DateTime? today}) {
+  final l10n = context.l10n;
   if (task.isCompleted && task.completedAt != null) {
-    return 'Completed ${_time(task.completedAt!)} · Product';
+    return '${l10n.completedAt(_time(task.completedAt!))} · ${l10n.product}';
   }
-  if (task.dueAt == null) return 'No due date · Personal';
-  final today = TaskStore.dateOnly(DateTime.now());
-  if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return 'Today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''} · ${_area(task)}';
+  if (task.dueAt == null) return '${l10n.noDueDate} · ${l10n.personal}';
+  final reference = TaskStore.dateOnly(today ?? DateTime.now());
+  if (TaskStore.isSameDay(task.dueAt!, reference)) {
+    return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''} · ${cueTaskArea(context, task)}';
   }
-  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day} · ${_area(task)}';
+  return '${formatShortMonthDay(context, task.dueAt!)} · ${cueTaskArea(context, task)}';
 }
 
-String cueCompactTaskMeta(CueTask task) {
+String cueCompactTaskMeta(
+  BuildContext context,
+  CueTask task, {
+  DateTime? today,
+}) {
+  final l10n = context.l10n;
   if (task.isCompleted && task.completedAt != null) {
-    return 'Completed ${_time(task.completedAt!)}';
+    return l10n.completedAt(_time(task.completedAt!));
   }
-  if (task.dueAt == null) return 'No due date';
+  if (task.dueAt == null) return l10n.noDueDate;
+  final reference = TaskStore.dateOnly(today ?? DateTime.now());
+  if (TaskStore.isSameDay(task.dueAt!, reference)) {
+    return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+  }
+  if (TaskStore.isSameDay(
+    task.dueAt!,
+    reference.add(const Duration(days: 1)),
+  )) {
+    return l10n.tomorrow;
+  }
+  return formatShortMonthDay(context, task.dueAt!);
+}
+
+String cueDueLabel(BuildContext context, CueTask task) {
+  final l10n = context.l10n;
+  if (task.dueAt == null) return l10n.noDueDate;
   final today = TaskStore.dateOnly(DateTime.now());
   if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return 'Today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+    return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
   }
   if (TaskStore.isSameDay(task.dueAt!, today.add(const Duration(days: 1)))) {
-    return 'Tomorrow';
+    return l10n.tomorrow;
   }
-  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day}';
+  return formatShortMonthDay(context, task.dueAt!);
 }
 
-String cueDueLabel(CueTask task) {
-  if (task.dueAt == null) return 'No due date';
-  final today = TaskStore.dateOnly(DateTime.now());
-  if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return 'Due today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
-  }
-  if (TaskStore.isSameDay(task.dueAt!, today.add(const Duration(days: 1)))) {
-    return 'Due tomorrow';
-  }
-  return 'Due ${_shortMonth(task.dueAt!)} ${task.dueAt!.day}';
-}
-
-String _area(CueTask task) {
-  if (task.title.contains('PCB')) return 'Hardware';
+String cueTaskArea(BuildContext context, CueTask task) {
+  final l10n = context.l10n;
+  if (task.title.contains('PCB')) return l10n.hardware;
   if (task.title.contains('thermal') || task.title.contains('signal')) {
-    return 'Simulation';
+    return l10n.simulation;
   }
-  if (task.title.contains('report')) return 'Writing';
-  if (task.title.contains('lab')) return 'Operations';
-  return 'Product';
+  if (task.title.contains('report')) return l10n.writing;
+  if (task.title.contains('lab')) return l10n.operations;
+  return l10n.product;
 }
 
 bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;
@@ -350,18 +375,3 @@ String _time(DateTime date) {
   final minute = date.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
 }
-
-String _shortMonth(DateTime date) => const [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-][date.month - 1];

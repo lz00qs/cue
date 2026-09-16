@@ -7,7 +7,7 @@ import 'api_client.dart';
 
 class TaskStore extends ChangeNotifier {
   TaskStore(this._tasks, {DateTime? today, this.api})
-    : today = dateOnly(today ?? DateTime.now());
+    : _fixedToday = today == null ? null : dateOnly(today);
 
   factory TaskStore.remote(ApiClient api) => TaskStore([], api: api);
 
@@ -142,12 +142,15 @@ class TaskStore extends ChangeNotifier {
 
   final List<CueTask> _tasks;
   final ApiClient? api;
-  final DateTime today;
+  final DateTime? _fixedToday;
+  DateTime get today => _fixedToday ?? dateOnly(DateTime.now());
   int latestRevision = 0;
   String? lastError;
   DateTime? lastSyncedAt;
   bool isSyncing = false;
   Future<void>? _syncInFlight;
+  final Set<String> _pendingIds = {};
+  final Map<String, CueTask> _deferredChanges = {};
 
   bool get isRemote => api != null;
   UnmodifiableListView<CueTask> get tasks => UnmodifiableListView(_tasks);
@@ -250,7 +253,17 @@ class TaskStore extends ChangeNotifier {
     try {
       final result = await client.sync(latestRevision);
       for (final change in result.changes) {
+        if (_pendingIds.contains(change.id)) {
+          final previous = _deferredChanges[change.id];
+          if (previous == null || change.revision > previous.revision) {
+            _deferredChanges[change.id] = change;
+          }
+          continue;
+        }
         final index = _tasks.indexWhere((task) => task.id == change.id);
+        if (index != -1 && _tasks[index].revision >= change.revision) {
+          continue;
+        }
         if (change.deletedAt != null) {
           if (index != -1) _tasks.removeAt(index);
         } else if (index == -1) {
@@ -259,7 +272,7 @@ class TaskStore extends ChangeNotifier {
           _tasks[index] = change;
         }
       }
-      latestRevision = result.latestRevision;
+      latestRevision = _max(latestRevision, result.latestRevision);
       lastError = null;
       lastSyncedAt = DateTime.now();
     } catch (error) {
@@ -290,7 +303,7 @@ class TaskStore extends ChangeNotifier {
       priority: priority,
       important: important,
       sortOrder: _tasks.length * 1000 + 1000,
-      dueAt: dueAt ?? DateTime(today.year, today.month, today.day, 18),
+      dueAt: dueAt,
       completedAt: status == CueTaskStatus.done ? now : null,
       createdAt: now,
       updatedAt: now,
@@ -303,7 +316,15 @@ class TaskStore extends ChangeNotifier {
     try {
       final saved = await client.createTask(task);
       final index = _tasks.indexWhere((item) => item.id == task.id);
-      if (index != -1) _tasks[index] = saved;
+      final existing = _tasks.indexWhere((item) => item.id == saved.id);
+      if (existing != -1) {
+        if (saved.revision > _tasks[existing].revision) {
+          _tasks[existing] = saved;
+        }
+        if (index != -1) _tasks.removeAt(index);
+      } else if (index != -1) {
+        _tasks[index] = saved;
+      }
       latestRevision = _max(latestRevision, saved.revision);
       lastError = null;
       lastSyncedAt = DateTime.now();
@@ -350,15 +371,27 @@ class TaskStore extends ChangeNotifier {
     {'important': !task.important},
   );
 
+  Future<void> updateNote(CueTask task, String note) =>
+      _update(task, task.copyWith(note: note.trim()), {'note': note.trim()});
+
   Future<void> deleteTask(CueTask task) async {
+    if (_pendingIds.contains(task.id)) {
+      throw const ApiException('Task is still saving');
+    }
     final index = _tasks.indexWhere((item) => item.id == task.id);
     if (index == -1) return;
+    _pendingIds.add(task.id);
     _tasks.removeAt(index);
     notifyListeners();
     final client = api;
-    if (client == null) return;
+    if (client == null) {
+      _pendingIds.remove(task.id);
+      return;
+    }
+    var deletedRemotely = false;
     try {
       final deleted = await client.deleteTask(task);
+      deletedRemotely = true;
       latestRevision = _max(latestRevision, deleted.revision);
       lastError = null;
       lastSyncedAt = DateTime.now();
@@ -372,6 +405,13 @@ class TaskStore extends ChangeNotifier {
         await _refreshAfterConflict();
       }
       rethrow;
+    } finally {
+      _pendingIds.remove(task.id);
+      if (deletedRemotely) {
+        _deferredChanges.remove(task.id);
+      } else {
+        _applyDeferred(task.id);
+      }
     }
   }
 
@@ -380,13 +420,20 @@ class TaskStore extends ChangeNotifier {
     CueTask desired,
     Map<String, dynamic> changes,
   ) async {
+    if (_pendingIds.contains(original.id)) {
+      throw const ApiException('Task is still saving');
+    }
+    _pendingIds.add(original.id);
     final optimistic = desired.copyWith(
       updatedAt: DateTime.now(),
       version: original.version + 1,
     );
     _replace(original.id, optimistic);
     final client = api;
-    if (client == null) return;
+    if (client == null) {
+      _pendingIds.remove(original.id);
+      return;
+    }
     try {
       final saved = await client.updateTask(original, changes);
       _replace(original.id, saved);
@@ -401,7 +448,25 @@ class TaskStore extends ChangeNotifier {
         await _refreshAfterConflict();
       }
       rethrow;
+    } finally {
+      _pendingIds.remove(original.id);
+      _applyDeferred(original.id);
     }
+  }
+
+  void _applyDeferred(String id) {
+    final change = _deferredChanges.remove(id);
+    if (change == null) return;
+    final index = _tasks.indexWhere((task) => task.id == id);
+    if (index != -1 && _tasks[index].revision >= change.revision) return;
+    if (change.deletedAt != null) {
+      if (index != -1) _tasks.removeAt(index);
+    } else if (index == -1) {
+      _tasks.add(change);
+    } else {
+      _tasks[index] = change;
+    }
+    notifyListeners();
   }
 
   Future<void> _refreshAfterConflict() async {

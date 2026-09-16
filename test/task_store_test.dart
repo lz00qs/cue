@@ -30,18 +30,55 @@ void main() {
     expect(store.lastSyncedAt, isNotNull);
     expect(store.lastError, isNull);
   });
+
+  test(
+    'preserves an in-flight edit until a conflicting remote change is resolved',
+    () async {
+      final api = _FakeApiClient();
+      final store = TaskStore([_task(revision: 1)], api: api);
+
+      final mutation = store.toggleComplete(store.tasks.single);
+      expect(store.tasks.single.isCompleted, isTrue);
+
+      final sync = store.sync();
+      api.syncCompleter.complete(
+        SyncResult(
+          changes: [
+            _task(revision: 2).copyWith(title: 'Changed on phone', version: 2),
+          ],
+          latestRevision: 2,
+        ),
+      );
+      await sync;
+      expect(store.tasks.single.isCompleted, isTrue);
+
+      final assertion = expectLater(mutation, throwsA(isA<ApiException>()));
+      api.updateCompleter.completeError(
+        const ApiException('Conflict', statusCode: 409),
+      );
+      await assertion;
+      expect(store.tasks.single.title, 'Changed on phone');
+      expect(store.tasks.single.version, 2);
+    },
+  );
 }
 
 class _FakeApiClient extends ApiClient {
   _FakeApiClient() : super(TokenStore());
 
   final syncCompleter = Completer<SyncResult>();
+  final updateCompleter = Completer<CueTask>();
   int syncCalls = 0;
 
   @override
   Future<SyncResult> sync(int since) {
     syncCalls += 1;
     return syncCompleter.future;
+  }
+
+  @override
+  Future<CueTask> updateTask(CueTask task, Map<String, dynamic> changes) {
+    return updateCompleter.future;
   }
 }
 

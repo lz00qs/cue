@@ -12,9 +12,10 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 - 增量同步基础：全局 `revision` 与删除 tombstone
 - Today、Inbox、Upcoming、All Tasks、Kanban、Month Calendar、Eisenhower Quadrants
 - Flutter 乐观更新、失败回滚和登录会话恢复
-- 多端增量同步：12 秒后台轮询、回到前台同步、下拉刷新和手动同步
+- 多端增量同步：SSE 更新通知、断线重连、每分钟轮询兜底、回到前台同步、下拉刷新和手动同步
 - 并发同步请求合并，以及 409 版本冲突后的服务端状态恢复
 - Figma V2 移动端 Today、Board、Calendar、Quadrants、Settings 和任务详情交互
+- 中文与英文界面、本地化日期格式、跟随系统语言和应用内语言切换
 - Nginx 同源 `/api` 反向代理、安全响应头和 SPA 路由
 - Docker Compose 编排 Web、API、PostgreSQL，数据库使用命名卷
 - OpenAPI 文档：登录后可在 `/api/docs` 查看接口结构
@@ -77,7 +78,7 @@ Web 默认请求同源 `/api`。如果 Flutter 开发服务器和 API 不同源�
 flutter run -d chrome --dart-define=CUE_API_URL=http://localhost:8080
 ```
 
-原生移动端首次启动会先显示服务器连接页。输入所有设备共用的 Cue 服务基础地址，App 会通过 `/api/health` 验证后保存；`/api` 后缀可省略。之后可在 `Settings → Import & sync → Change server` 修改地址，切换服务器时会清除旧服务器的登录令牌。
+原生移动端和桌面端首次启动会先显示服务器连接页。输入所有设备共用的 Cue 服务基础地址，App 会通过 `/api/health` 验证后保存；`/api` 后缀可省略。移动端可在 `Settings → Import & sync → Change server` 修改地址，桌面端可在侧栏底部修改并手动同步。切换服务器时会清除旧服务器的登录令牌。
 
 Android 模拟器访问宿主机使用 `10.0.2.2`，iOS 模拟器使用 `127.0.0.1`；真机使用电脑的局域网地址或可访问的 HTTPS 域名。`CUE_API_URL` 仍可作为预配置默认值：
 
@@ -88,9 +89,11 @@ flutter build apk --release --dart-define=CUE_API_URL=https://cue.example.com
 flutter build ipa --release --dart-define=CUE_API_URL=https://cue.example.com
 ```
 
-移动端允许连接可信局域网内的 HTTP 服务；公网部署应使用 HTTPS。只要移动端、Web 和桌面端使用同一 API 与数据库，任务修改会通过全局 `revision` 增量同步，并通过每条任务的 `version` 检测并发写入。
+移动端允许连接可信局域网内的 HTTP 服务；公网部署应使用 HTTPS。只要移动端、Web 和桌面端使用同一 API 与数据库，任务提交后 PostgreSQL 会通知各 API 进程，再通过 SSE 唤醒客户端按全局 `revision` 增量同步；断线时客户端重连并每分钟轮询兜底。每条任务的 `version` 检测并发写入。
 
 后端位于 `server/`。容器启动时先执行 `server/migrations/001_initial.sql`，再启动 API。
+
+界面翻译位于 `lib/l10n/app_en.arb` 与 `lib/l10n/app_zh.arb`。修改 ARB 后运行 `flutter gen-l10n` 重新生成本地化代码。
 
 ## 验证
 

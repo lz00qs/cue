@@ -4,7 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { QueryResultRow } from 'pg';
+import { PoolClient, QueryResultRow } from 'pg';
+import { Observable } from 'rxjs';
 
 import { DatabaseService } from '../database/database.service';
 import { CreateTaskDto, UpdateTaskDto } from './task.dto';
@@ -33,6 +34,10 @@ const columns = `id, title, note, status, priority, important, sort_order,
 export class TasksService {
   constructor(private readonly database: DatabaseService) {}
 
+  watchRevisions(): Observable<number> {
+    return this.database.taskChanges;
+  }
+
   async list() {
     const result = await this.database.query<TaskRow>(
       `SELECT ${columns} FROM tasks WHERE deleted_at IS NULL
@@ -46,116 +51,136 @@ export class TasksService {
       `SELECT ${columns} FROM tasks WHERE revision > $1 ORDER BY revision ASC`,
       [since],
     );
-    const latest = await this.database.query<{ revision: string }>(
-      `SELECT COALESCE(MAX(revision), 0)::text AS revision FROM tasks`,
-    );
     return {
       changes: result.rows.map(toTask),
-      latestRevision: Number(latest.rows[0].revision),
+      // Advance only through revisions included in this response. A concurrent
+      // write after the SELECT must remain visible to the next sync request.
+      latestRevision: result.rows.reduce(
+        (latest, row) => Math.max(latest, Number(row.revision)),
+        since,
+      ),
     };
   }
 
   async create(input: CreateTaskDto) {
-    const now = new Date();
-    const status = input.status ?? 'todo';
-    const completedAt = status === 'done' ? now : null;
-    const order =
-      input.sortOrder ??
-      Number(
-        (
-          await this.database.query<{ next_order: string }>(
-            `SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_order
-             FROM tasks WHERE deleted_at IS NULL`,
-          )
-        ).rows[0].next_order,
+    return this.database.transaction(async (client) => {
+      await this.lockTaskWrites(client);
+      const now = new Date();
+      const status = input.status ?? 'todo';
+      const completedAt = status === 'done' ? now : null;
+      const order =
+        input.sortOrder ??
+        Number(
+          (
+            await client.query<{ next_order: string }>(
+              `SELECT COALESCE(MAX(sort_order), 0) + 1000 AS next_order
+               FROM tasks WHERE deleted_at IS NULL`,
+            )
+          ).rows[0].next_order,
+        );
+      const result = await client.query<TaskRow>(
+        `INSERT INTO tasks (
+           id, title, note, status, priority, important, sort_order, due_at,
+           completed_at, created_at, updated_at, version, revision
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 1,
+           nextval('task_revision_seq'))
+         RETURNING ${columns}`,
+        [
+          randomUUID(),
+          input.title.trim(),
+          input.note?.trim() ?? '',
+          status,
+          input.priority ?? 2,
+          input.important ?? false,
+          order,
+          input.dueAt ?? null,
+          completedAt,
+          now,
+        ],
       );
-    const result = await this.database.query<TaskRow>(
-      `INSERT INTO tasks (
-         id, title, note, status, priority, important, sort_order, due_at,
-         completed_at, created_at, updated_at, version, revision
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, 1,
-         nextval('task_revision_seq'))
-       RETURNING ${columns}`,
-      [
-        randomUUID(),
-        input.title.trim(),
-        input.note?.trim() ?? '',
-        status,
-        input.priority ?? 2,
-        input.important ?? false,
-        order,
-        input.dueAt ?? null,
-        completedAt,
-        now,
-      ],
-    );
-    return toTask(result.rows[0]);
+      await this.database.notifyTaskChanged(client, result.rows[0].revision);
+      return toTask(result.rows[0]);
+    });
   }
 
   async update(id: string, input: UpdateTaskDto) {
-    const existing = await this.findActive(id);
-    if (existing.version !== input.version) {
-      throw new ConflictException({
-        message: 'Task was updated by another request',
-        current: toTask(existing),
-      });
-    }
+    return this.database.transaction(async (client) => {
+      await this.lockTaskWrites(client);
+      const existing = await this.findActive(client, id);
+      if (existing.version !== input.version) {
+        throw new ConflictException({
+          message: 'Task was updated by another request',
+          current: toTask(existing),
+        });
+      }
 
-    const nextStatus = input.status ?? existing.status;
-    const completedAt =
-      nextStatus === 'done'
-        ? existing.completed_at ?? new Date()
-        : input.status
-          ? null
-          : existing.completed_at;
-    const result = await this.database.query<TaskRow>(
-      `UPDATE tasks SET
-         title = $2, note = $3, status = $4, priority = $5,
-         important = $6, sort_order = $7, due_at = $8, completed_at = $9,
-         updated_at = NOW(), version = version + 1,
-         revision = nextval('task_revision_seq')
-       WHERE id = $1 AND deleted_at IS NULL AND version = $10
-       RETURNING ${columns}`,
-      [
-        id,
-        input.title?.trim() ?? existing.title,
-        input.note?.trim() ?? existing.note,
-        nextStatus,
-        input.priority ?? existing.priority,
-        input.important ?? existing.important,
-        input.sortOrder ?? Number(existing.sort_order),
-        input.dueAt === undefined ? existing.due_at : input.dueAt,
-        completedAt,
-        input.version,
-      ],
-    );
-    if (result.rowCount === 0) {
-      throw new ConflictException('Task changed before the update completed');
-    }
-    return toTask(result.rows[0]);
+      const nextStatus = input.status ?? existing.status;
+      const completedAt =
+        nextStatus === 'done'
+          ? existing.completed_at ?? new Date()
+          : input.status
+            ? null
+            : existing.completed_at;
+      const result = await client.query<TaskRow>(
+        `UPDATE tasks SET
+           title = $2, note = $3, status = $4, priority = $5,
+           important = $6, sort_order = $7, due_at = $8, completed_at = $9,
+           updated_at = NOW(), version = version + 1,
+           revision = nextval('task_revision_seq')
+         WHERE id = $1 AND deleted_at IS NULL AND version = $10
+         RETURNING ${columns}`,
+        [
+          id,
+          input.title?.trim() ?? existing.title,
+          input.note?.trim() ?? existing.note,
+          nextStatus,
+          input.priority ?? existing.priority,
+          input.important ?? existing.important,
+          input.sortOrder ?? Number(existing.sort_order),
+          input.dueAt === undefined ? existing.due_at : input.dueAt,
+          completedAt,
+          input.version,
+        ],
+      );
+      if (result.rowCount === 0) {
+        throw new ConflictException('Task changed before the update completed');
+      }
+      await this.database.notifyTaskChanged(client, result.rows[0].revision);
+      return toTask(result.rows[0]);
+    });
   }
 
   async remove(id: string, version: number) {
-    const result = await this.database.query<TaskRow>(
-      `UPDATE tasks SET deleted_at = NOW(), updated_at = NOW(),
-         version = version + 1, revision = nextval('task_revision_seq')
-       WHERE id = $1 AND deleted_at IS NULL AND version = $2
-       RETURNING ${columns}`,
-      [id, version],
-    );
-    if (result.rowCount === 0) {
-      const exists = await this.database.query(
-        'SELECT 1 FROM tasks WHERE id = $1 AND deleted_at IS NULL',
-        [id],
+    return this.database.transaction(async (client) => {
+      await this.lockTaskWrites(client);
+      const result = await client.query<TaskRow>(
+        `UPDATE tasks SET deleted_at = NOW(), updated_at = NOW(),
+           version = version + 1, revision = nextval('task_revision_seq')
+         WHERE id = $1 AND deleted_at IS NULL AND version = $2
+         RETURNING ${columns}`,
+        [id, version],
       );
-      if (exists.rowCount === 0) throw new NotFoundException('Task not found');
-      throw new ConflictException('Task changed before it could be deleted');
-    }
-    return toTask(result.rows[0]);
+      if (result.rowCount === 0) {
+        const exists = await client.query(
+          'SELECT 1 FROM tasks WHERE id = $1 AND deleted_at IS NULL',
+          [id],
+        );
+        if (exists.rowCount === 0) throw new NotFoundException('Task not found');
+        throw new ConflictException('Task changed before it could be deleted');
+      }
+      await this.database.notifyTaskChanged(client, result.rows[0].revision);
+      return toTask(result.rows[0]);
+    });
   }
 
-  private async findActive(id: string) {
-    const result = await this.database.query<TaskRow>(
+  private async lockTaskWrites(client: PoolClient) {
+    // A sequence alone does not order commits. Serialize writers before they
+    // allocate a revision so a sync cursor can never pass an uncommitted task.
+    await client.query('SELECT pg_advisory_xact_lock(1987737485::bigint)');
+  }
+
+  private async findActive(client: PoolClient, id: string) {
+    const result = await client.query<TaskRow>(
       `SELECT ${columns} FROM tasks WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );

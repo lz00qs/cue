@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/task_store.dart';
+import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
@@ -20,7 +21,7 @@ class QuadrantsView extends StatefulWidget {
 }
 
 class _QuadrantsViewState extends State<QuadrantsView> {
-  String _filter = 'All tasks';
+  _QuadrantFilter _filter = _QuadrantFilter.all;
 
   @override
   Widget build(BuildContext context) {
@@ -32,26 +33,27 @@ class _QuadrantsViewState extends State<QuadrantsView> {
           child: Row(
             children: [
               CueViewTab(
-                label: 'All tasks',
-                selected: _filter == 'All tasks',
-                onTap: () => setState(() => _filter = 'All tasks'),
+                label: context.l10n.allTasksFilter,
+                selected: _filter == _QuadrantFilter.all,
+                onTap: () => setState(() => _filter = _QuadrantFilter.all),
               ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: 'Important',
-                selected: _filter == 'Important',
-                onTap: () => setState(() => _filter = 'Important'),
+                label: context.l10n.importantFilter,
+                selected: _filter == _QuadrantFilter.important,
+                onTap: () =>
+                    setState(() => _filter = _QuadrantFilter.important),
               ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: 'Due soon',
-                selected: _filter == 'Due soon',
-                onTap: () => setState(() => _filter = 'Due soon'),
+                label: context.l10n.dueSoon,
+                selected: _filter == _QuadrantFilter.dueSoon,
+                onTap: () => setState(() => _filter = _QuadrantFilter.dueSoon),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  'Urgent = due within 2 days',
+                  context.l10n.urgentDefinition,
                   style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: CueColors.tertiary),
                 ),
@@ -65,32 +67,32 @@ class _QuadrantsViewState extends State<QuadrantsView> {
             final panels = [
               _panel(
                 context,
-                title: 'Do now',
-                rule: 'Important · due within 2 days',
+                title: context.l10n.doNow,
+                rule: context.l10n.doNowRule,
                 color: CueColors.danger,
                 important: true,
                 urgent: true,
               ),
               _panel(
                 context,
-                title: 'Schedule',
-                rule: 'Important · not urgent',
+                title: context.l10n.schedule,
+                rule: context.l10n.scheduleRule,
                 color: CueColors.orange,
                 important: true,
                 urgent: false,
               ),
               _panel(
                 context,
-                title: 'Batch',
-                rule: 'Due soon · lower importance',
+                title: context.l10n.batch,
+                rule: context.l10n.batchRule,
                 color: CueColors.accent,
                 important: false,
                 urgent: true,
               ),
               _panel(
                 context,
-                title: 'Reconsider',
-                rule: 'Neither important nor urgent',
+                title: context.l10n.reconsider,
+                rule: context.l10n.reconsiderRule,
                 color: CueColors.green,
                 important: false,
                 urgent: false,
@@ -145,13 +147,14 @@ class _QuadrantsViewState extends State<QuadrantsView> {
     var tasks = widget.store
         .quadrantTasks(important: important, urgent: urgent)
         .toList();
-    if (_filter == 'Important' && !important) tasks = [];
-    if (_filter == 'Due soon' && !urgent) tasks = [];
+    if (_filter == _QuadrantFilter.important && !important) tasks = [];
+    if (_filter == _QuadrantFilter.dueSoon && !urgent) tasks = [];
     return _QuadrantPanel(
       title: title,
       rule: rule,
       color: color,
       tasks: tasks,
+      today: widget.store.today,
       onOpenTask: widget.onOpenTask,
     );
   }
@@ -163,6 +166,7 @@ class _QuadrantPanel extends StatelessWidget {
     required this.rule,
     required this.color,
     required this.tasks,
+    required this.today,
     required this.onOpenTask,
   });
 
@@ -170,6 +174,7 @@ class _QuadrantPanel extends StatelessWidget {
   final String rule;
   final Color color;
   final List<CueTask> tasks;
+  final DateTime today;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
@@ -212,6 +217,7 @@ class _QuadrantPanel extends StatelessWidget {
                       final task = tasks[index];
                       return CueTaskCard(
                         task: task,
+                        referenceDate: today,
                         onOpen: () => onOpenTask(task),
                       );
                     },
@@ -230,10 +236,12 @@ class _EmptyQuadrant extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Text(
-        'No matching tasks',
+        context.l10n.noMatchingTasks,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: CueColors.tertiary),
       ),
     );
   }
 }
+
+enum _QuadrantFilter { all, important, dueSoon }

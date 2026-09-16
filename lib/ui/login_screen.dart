@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'cue_theme.dart';
+import 'language_menu.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -84,6 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: LanguageMenuButton(),
+                  ),
                   const Text(
                     'Cue',
                     textAlign: TextAlign.center,
@@ -95,10 +101,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Move what’s next',
+                  Text(
+                    context.l10n.tagline,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: CueColors.tertiary, fontSize: 13),
+                    style: const TextStyle(
+                      color: CueColors.tertiary,
+                      fontSize: 13,
+                    ),
                   ),
                   if (widget.serverUrl != null) ...[
                     const SizedBox(height: 20),
@@ -132,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextButton(
                             key: const Key('change-server-button'),
                             onPressed: widget.onChangeServer,
-                            child: const Text('Change'),
+                            child: Text(context.l10n.change),
                           ),
                         ],
                       ),
@@ -144,10 +153,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.username],
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(labelText: context.l10n.email),
                     validator: (value) {
                       final text = value?.trim() ?? '';
-                      return text.contains('@') ? null : 'Enter a valid email';
+                      return text.contains('@')
+                          ? null
+                          : context.l10n.enterValidEmail;
                     },
                   ),
                   const SizedBox(height: 14),
@@ -158,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     autofillHints: const [AutofillHints.password],
                     onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: context.l10n.password,
                       suffixIcon: IconButton(
                         onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
@@ -169,13 +180,13 @@ class _LoginScreenState extends State<LoginScreen> {
                               : Icons.visibility_off_outlined,
                         ),
                         tooltip: _obscurePassword
-                            ? 'Show password'
-                            : 'Hide password',
+                            ? context.l10n.showPassword
+                            : context.l10n.hidePassword,
                       ),
                     ),
                     validator: (value) => (value?.length ?? 0) >= 8
                         ? null
-                        : 'Password must be at least 8 characters',
+                        : context.l10n.passwordMinLength,
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
@@ -215,14 +226,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Sign in'),
+                          : Text(context.l10n.signIn),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'This workspace has one administrator account.',
+                  Text(
+                    context.l10n.singleAdministrator,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: CueColors.tertiary, fontSize: 11),
+                    style: const TextStyle(
+                      color: CueColors.tertiary,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),

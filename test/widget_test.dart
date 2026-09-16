@@ -44,6 +44,31 @@ void main() {
     expect(find.text('Task added to Today'), findsOneWidget);
   });
 
+  testWidgets('desktop task popover edits a synced task note', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review PCB layout'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('desktop-task-details-popover')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Notes'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('desktop-task-note-field')),
+      'Check connector labels',
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Check connector labels'), findsOneWidget);
+  });
+
   testWidgets('renders the Figma V2 mobile shell and Settings', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -111,5 +136,24 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(find.text('Today'), findsWidgets);
     expect(find.text('Run thermal simulation'), findsOneWidget);
+  });
+
+  testWidgets('switches the interface from English to Chinese', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Language'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('中文').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('设置'), findsWidgets);
+    expect(find.text('让 Cue 更适合你的工作方式'), findsOneWidget);
+    expect(find.text('导入与同步'), findsOneWidget);
   });
 }

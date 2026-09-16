@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../data/api_client.dart';
+import '../l10n/l10n.dart';
 import 'cue_theme.dart';
+import 'language_menu.dart';
 
 class ServerConnectionScreen extends StatefulWidget {
   const ServerConnectionScreen({
@@ -65,7 +67,7 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
               leading: IconButton(
                 onPressed: widget.onCancel,
                 icon: const Icon(Icons.arrow_back_rounded),
-                tooltip: 'Back',
+                tooltip: context.l10n.back,
               ),
             ),
       body: Center(
@@ -91,6 +93,10 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: LanguageMenuButton(),
+                  ),
                   Align(
                     child: Container(
                       width: 56,
@@ -108,10 +114,10 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Connect to Cue',
+                  Text(
+                    context.l10n.connectToCue,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: CueColors.primary,
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
@@ -119,10 +125,13 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Enter the address of your Cue server',
+                  Text(
+                    context.l10n.enterServerAddress,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: CueColors.secondary, fontSize: 13),
+                    style: const TextStyle(
+                      color: CueColors.secondary,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 28),
                   TextFormField(
@@ -134,10 +143,10 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     autocorrect: false,
                     enableSuggestions: false,
                     onFieldSubmitted: (_) => _connect(),
-                    decoration: const InputDecoration(
-                      labelText: 'Server URL',
+                    decoration: InputDecoration(
+                      labelText: context.l10n.serverUrl,
                       hintText: 'http://10.0.2.2:8080',
-                      prefixIcon: Icon(Icons.language_rounded, size: 20),
+                      prefixIcon: const Icon(Icons.language_rounded, size: 20),
                     ),
                     validator: (value) {
                       try {
@@ -149,9 +158,12 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Use the base address you open in a browser. “/api” is optional. Prefer HTTPS outside a trusted local network.',
-                    style: TextStyle(color: CueColors.tertiary, fontSize: 11),
+                  Text(
+                    context.l10n.serverUrlHelp,
+                    style: const TextStyle(
+                      color: CueColors.tertiary,
+                      fontSize: 11,
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
@@ -191,14 +203,17 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Connect'),
+                          : Text(context.l10n.connect),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'The server is verified before sign in. You can change it later in Settings.',
+                  Text(
+                    context.l10n.serverVerificationHelp,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: CueColors.tertiary, fontSize: 11),
+                    style: const TextStyle(
+                      color: CueColors.tertiary,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),

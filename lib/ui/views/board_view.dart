@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../data/task_store.dart';
+import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
@@ -18,7 +19,7 @@ class BoardView extends StatefulWidget {
 }
 
 class _BoardViewState extends State<BoardView> {
-  String _group = 'Status';
+  _BoardGroup _group = _BoardGroup.status;
 
   @override
   Widget build(BuildContext context) {
@@ -30,28 +31,28 @@ class _BoardViewState extends State<BoardView> {
           child: Row(
             children: [
               CueViewTab(
-                label: 'Status',
-                selected: _group == 'Status',
-                onTap: () => setState(() => _group = 'Status'),
+                label: context.l10n.groupStatus,
+                selected: _group == _BoardGroup.status,
+                onTap: () => setState(() => _group = _BoardGroup.status),
               ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: 'Priority',
-                selected: _group == 'Priority',
-                onTap: () => setState(() => _group = 'Priority'),
+                label: context.l10n.groupPriority,
+                selected: _group == _BoardGroup.priority,
+                onTap: () => setState(() => _group = _BoardGroup.priority),
               ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: 'Due date',
-                selected: _group == 'Due date',
-                onTap: () => setState(() => _group = 'Due date'),
+                label: context.l10n.groupDueDate,
+                selected: _group == _BoardGroup.dueDate,
+                onTap: () => setState(() => _group = _BoardGroup.dueDate),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  _group == 'Status'
-                      ? 'Drag cards to update status'
-                      : 'Demo grouping preview',
+                  _group == _BoardGroup.status
+                      ? context.l10n.dragCards
+                      : context.l10n.groupingPreview,
                   style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: CueColors.tertiary),
                 ),
@@ -59,7 +60,7 @@ class _BoardViewState extends State<BoardView> {
           ),
         ),
         const SizedBox(height: 24),
-        if (_group == 'Status')
+        if (_group == _BoardGroup.status)
           _StatusBoard(store: widget.store, onOpenTask: widget.onOpenTask)
         else
           _GroupedPreview(
@@ -93,7 +94,8 @@ class _StatusBoard extends StatelessWidget {
           children: [
             _BoardColumn(
               width: columnWidth,
-              title: 'TODO',
+              today: store.today,
+              title: context.l10n.todoColumn,
               status: CueTaskStatus.todo,
               tasks: _tasks(CueTaskStatus.todo),
               onAccept: (task) => unawaited(
@@ -104,7 +106,8 @@ class _StatusBoard extends StatelessWidget {
             const SizedBox(width: 16),
             _BoardColumn(
               width: columnWidth,
-              title: 'DOING',
+              today: store.today,
+              title: context.l10n.doingColumn,
               status: CueTaskStatus.doing,
               tasks: _tasks(CueTaskStatus.doing),
               onAccept: (task) => unawaited(
@@ -117,7 +120,8 @@ class _StatusBoard extends StatelessWidget {
             const SizedBox(width: 16),
             _BoardColumn(
               width: columnWidth,
-              title: 'DONE',
+              today: store.today,
+              title: context.l10n.doneColumn,
               status: CueTaskStatus.done,
               tasks: _tasks(CueTaskStatus.done),
               onAccept: (task) => unawaited(
@@ -140,6 +144,7 @@ class _StatusBoard extends StatelessWidget {
 class _BoardColumn extends StatefulWidget {
   const _BoardColumn({
     required this.width,
+    required this.today,
     required this.title,
     required this.status,
     required this.tasks,
@@ -148,6 +153,7 @@ class _BoardColumn extends StatefulWidget {
   });
 
   final double width;
+  final DateTime today;
   final String title;
   final CueTaskStatus status;
   final List<CueTask> tasks;
@@ -211,18 +217,24 @@ class _BoardColumnState extends State<_BoardColumn> {
                         color: Colors.transparent,
                         child: SizedBox(
                           width: widget.width - 24,
-                          child: CueTaskCard(task: task, onOpen: () {}),
+                          child: CueTaskCard(
+                            task: task,
+                            referenceDate: widget.today,
+                            onOpen: () {},
+                          ),
                         ),
                       ),
                       childWhenDragging: Opacity(
                         opacity: 0.35,
                         child: CueTaskCard(
                           task: task,
+                          referenceDate: widget.today,
                           onOpen: () => widget.onOpenTask(task),
                         ),
                       ),
                       child: CueTaskCard(
                         task: task,
+                        referenceDate: widget.today,
                         onOpen: () => widget.onOpenTask(task),
                       ),
                     );
@@ -245,37 +257,110 @@ class _GroupedPreview extends StatelessWidget {
   });
 
   final TaskStore store;
-  final String group;
+  final _BoardGroup group;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
   Widget build(BuildContext context) {
     final tasks = store.tasks.where((task) => task.deletedAt == null).toList();
-    tasks.sort(
-      (a, b) => group == 'Priority'
-          ? a.priority.compareTo(b.priority)
-          : (a.dueAt ?? DateTime(2099)).compareTo(b.dueAt ?? DateTime(2099)),
-    );
-    return Container(
-      height: 720,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: CueColors.subtle,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 360,
-          mainAxisExtent: 96,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-        ),
-        itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          final task = tasks[index];
-          return CueTaskCard(task: task, onOpen: () => onOpenTask(task));
-        },
-      ),
+    final today = store.today;
+    final groups = group == _BoardGroup.priority
+        ? <(String, List<CueTask>)>[
+            for (var priority = 0; priority < 4; priority++)
+              (
+                'P$priority',
+                tasks.where((task) => task.priority == priority).toList(),
+              ),
+          ]
+        : <(String, List<CueTask>)>[
+            (
+              context.l10n.today,
+              tasks
+                  .where(
+                    (task) =>
+                        task.dueAt != null &&
+                        !TaskStore.dateOnly(task.dueAt!).isAfter(today),
+                  )
+                  .toList(),
+            ),
+            (
+              context.l10n.upcoming,
+              tasks
+                  .where(
+                    (task) =>
+                        task.dueAt != null &&
+                        TaskStore.dateOnly(task.dueAt!).isAfter(today),
+                  )
+                  .toList(),
+            ),
+            (
+              context.l10n.noDueDate,
+              tasks.where((task) => task.dueAt == null).toList(),
+            ),
+          ];
+    for (final (_, items) in groups) {
+      items.sort((a, b) {
+        final due = (a.dueAt ?? DateTime(2099)).compareTo(
+          b.dueAt ?? DateTime(2099),
+        );
+        return due != 0 ? due : a.sortOrder.compareTo(b.sortOrder);
+      });
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnWidth = constraints.maxWidth < 820
+            ? 300.0
+            : (constraints.maxWidth - (groups.length - 1) * 16) / groups.length;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var index = 0; index < groups.length; index++) ...[
+                if (index > 0) const SizedBox(width: 16),
+                Container(
+                  width: columnWidth,
+                  height: 720,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: CueColors.subtle,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${groups[index].$1} · ${groups[index].$2.length}',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: CueColors.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: groups[index].$2.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, taskIndex) {
+                            final task = groups[index].$2[taskIndex];
+                            return CueTaskCard(
+                              task: task,
+                              referenceDate: store.today,
+                              onOpen: () => onOpenTask(task),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 }
+
+enum _BoardGroup { status, priority, dueDate }

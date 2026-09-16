@@ -1,13 +1,15 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../data/task_store.dart';
+import '../data/sync_coordinator.dart';
+import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
 import 'cue_theme.dart';
 import 'cue_widgets.dart';
+import 'desktop/task_details_popover.dart';
+import 'language_menu.dart';
 import 'mobile/mobile_cue_home.dart';
 import 'views/board_view.dart';
 import 'views/calendar_view.dart';
@@ -42,38 +44,30 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   CueListFilter _listFilter = CueListFilter.today;
   final _quickAddController = TextEditingController();
   final _quickAddFocus = FocusNode();
-  Timer? _syncTimer;
+  late final SyncCoordinator _syncCoordinator;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.store.isRemote) {
-      _syncTimer = Timer.periodic(
-        const Duration(seconds: 12),
-        (_) => _syncSilently(),
-      );
-    }
+    _syncCoordinator = SyncCoordinator(widget.store)..start();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _syncSilently();
-  }
-
-  Future<void> _syncSilently() async {
-    if (!widget.store.isRemote) return;
-    try {
-      await widget.store.sync();
-    } catch (_) {
-      // The store exposes the error in Settings. Background polling stays quiet.
+    if (state == AppLifecycleState.resumed) {
+      _syncCoordinator.resume();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _syncCoordinator.pause();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _syncTimer?.cancel();
+    _syncCoordinator.dispose();
     _quickAddController.dispose();
     _quickAddFocus.dispose();
     super.dispose();
@@ -130,10 +124,14 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Sidebar(
+            store: widget.store,
             selected: _view,
             onSelect: _selectView,
             userEmail: widget.userEmail,
             onLogout: widget.onLogout,
+            serverUrl: widget.serverUrl,
+            onConfigureServer: widget.onConfigureServer,
+            onSync: () => _runTaskOperation(widget.store.sync),
           ),
           Expanded(child: _buildContent(desktop: true)),
         ],
@@ -178,8 +176,8 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                     title: _pageTitle,
                     subtitle: _pageSubtitle,
                     actionLabel: _view == CueView.calendar
-                        ? 'Today'
-                        : 'Add task',
+                        ? context.l10n.today
+                        : context.l10n.addTask,
                     onAction: _view == CueView.calendar
                         ? () => _selectView(CueView.today)
                         : () => _showAddTaskDialog(),
@@ -199,25 +197,26 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   }
 
   String get _pageTitle => switch (_view) {
-    CueView.inbox => 'Inbox',
-    CueView.today => 'Today',
-    CueView.upcoming => 'Upcoming',
-    CueView.list => 'All tasks',
-    CueView.board => 'Board',
-    CueView.calendar =>
-      '${_monthNames[widget.store.today.month - 1]} ${widget.store.today.year}',
-    CueView.quadrants => 'Quadrants',
+    CueView.inbox => context.l10n.inbox,
+    CueView.today => context.l10n.today,
+    CueView.upcoming => context.l10n.upcoming,
+    CueView.list => context.l10n.allTasks,
+    CueView.board => context.l10n.board,
+    CueView.calendar => formatMonthYear(context, widget.store.today),
+    CueView.quadrants => context.l10n.quadrants,
   };
 
   String get _pageSubtitle => switch (_view) {
-    CueView.inbox => '${widget.store.activeTasks.length} open tasks',
+    CueView.inbox => context.l10n.openTaskCount(
+      widget.store.activeTasks.length,
+    ),
     CueView.today =>
-      '${_weekdayNames[widget.store.today.weekday - 1]}, ${_monthNames[widget.store.today.month - 1]} ${widget.store.today.day} · ${widget.store.todayTasks.length} tasks',
-    CueView.upcoming => 'Plan what comes next',
-    CueView.list => 'One task model, every active item',
-    CueView.board => 'Three focused stages, one task model',
-    CueView.calendar => 'Month view · Due dates only',
-    CueView.quadrants => 'Importance × urgency · urgency within 2 days',
+      '${formatLongDate(context, widget.store.today)} · ${context.l10n.taskCount(widget.store.todayTasks.length)}',
+    CueView.upcoming => context.l10n.planWhatComesNext,
+    CueView.list => context.l10n.oneTaskModel,
+    CueView.board => context.l10n.threeStages,
+    CueView.calendar => context.l10n.monthViewDueOnly,
+    CueView.quadrants => context.l10n.importanceUrgencyTwoDays,
   };
 
   Widget get _pageBody => switch (_view) {
@@ -270,10 +269,10 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
     if (succeeded && mounted) {
       _quickAddController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Task added to Today'),
+        SnackBar(
+          content: Text(context.l10n.taskAddedToday),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -304,9 +303,9 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
               titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
               contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
               actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              title: const Text(
-                'New task',
-                style: TextStyle(
+              title: Text(
+                context.l10n.newTask,
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   color: CueColors.primary,
@@ -322,16 +321,18 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                       TextField(
                         controller: titleController,
                         autofocus: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Task title',
-                          hintText: 'What needs to move next?',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.taskTitle,
+                          hintText: context.l10n.taskTitleHint,
                         ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
                         controller: noteController,
                         maxLines: 3,
-                        decoration: const InputDecoration(labelText: 'Note'),
+                        decoration: InputDecoration(
+                          labelText: context.l10n.note,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -339,8 +340,8 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                           Expanded(
                             child: DropdownButtonFormField<int>(
                               initialValue: priority,
-                              decoration: const InputDecoration(
-                                labelText: 'Priority',
+                              decoration: InputDecoration(
+                                labelText: context.l10n.priority,
                               ),
                               items: List.generate(
                                 4,
@@ -357,21 +358,21 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                           Expanded(
                             child: DropdownButtonFormField<CueTaskStatus>(
                               initialValue: status,
-                              decoration: const InputDecoration(
-                                labelText: 'Status',
+                              decoration: InputDecoration(
+                                labelText: context.l10n.status,
                               ),
-                              items: const [
+                              items: [
                                 DropdownMenuItem(
                                   value: CueTaskStatus.todo,
-                                  child: Text('To do'),
+                                  child: Text(context.l10n.toDo),
                                 ),
                                 DropdownMenuItem(
                                   value: CueTaskStatus.doing,
-                                  child: Text('Doing'),
+                                  child: Text(context.l10n.doing),
                                 ),
                                 DropdownMenuItem(
                                   value: CueTaskStatus.done,
-                                  child: Text('Done'),
+                                  child: Text(context.l10n.done),
                                 ),
                               ],
                               onChanged: (value) => setModalState(
@@ -384,8 +385,8 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<DateTime?>(
                         initialValue: dueAt,
-                        decoration: const InputDecoration(
-                          labelText: 'Due date',
+                        decoration: InputDecoration(
+                          labelText: context.l10n.dueDate,
                         ),
                         items: _dueDateChoices(dueAt),
                         onChanged: (value) =>
@@ -396,8 +397,8 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                         value: important,
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
-                        title: const Text('Important'),
-                        subtitle: const Text('Used by the quadrant view'),
+                        title: Text(context.l10n.important),
+                        subtitle: Text(context.l10n.quadrantUsage),
                         onChanged: (value) =>
                             setModalState(() => important = value ?? false),
                       ),
@@ -408,7 +409,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: Text(context.l10n.cancel),
                 ),
                 FilledButton(
                   onPressed: () async {
@@ -433,7 +434,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text('Add task'),
+                  child: Text(context.l10n.addTask),
                 ),
               ],
             );
@@ -446,160 +447,23 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   }
 
   Future<void> _showTaskDetails(CueTask initialTask) async {
-    var task = initialTask;
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return AlertDialog(
-              contentPadding: const EdgeInsets.all(24),
-              content: SizedBox(
-                width: 392,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            task.title,
-                            style: const TextStyle(
-                              color: CueColors.primary,
-                              fontSize: 22,
-                              height: 28 / 22,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          icon: const Icon(Icons.close, size: 20),
-                          tooltip: 'Close',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      task.note.isEmpty
-                          ? 'A focused next action in your Cue workspace.'
-                          : task.note,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 24),
-                    _DetailLine(
-                      label: 'Due',
-                      value: cueDueLabel(task).replaceFirst('Due ', ''),
-                    ),
-                    const SizedBox(height: 12),
-                    _DetailLine(label: 'Priority', value: 'P${task.priority}'),
-                    const SizedBox(height: 12),
-                    _DetailLine(
-                      label: 'Status',
-                      value: switch (task.status) {
-                        CueTaskStatus.todo => 'To do',
-                        CueTaskStatus.doing => 'Doing',
-                        CueTaskStatus.done => 'Done',
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      value: task.important,
-                      activeTrackColor: CueColors.accent,
-                      title: const Text('Important'),
-                      subtitle: const Text('Controls the quadrant projection'),
-                      onChanged: (_) async {
-                        final succeeded = await _runTaskOperation(
-                          () => widget.store.toggleImportant(task),
-                        );
-                        if (!succeeded || !dialogContext.mounted) return;
-                        task = widget.store.tasks.firstWhere(
-                          (item) => item.id == task.id,
-                        );
-                        setModalState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              final succeeded = await _runTaskOperation(
-                                () => widget.store.moveToStatus(
-                                  task,
-                                  CueTaskStatus.doing,
-                                ),
-                              );
-                              if (succeeded && dialogContext.mounted) {
-                                Navigator.pop(dialogContext);
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: CueColors.primary,
-                              side: const BorderSide(color: CueColors.border),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Move to Doing'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () async {
-                              final succeeded = await _runTaskOperation(
-                                () => widget.store.toggleComplete(task),
-                              );
-                              if (succeeded && dialogContext.mounted) {
-                                Navigator.pop(dialogContext);
-                              }
-                            },
-                            style: FilledButton.styleFrom(
-                              backgroundColor: CueColors.accent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Text(
-                              task.isCompleted ? 'Reopen' : 'Complete',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.center,
-                      child: TextButton.icon(
-                        onPressed: () async {
-                          final confirmed = await _confirmDelete(task);
-                          if (!confirmed || !dialogContext.mounted) return;
-                          final succeeded = await _runTaskOperation(
-                            () => widget.store.deleteTask(task),
-                          );
-                          if (succeeded && dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                          }
-                        },
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        label: const Text('Delete task'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: CueColors.danger,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      barrierColor: Colors.transparent,
+      builder: (dialogContext) => TaskDetailsPopover(
+        initialTask: initialTask,
+        store: widget.store,
+        onRun: _runTaskOperation,
+        onClose: () => Navigator.pop(dialogContext),
+        onDelete: (task) async {
+          final confirmed = await _confirmDelete(task);
+          if (!confirmed || !dialogContext.mounted) return;
+          final succeeded = await _runTaskOperation(
+            () => widget.store.deleteTask(task),
+          );
+          if (succeeded && dialogContext.mounted) Navigator.pop(dialogContext);
+        },
+      ),
     );
   }
 
@@ -607,22 +471,19 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete task?'),
-            content: Text(
-              '“${task.title}” will be removed from every view. '
-              'The server keeps a sync tombstone so other sessions can apply the deletion.',
-            ),
+            title: Text(context.l10n.deleteTaskQuestion),
+            content: Text(context.l10n.deleteTaskExplanation(task.title)),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(context.l10n.cancel),
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: FilledButton.styleFrom(
                   backgroundColor: CueColors.danger,
                 ),
-                child: const Text('Delete'),
+                child: Text(context.l10n.delete),
               ),
             ],
           ),
@@ -642,12 +503,12 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
     return values.where((value) => seen.add(value?.millisecondsSinceEpoch)).map(
       (value) {
         final label = value == null
-            ? 'No due date'
+            ? context.l10n.noDueDate
             : TaskStore.isSameDay(value, today)
-            ? 'Today · 18:00'
+            ? '${context.l10n.today} · 18:00'
             : TaskStore.isSameDay(value, today.add(const Duration(days: 1)))
-            ? 'Tomorrow · 18:00'
-            : '${_monthNames[value.month - 1]} ${value.day} · 18:00';
+            ? '${context.l10n.tomorrow} · 18:00'
+            : '${formatShortMonthDay(context, value)} · 18:00';
         return DropdownMenuItem(value: value, child: Text(label));
       },
     ).toList();
@@ -670,31 +531,6 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
       return false;
     }
   }
-
-  static const _monthNames = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
-
-  static const _weekdayNames = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
 }
 
 class _FocusQuickAddIntent extends Intent {
@@ -703,16 +539,24 @@ class _FocusQuickAddIntent extends Intent {
 
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
+    required this.store,
     required this.selected,
     required this.onSelect,
     required this.userEmail,
     required this.onLogout,
+    required this.serverUrl,
+    required this.onConfigureServer,
+    required this.onSync,
   });
 
+  final TaskStore store;
   final CueView selected;
   final ValueChanged<CueView> onSelect;
   final String? userEmail;
   final Future<void> Function()? onLogout;
+  final String? serverUrl;
+  final VoidCallback? onConfigureServer;
+  final Future<bool> Function() onSync;
 
   @override
   Widget build(BuildContext context) {
@@ -736,10 +580,10 @@ class _Sidebar extends StatelessWidget {
               letterSpacing: -0.2,
             ),
           ),
-          const SizedBox(height: 2),
-          const Text(
-            'Move what’s next',
-            style: TextStyle(
+          const SizedBox(height: 8),
+          Text(
+            context.l10n.tagline,
+            style: const TextStyle(
               color: CueColors.tertiary,
               fontSize: 11,
               height: 13 / 11,
@@ -747,19 +591,19 @@ class _Sidebar extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Inbox',
+            label: context.l10n.inbox,
             selected: selected == CueView.inbox,
             onTap: () => onSelect(CueView.inbox),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Today',
+            label: context.l10n.today,
             selected: selected == CueView.today,
             onTap: () => onSelect(CueView.today),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Upcoming',
+            label: context.l10n.upcoming,
             selected: selected == CueView.upcoming,
             onTap: () => onSelect(CueView.upcoming),
           ),
@@ -770,29 +614,42 @@ class _Sidebar extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'List',
+            label: context.l10n.list,
             selected: selected == CueView.list,
             onTap: () => onSelect(CueView.list),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Board',
+            label: context.l10n.board,
             selected: selected == CueView.board,
             onTap: () => onSelect(CueView.board),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Calendar',
+            label: context.l10n.calendar,
             selected: selected == CueView.calendar,
             onTap: () => onSelect(CueView.calendar),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
-            label: 'Quadrants',
+            label: context.l10n.quadrants,
             selected: selected == CueView.quadrants,
             onTap: () => onSelect(CueView.quadrants),
           ),
           const Spacer(),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: LanguageMenuButton(showLabel: true),
+          ),
+          if (serverUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+              child: Text(
+                serverUrl!,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: CueColors.tertiary, fontSize: 11),
+              ),
+            ),
           Container(
             width: 220,
             padding: const EdgeInsets.all(12),
@@ -805,15 +662,22 @@ class _Sidebar extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(
-                    color: CueColors.green,
+                  decoration: BoxDecoration(
+                    color: store.lastError == null
+                        ? CueColors.green
+                        : CueColors.danger,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 9),
                 Expanded(
                   child: Text(
-                    userEmail == null ? 'Synced' : '$userEmail · Synced',
+                    store.lastError ??
+                        (store.isSyncing
+                            ? context.l10n.syncing
+                            : userEmail == null
+                            ? context.l10n.synced
+                            : context.l10n.userSynced(userEmail!)),
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: CueColors.secondary,
@@ -821,12 +685,26 @@ class _Sidebar extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (store.isRemote)
+                  IconButton(
+                    onPressed: store.isSyncing ? null : onSync,
+                    icon: const Icon(Icons.sync_rounded, size: 17),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: context.l10n.syncNow,
+                  ),
+                if (onConfigureServer != null)
+                  IconButton(
+                    onPressed: onConfigureServer,
+                    icon: const Icon(Icons.dns_outlined, size: 17),
+                    visualDensity: VisualDensity.compact,
+                    tooltip: context.l10n.changeServer,
+                  ),
                 if (onLogout != null)
                   IconButton(
                     onPressed: onLogout,
                     icon: const Icon(Icons.logout_rounded, size: 16),
                     visualDensity: VisualDensity.compact,
-                    tooltip: 'Sign out',
+                    tooltip: context.l10n.signOut,
                   ),
               ],
             ),
@@ -941,7 +819,7 @@ class _PageHeader extends StatelessWidget {
           const SizedBox(width: 16),
           CueActionButton(
             label: actionLabel,
-            primary: actionLabel != 'Today',
+            primary: actionLabel != context.l10n.today,
             onPressed: onAction,
           ),
         ],
@@ -1000,19 +878,19 @@ class _TaskListView extends StatelessWidget {
             child: Row(
               children: [
                 CueViewTab(
-                  label: 'Today',
+                  label: context.l10n.today,
                   selected: filter == CueListFilter.today,
                   onTap: () => onFilterChanged(CueListFilter.today),
                 ),
                 const SizedBox(width: 8),
                 CueViewTab(
-                  label: 'Upcoming',
+                  label: context.l10n.upcoming,
                   selected: filter == CueListFilter.upcoming,
                   onTap: () => onFilterChanged(CueListFilter.upcoming),
                 ),
                 const SizedBox(width: 8),
                 CueViewTab(
-                  label: 'Completed',
+                  label: context.l10n.completed,
                   selected: filter == CueListFilter.completed,
                   onTap: () => onFilterChanged(CueListFilter.completed),
                 ),
@@ -1023,8 +901,8 @@ class _TaskListView extends StatelessWidget {
         ],
         Text(
           view == CueView.today
-              ? 'Focus for today'
-              : _sectionTitle(view, tasks.length),
+              ? context.l10n.focusForToday
+              : _sectionTitle(context, view, tasks.length),
           style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(color: CueColors.secondary),
         ),
@@ -1038,11 +916,12 @@ class _TaskListView extends StatelessWidget {
               child: CueTaskRow(
                 key: ValueKey(task.id),
                 task: task,
+                referenceDate: store.today,
                 metaOverride:
                     view == CueView.today &&
                         filter == CueListFilter.today &&
                         task.id == 'lab-calibration'
-                    ? 'No time · Operations'
+                    ? '${context.l10n.noTime} · ${context.l10n.operations}'
                     : null,
                 onToggle: () async {
                   try {
@@ -1059,12 +938,13 @@ class _TaskListView extends StatelessWidget {
     );
   }
 
-  static String _sectionTitle(CueView view, int count) => switch (view) {
-    CueView.inbox => 'Open tasks · $count',
-    CueView.upcoming => 'Coming up · $count',
-    CueView.list => 'All tasks · $count',
-    _ => 'Tasks · $count',
-  };
+  static String _sectionTitle(BuildContext context, CueView view, int count) =>
+      switch (view) {
+        CueView.inbox => context.l10n.openTasksLabel(count),
+        CueView.upcoming => context.l10n.comingUpLabel(count),
+        CueView.list => context.l10n.allTasksLabel(count),
+        _ => context.l10n.tasksLabel(count),
+      };
 }
 
 class _QuickCapture extends StatelessWidget {
@@ -1103,15 +983,15 @@ class _QuickCapture extends StatelessWidget {
                 fontSize: 13,
                 height: 18 / 13,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
                 filled: false,
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
-                hintText: 'Add a task…  try “PCB review tomorrow 10:30”',
-                hintStyle: TextStyle(color: CueColors.tertiary),
+                hintText: context.l10n.quickAddHint,
+                hintStyle: const TextStyle(color: CueColors.tertiary),
               ),
             ),
           ),
@@ -1126,7 +1006,7 @@ class _QuickCapture extends StatelessWidget {
             ),
             const SizedBox(width: 12),
           ],
-          CueActionButton(label: 'Add', onPressed: onAdd),
+          CueActionButton(label: context.l10n.add, onPressed: onAdd),
         ],
       ),
     );
@@ -1146,36 +1026,10 @@ class _EmptyTaskList extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        'Nothing here — enjoy the space.',
+        context.l10n.emptyList,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: CueColors.tertiary),
       ),
-    );
-  }
-}
-
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 84,
-          child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(fontSize: 14),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/cue_task.dart';
 import 'token_store.dart';
@@ -154,6 +157,51 @@ class ApiClient {
     );
   }
 
+  Stream<int> watchRevisions() async* {
+    final client = http.Client();
+    try {
+      Future<http.StreamedResponse> connect() async {
+        final accessToken = await _tokens.accessToken;
+        if (accessToken == null) {
+          throw const ApiException('Please sign in again', statusCode: 401);
+        }
+        final request = http.Request('GET', Uri.parse(_url('/sync/events')))
+          ..headers.addAll({
+            'authorization': 'Bearer $accessToken',
+            'accept': 'text/event-stream',
+            'cache-control': 'no-cache',
+          });
+        return client.send(request).timeout(const Duration(seconds: 10));
+      }
+
+      var response = await connect();
+      if (response.statusCode == 401) {
+        await response.stream.drain<void>();
+        await _refreshOnce();
+        response = await connect();
+      }
+      if (response.statusCode != 200) {
+        throw ApiException(
+          'Update stream failed (${response.statusCode})',
+          statusCode: response.statusCode,
+        );
+      }
+      if (!(response.headers['content-type'] ?? '').startsWith(
+        'text/event-stream',
+      )) {
+        throw const ApiException(
+          'Update stream returned an unexpected response',
+        );
+      }
+
+      // Catch changes between the initial task load and opening the stream.
+      yield 0;
+      yield* parseSseRevisions(response.stream);
+    } finally {
+      client.close();
+    }
+  }
+
   Future<Response<T>> _authorized<T>(
     Future<Response<T>> Function(Options options) request,
   ) async {
@@ -230,6 +278,33 @@ class ApiClient {
               : 'Request failed (${error.response?.statusCode})'),
       statusCode: error.response?.statusCode,
     );
+  }
+}
+
+Stream<int> parseSseRevisions(Stream<List<int>> bytes) async* {
+  var event = '';
+  final data = <String>[];
+  await for (final line
+      in bytes.transform(utf8.decoder).transform(const LineSplitter())) {
+    if (line.isEmpty) {
+      if (event == 'change' && data.isNotEmpty) {
+        try {
+          final payload = jsonDecode(data.join('\n')) as Map<String, dynamic>;
+          final revision = payload['revision'];
+          if (revision is int && revision > 0) yield revision;
+        } on FormatException {
+          // A malformed notification cannot advance the sync cursor.
+        } on TypeError {
+          // Ignore events that do not contain a revision.
+        }
+      }
+      event = '';
+      data.clear();
+    } else if (line.startsWith('event:')) {
+      event = line.substring(6).trim();
+    } else if (line.startsWith('data:')) {
+      data.add(line.substring(5).trimLeft());
+    }
   }
 }
 

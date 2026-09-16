@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../data/task_store.dart';
+import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
@@ -28,6 +29,28 @@ class _CalendarViewState extends State<CalendarView> {
 
   @override
   Widget build(BuildContext context) {
+    final today = widget.store.today;
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+    final scheduled = widget.store.tasks.where(
+      (task) =>
+          task.deletedAt == null &&
+          task.dueAt != null &&
+          task.dueAt!.year == today.year &&
+          task.dueAt!.month == today.month,
+    );
+    final dueThisWeek = scheduled
+        .where(
+          (task) =>
+              !task.isCompleted &&
+              !task.dueAt!.isBefore(weekStart) &&
+              task.dueAt!.isBefore(weekEnd),
+        )
+        .length;
+    final month = DateTime(today.year, today.month);
+    final leadingDays = month.weekday - 1;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final weekCount = ((leadingDays + daysInMonth + 6) ~/ 7);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -35,17 +58,21 @@ class _CalendarViewState extends State<CalendarView> {
           height: 40,
           child: Row(
             children: [
-              CueViewTab(label: 'Month', selected: true, onTap: () {}),
+              CueViewTab(
+                label: context.l10n.month,
+                selected: true,
+                onTap: () {},
+              ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: 'Due only',
+                label: context.l10n.dueOnly,
                 selected: _dueOnly,
                 onTap: () => setState(() => _dueOnly = !_dueOnly),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  '12 scheduled · 4 due this week',
+                  context.l10n.scheduledSummary(scheduled.length, dueThisWeek),
                   style: Theme.of(context).textTheme.labelSmall
                       ?.copyWith(color: CueColors.tertiary),
                 ),
@@ -65,10 +92,11 @@ class _CalendarViewState extends State<CalendarView> {
                     const _WeekdayHeader(),
                     const SizedBox(height: 24),
                     SizedBox(
-                      height: 792,
+                      height: weekCount * 132,
                       child: _MonthGrid(
                         width: calendarWidth,
                         store: widget.store,
+                        weekCount: weekCount,
                         dueOnly: _dueOnly,
                         onOpenTask: widget.onOpenTask,
                         onSelectDay: widget.onSelectDay,
@@ -88,10 +116,12 @@ class _CalendarViewState extends State<CalendarView> {
 class _WeekdayHeader extends StatelessWidget {
   const _WeekdayHeader();
 
-  static const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-
   @override
   Widget build(BuildContext context) {
+    final days = List.generate(
+      7,
+      (index) => formatNarrowWeekday(context, DateTime(2024, 1, index + 1)),
+    );
     return SizedBox(
       height: 28,
       child: Row(
@@ -121,6 +151,7 @@ class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
     required this.width,
     required this.store,
+    required this.weekCount,
     required this.dueOnly,
     required this.onOpenTask,
     required this.onSelectDay,
@@ -128,6 +159,7 @@ class _MonthGrid extends StatelessWidget {
 
   final double width;
   final TaskStore store;
+  final int weekCount;
   final bool dueOnly;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<DateTime> onSelectDay;
@@ -136,9 +168,12 @@ class _MonthGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final month = DateTime(store.today.year, store.today.month);
     final first = month.subtract(Duration(days: month.weekday - 1));
-    final days = List.generate(42, (index) => first.add(Duration(days: index)));
+    final days = List.generate(
+      weekCount * 7,
+      (index) => first.add(Duration(days: index)),
+    );
     return Column(
-      children: List.generate(6, (week) {
+      children: List.generate(weekCount, (week) {
         return SizedBox(
           height: 132,
           child: Row(

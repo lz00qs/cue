@@ -71,3 +71,67 @@ test('login, task CRUD and tombstone sync', { skip: !baseUrl }, async () => {
   assert.ok(tombstone.deletedAt);
   assert.ok(sync.latestRevision >= tombstone.revision);
 });
+
+test('SSE announces a committed task revision', { skip: !baseUrl }, async () => {
+  const login = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  assert.equal(login.status, 201);
+  const { accessToken } = await login.json();
+  const headers = {
+    authorization: `Bearer ${accessToken}`,
+    'content-type': 'application/json',
+  };
+  const denied = await fetch(`${baseUrl}/api/sync/events`);
+  assert.equal(denied.status, 401);
+
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), 10000);
+  let created;
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/events`, {
+      headers,
+      signal: abort.signal,
+    });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /text\/event-stream/);
+    const reader = response.body.getReader();
+
+    const createdResponse = await fetch(`${baseUrl}/api/tasks`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ title: `SSE ${Date.now()}`, priority: 2 }),
+    });
+    assert.equal(createdResponse.status, 201);
+    created = await createdResponse.json();
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let announced;
+    while (announced == null) {
+      const { value, done } = await reader.read();
+      assert.equal(done, false, 'SSE stream closed before the task event');
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split(/\r?\n\r?\n/);
+      buffer = frames.pop();
+      for (const frame of frames) {
+        if (!frame.includes('event: change')) continue;
+        const data = frame.split(/\r?\n/).find((line) => line.startsWith('data:'));
+        if (data) announced = JSON.parse(data.slice(5).trim()).revision;
+      }
+    }
+    assert.equal(announced, created.revision);
+  } finally {
+    abort.abort();
+    clearTimeout(timeout);
+    if (created) {
+      await fetch(`${baseUrl}/api/tasks/${created.id}`, {
+        method: 'DELETE',
+        headers,
+        body: JSON.stringify({ version: created.version }),
+      });
+    }
+  }
+});

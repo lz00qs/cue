@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cue/data/api_client.dart';
+import 'package:cue/l10n/l10n.dart';
+import 'package:cue/ui/language_menu.dart';
 import 'package:cue/ui/login_screen.dart';
 import 'package:cue/ui/server_connection_screen.dart';
 
@@ -30,7 +33,7 @@ void main() {
     String? connectedUrl;
 
     await tester.pumpWidget(
-      MaterialApp(
+      _localizedApp(
         home: ServerConnectionScreen(
           onConnect: (serverUrl) async => connectedUrl = serverUrl,
         ),
@@ -52,7 +55,7 @@ void main() {
   ) async {
     var changeRequested = false;
     await tester.pumpWidget(
-      MaterialApp(
+      _localizedApp(
         home: LoginScreen(
           serverUrl: 'http://10.0.2.2:8080',
           onChangeServer: () => changeRequested = true,
@@ -65,4 +68,23 @@ void main() {
     await tester.tap(find.byKey(const Key('change-server-button')));
     expect(changeRequested, isTrue);
   });
+}
+
+Widget _localizedApp({required Widget home}) {
+  return MaterialApp(
+    locale: const Locale('en'),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    builder: (context, child) => CueLocaleScope(
+      locale: const Locale('en'),
+      onLocaleChanged: (_) {},
+      child: child ?? const SizedBox.shrink(),
+    ),
+    home: home,
+  );
 }

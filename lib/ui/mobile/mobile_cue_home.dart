@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../data/task_store.dart';
+import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
+import '../language_menu.dart';
 
 abstract final class _MobileColors {
   static const canvas = Color(0xFF0B0C10);
@@ -128,7 +130,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
     await showDialog<void>(
       context: context,
       barrierColor: _MobileColors.canvas.withValues(alpha: 0.68),
-      barrierLabel: 'Close task details',
+      barrierLabel: context.l10n.closeTaskDetails,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
@@ -227,9 +229,9 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                     children: [
                       const _SheetHandle(),
                       const SizedBox(height: 16),
-                      const Text(
-                        'New task',
-                        style: TextStyle(
+                      Text(
+                        context.l10n.newTask,
+                        style: const TextStyle(
                           color: _MobileColors.primary,
                           fontSize: 20,
                           height: 25 / 20,
@@ -239,17 +241,20 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                       const SizedBox(height: 16),
                       _MobileTextField(
                         controller: titleController,
-                        label: 'Task title',
+                        label: context.l10n.taskTitle,
                         autofocus: true,
                       ),
                       const SizedBox(height: 10),
                       _MobileTextField(
                         controller: noteController,
-                        label: 'Notes',
+                        label: context.l10n.notes,
                         maxLines: 3,
                       ),
                       const SizedBox(height: 16),
-                      const Text('PRIORITY', style: _mobileEyebrowStyle),
+                      Text(
+                        context.l10n.priorityUpper,
+                        style: _mobileEyebrowStyle,
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: List.generate(4, (index) {
@@ -269,7 +274,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                         children: [
                           Expanded(
                             child: _DateChoice(
-                              label: 'Today',
+                              label: context.l10n.today,
                               selected: TaskStore.isSameDay(dueAt, today),
                               onTap: () => setSheetState(
                                 () => dueAt = DateTime(
@@ -284,7 +289,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: _DateChoice(
-                              label: 'Tomorrow',
+                              label: context.l10n.tomorrow,
                               selected: TaskStore.isSameDay(
                                 dueAt,
                                 today.add(const Duration(days: 1)),
@@ -310,13 +315,15 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                         contentPadding: EdgeInsets.zero,
                         value: important,
                         activeTrackColor: _MobileColors.accent,
-                        title: const Text(
-                          'Important',
-                          style: TextStyle(color: _MobileColors.primary),
+                        title: Text(
+                          context.l10n.important,
+                          style: const TextStyle(color: _MobileColors.primary),
                         ),
-                        subtitle: const Text(
-                          'Show in priority quadrants',
-                          style: TextStyle(color: _MobileColors.secondary),
+                        subtitle: Text(
+                          context.l10n.showInPriorityQuadrants,
+                          style: const TextStyle(
+                            color: _MobileColors.secondary,
+                          ),
                         ),
                         onChanged: (value) =>
                             setSheetState(() => important = value),
@@ -346,7 +353,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                               Navigator.pop(sheetContext);
                             }
                           },
-                          child: const Text('Add task'),
+                          child: Text(context.l10n.addTask),
                         ),
                       ),
                     ],
@@ -400,10 +407,10 @@ class _MobileTodayPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
         children: [
           _MobileHeader(
-            title: showLater ? 'Later' : 'Today',
+            title: showLater ? context.l10n.later : context.l10n.today,
             subtitle: showLater
-                ? 'Plan what comes next'
-                : _longDate(store.today),
+                ? context.l10n.planWhatComesNext
+                : formatLongDate(context, store.today),
             onOpenBoard: onOpenBoard,
             onSync: onSync,
           ),
@@ -411,13 +418,13 @@ class _MobileTodayPage extends StatelessWidget {
           Row(
             children: [
               _MobilePill(
-                label: 'Today',
+                label: context.l10n.today,
                 selected: !showLater,
                 onTap: () => onFilterChanged(false),
               ),
               const SizedBox(width: 8),
               _MobilePill(
-                label: 'Later',
+                label: context.l10n.later,
                 selected: showLater,
                 onTap: () => onFilterChanged(true),
               ),
@@ -426,7 +433,7 @@ class _MobileTodayPage extends StatelessWidget {
           const SizedBox(height: 20),
           if (showLater)
             _TaskGroup(
-              label: 'UPCOMING',
+              label: context.l10n.upcomingUpper,
               tasks: tasks,
               store: store,
               onOpenTask: onOpenTask,
@@ -435,7 +442,7 @@ class _MobileTodayPage extends StatelessWidget {
           else ...[
             if (morning.isNotEmpty)
               _TaskGroup(
-                label: 'MORNING',
+                label: context.l10n.morning,
                 tasks: morning,
                 store: store,
                 onOpenTask: onOpenTask,
@@ -445,14 +452,14 @@ class _MobileTodayPage extends StatelessWidget {
               const SizedBox(height: 8),
             if (later.isNotEmpty)
               _TaskGroup(
-                label: 'LATER',
+                label: context.l10n.laterUpper,
                 tasks: later,
                 store: store,
                 onOpenTask: onOpenTask,
                 onToggleTask: onToggleTask,
               ),
           ],
-          if (tasks.isEmpty) const _MobileEmptyState(label: 'All clear'),
+          if (tasks.isEmpty) _MobileEmptyState(label: context.l10n.allClear),
         ],
       ),
     );
@@ -554,9 +561,10 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
         children: [
           _MobileHeader(
-            title: 'Board',
-            subtitle:
-                'Swipe stages · ${widget.store.activeTasks.length} open tasks',
+            title: context.l10n.board,
+            subtitle: context.l10n.swipeStages(
+              context.l10n.openTaskCount(widget.store.activeTasks.length),
+            ),
             boardIsOpen: true,
             onOpenBoard: widget.onBackToToday,
             onSync: widget.onSync,
@@ -569,7 +577,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
                   right: status == CueTaskStatus.done ? 0 : 8,
                 ),
                 child: _MobilePill(
-                  label: status.name.toUpperCase(),
+                  label: _statusLabel(context, status, uppercase: true),
                   selected: widget.status == status,
                   onTap: () => widget.onStatusChanged(status),
                 ),
@@ -578,7 +586,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
           ),
           const SizedBox(height: 20),
           Text(
-            '${widget.status.name.toUpperCase()} · ${widget.store.tasksForStatus(widget.status).length}',
+            '${_statusLabel(context, widget.status, uppercase: true)} · ${widget.store.tasksForStatus(widget.status).length}',
             style: const TextStyle(
               color: _MobileColors.secondary,
               fontSize: 13,
@@ -652,20 +660,23 @@ class _MobileCalendarPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
         children: [
           _MobileHeader(
-            title: _monthNames[month.month - 1],
-            subtitle: '${month.year} · month overview',
+            title: formatMonthName(context, month),
+            subtitle: context.l10n.monthOverview(month.year),
             onOpenBoard: onOpenBoard,
             onSync: onSync,
           ),
           const SizedBox(height: 20),
           Row(
             children: [
-              for (final day in ['M', 'T', 'W', 'T', 'F', 'S', 'S'])
+              for (var index = 0; index < 7; index++)
                 Expanded(
                   child: SizedBox(
                     height: 20,
                     child: Text(
-                      day,
+                      formatNarrowWeekday(
+                        context,
+                        DateTime(2024, 1, index + 1),
+                      ),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: _MobileColors.tertiary,
@@ -703,9 +714,9 @@ class _MobileCalendarPage extends StatelessWidget {
             },
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Next up',
-            style: TextStyle(
+          Text(
+            context.l10n.nextUp,
+            style: const TextStyle(
               color: _MobileColors.secondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -720,7 +731,7 @@ class _MobileCalendarPage extends StatelessWidget {
               onToggle: () {},
             )
           else
-            const _MobileEmptyState(label: 'Nothing scheduled'),
+            _MobileEmptyState(label: context.l10n.nothingScheduled),
         ],
       ),
     );
@@ -744,26 +755,26 @@ class _MobileQuadrantsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final panels = [
       (
-        'Do now',
-        'Important · urgent',
+        context.l10n.doNow,
+        context.l10n.importantUrgent,
         _MobileColors.dangerBackground,
         store.quadrantTasks(important: true, urgent: true),
       ),
       (
-        'Schedule',
-        'Important · later',
+        context.l10n.schedule,
+        context.l10n.importantLater,
         _MobileColors.orangeBackground,
         store.quadrantTasks(important: true, urgent: false),
       ),
       (
-        'Batch',
-        'Urgent · lower value',
+        context.l10n.batch,
+        context.l10n.urgentLowerValue,
         const Color(0xFF1E2E68),
         store.quadrantTasks(important: false, urgent: true),
       ),
       (
-        'Reconsider',
-        'Neither',
+        context.l10n.reconsider,
+        context.l10n.neither,
         _MobileColors.subtle,
         store.quadrantTasks(important: false, urgent: false),
       ),
@@ -777,8 +788,8 @@ class _MobileQuadrantsPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
         children: [
           _MobileHeader(
-            title: 'Quadrants',
-            subtitle: 'Importance × urgency',
+            title: context.l10n.quadrants,
+            subtitle: context.l10n.importanceUrgency,
             onOpenBoard: onOpenBoard,
             onSync: onSync,
           ),
@@ -830,18 +841,24 @@ class _MobileSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final syncDetail = !store.isRemote
-        ? 'Local demo'
+        ? context.l10n.localDemo
         : store.isSyncing
-        ? 'Syncing…'
+        ? context.l10n.syncing
         : store.lastError != null
-        ? 'Needs attention'
-        : 'Connected';
+        ? context.l10n.needsAttention
+        : context.l10n.connected;
+    final locale = CueLocaleScope.of(context).locale;
+    final languageDetail = locale == null
+        ? context.l10n.systemDefault
+        : locale.languageCode == 'zh'
+        ? context.l10n.chinese
+        : context.l10n.english;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
       children: [
-        const Text(
-          'Settings',
-          style: TextStyle(
+        Text(
+          context.l10n.settings,
+          style: const TextStyle(
             color: _MobileColors.primary,
             fontSize: 20,
             height: 25 / 20,
@@ -850,9 +867,9 @@ class _MobileSettingsPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        const Text(
-          'Personalize Cue for the way you work',
-          style: TextStyle(
+        Text(
+          context.l10n.personalizeCue,
+          style: const TextStyle(
             color: _MobileColors.secondary,
             fontSize: 13,
             height: 18 / 13,
@@ -866,43 +883,50 @@ class _MobileSettingsPage extends StatelessWidget {
               : () => _showAccountSheet(context, email, onLogout!),
         ),
         const SizedBox(height: 16),
-        const Text('PREFERENCES', style: _mobileSectionStyle),
+        Text(context.l10n.preferences, style: _mobileSectionStyle),
         const SizedBox(height: 16),
-        const _SettingsRow(
+        _SettingsRow(
+          icon: Icons.language_rounded,
+          label: context.l10n.language,
+          detail: languageDetail,
+          trailing: const LanguageMenuButton(),
+        ),
+        const SizedBox(height: 8),
+        _SettingsRow(
           icon: Icons.contrast,
-          label: 'Appearance',
-          detail: 'Dark',
+          label: context.l10n.appearance,
+          detail: context.l10n.dark,
         ),
         const SizedBox(height: 8),
-        const _SettingsRow(
+        _SettingsRow(
           icon: Icons.schedule_outlined,
-          label: 'Date & time',
-          detail: 'System',
+          label: context.l10n.dateAndTime,
+          detail: context.l10n.system,
         ),
         const SizedBox(height: 8),
-        const _SettingsRow(
+        _SettingsRow(
           icon: Icons.notifications_none_rounded,
-          label: 'Reminders',
-          detail: '15 min before',
+          label: context.l10n.reminders,
+          detail: context.l10n.minutesBefore,
         ),
         const SizedBox(height: 8),
-        const _SettingsRow(
+        _SettingsRow(
           icon: Icons.grid_view_rounded,
-          label: 'Widgets',
-          detail: '2 active',
+          label: context.l10n.widgets,
+          detail: context.l10n.activeWidgetCount,
         ),
         const SizedBox(height: 8),
-        const _SettingsRow(
+        _SettingsRow(
           icon: Icons.auto_awesome_outlined,
-          label: 'AI features',
-          detail: 'On',
+          label: context.l10n.aiFeatures,
+          detail: context.l10n.on,
         ),
         const SizedBox(height: 16),
-        const Text('ACCOUNT & DATA', style: _mobileSectionStyle),
+        Text(context.l10n.accountAndData, style: _mobileSectionStyle),
         const SizedBox(height: 16),
         _SettingsRow(
           icon: Icons.sync_rounded,
-          label: 'Import & sync',
+          label: context.l10n.importAndSync,
           detail: syncDetail,
           trailing: store.isSyncing
               ? const SizedBox(
@@ -917,9 +941,9 @@ class _MobileSettingsPage extends StatelessWidget {
           onTap: store.isRemote ? () => _showSyncSheet(context) : null,
         ),
         const SizedBox(height: 8),
-        const _SettingsRow(
+        _SettingsRow(
           icon: Icons.help_outline_rounded,
-          label: 'Help & guide',
+          label: context.l10n.helpAndGuide,
         ),
       ],
     );
@@ -943,9 +967,9 @@ class _MobileSettingsPage extends StatelessWidget {
               children: [
                 const _SheetHandle(),
                 const SizedBox(height: 20),
-                const Text(
-                  'Multi-device sync',
-                  style: TextStyle(
+                Text(
+                  context.l10n.multiDeviceSync,
+                  style: const TextStyle(
                     color: _MobileColors.primary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -953,7 +977,7 @@ class _MobileSettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  store.lastError ?? 'Changes use the same Cue workspace on mobile, web, and desktop. Cue syncs in the background and whenever the app resumes.',
+                  store.lastError ?? context.l10n.syncDescription,
                   style: TextStyle(
                     color: store.lastError == null
                         ? _MobileColors.secondary
@@ -964,19 +988,27 @@ class _MobileSettingsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 _SyncFact(
-                  label: 'Status',
-                  value: store.isSyncing ? 'Syncing…' : 'Connected',
+                  label: context.l10n.status,
+                  value: store.isSyncing
+                      ? context.l10n.syncing
+                      : context.l10n.connected,
                 ),
                 const SizedBox(height: 8),
-                _SyncFact(label: 'Revision', value: '${store.latestRevision}'),
+                _SyncFact(
+                  label: context.l10n.revision,
+                  value: '${store.latestRevision}',
+                ),
                 const SizedBox(height: 8),
                 _SyncFact(
-                  label: 'Last synced',
-                  value: _syncTime(store.lastSyncedAt),
+                  label: context.l10n.lastSynced,
+                  value: _syncTime(context, store.lastSyncedAt),
                 ),
                 if (serverUrl != null) ...[
                   const SizedBox(height: 8),
-                  _SyncFact(label: 'Server', value: _serverLabel(serverUrl!)),
+                  _SyncFact(
+                    label: context.l10n.server,
+                    value: _serverLabel(serverUrl!),
+                  ),
                 ],
                 const SizedBox(height: 20),
                 SizedBox(
@@ -990,7 +1022,7 @@ class _MobileSettingsPage extends StatelessWidget {
                     ),
                     onPressed: store.isSyncing ? null : onSync,
                     icon: const Icon(Icons.sync_rounded, size: 18),
-                    label: const Text('Sync now'),
+                    label: Text(context.l10n.syncNow),
                   ),
                 ),
                 if (onConfigureServer != null) ...[
@@ -1010,7 +1042,7 @@ class _MobileSettingsPage extends StatelessWidget {
                         onConfigureServer!();
                       },
                       icon: const Icon(Icons.dns_outlined, size: 18),
-                      label: const Text('Change server'),
+                      label: Text(context.l10n.changeServer),
                     ),
                   ),
                 ],
@@ -1042,7 +1074,7 @@ class _MobileSettingsPage extends StatelessWidget {
             const _SheetHandle(),
             const SizedBox(height: 20),
             Text(
-              email ?? 'Cue workspace',
+              email ?? context.l10n.cueWorkspace,
               style: const TextStyle(
                 color: _MobileColors.primary,
                 fontSize: 18,
@@ -1061,7 +1093,7 @@ class _MobileSettingsPage extends StatelessWidget {
                 await onLogout();
               },
               icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('Sign out'),
+              label: Text(context.l10n.signOut),
             ),
           ],
         ),
@@ -1132,7 +1164,7 @@ class _MobileHeader extends StatelessWidget {
             top: 0,
             child: PopupMenuButton<String>(
               color: _MobileColors.card,
-              tooltip: 'More',
+              tooltip: context.l10n.more,
               padding: EdgeInsets.zero,
               onSelected: (value) {
                 if (value == 'board') onOpenBoard();
@@ -1142,15 +1174,17 @@ class _MobileHeader extends StatelessWidget {
                 PopupMenuItem(
                   value: 'board',
                   child: Text(
-                    boardIsOpen ? 'Back to Today' : 'Open Board',
+                    boardIsOpen
+                        ? context.l10n.backToToday
+                        : context.l10n.openBoard,
                     style: const TextStyle(color: _MobileColors.primary),
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'sync',
                   child: Text(
-                    'Sync now',
-                    style: TextStyle(color: _MobileColors.primary),
+                    context.l10n.syncNow,
+                    style: const TextStyle(color: _MobileColors.primary),
                   ),
                 ),
               ],
@@ -1273,7 +1307,7 @@ class _MobileTaskRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _mobileTaskMeta(task, today),
+                    _mobileTaskMeta(context, task, today),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1343,7 +1377,7 @@ class _MobileTaskCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    _mobileCompactMeta(task, today),
+                    _mobileCompactMeta(context, task, today),
                     style: const TextStyle(
                       color: _MobileColors.secondary,
                       fontSize: 12,
@@ -1531,10 +1565,22 @@ class _MobileBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (_MobileDestination.today, Icons.check_circle_outline_rounded, 'Today'),
-      (_MobileDestination.calendar, Icons.calendar_month_outlined, 'Calendar'),
-      (_MobileDestination.quadrants, Icons.grid_view_rounded, 'Quadrants'),
-      (_MobileDestination.settings, Icons.tune_rounded, 'Settings'),
+      (
+        _MobileDestination.today,
+        Icons.check_circle_outline_rounded,
+        context.l10n.today,
+      ),
+      (
+        _MobileDestination.calendar,
+        Icons.calendar_month_outlined,
+        context.l10n.calendar,
+      ),
+      (
+        _MobileDestination.quadrants,
+        Icons.grid_view_rounded,
+        context.l10n.quadrants,
+      ),
+      (_MobileDestination.settings, Icons.tune_rounded, context.l10n.settings),
     ];
     return Container(
       height: 84,
@@ -1677,7 +1723,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                   const SizedBox(width: 20),
                   Expanded(
                     child: Text(
-                      _mobileCompactMeta(task, store.today),
+                      _mobileCompactMeta(context, task, store.today),
                       style: const TextStyle(
                         color: _MobileColors.secondary,
                         fontSize: 13,
@@ -1689,7 +1735,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                     onPressed: onClose,
                     color: _MobileColors.secondary,
                     icon: const Icon(Icons.close, size: 18),
-                    tooltip: 'Close task details',
+                    tooltip: context.l10n.closeTaskDetails,
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -1712,7 +1758,7 @@ class _TaskDetailsDialog extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: Text(
-                '${_area(task)} · Created ${_createdLabel(task, store.today)}',
+                '${_area(context, task)} · ${context.l10n.createdOn(_createdLabel(context, task, store.today))}',
                 style: const TextStyle(
                   color: _MobileColors.secondary,
                   fontSize: 13,
@@ -1722,9 +1768,7 @@ class _TaskDetailsDialog extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: Text(
-                task.note.isEmpty
-                    ? 'A focused next action in your Cue workspace.'
-                    : task.note,
+                task.note.isEmpty ? context.l10n.defaultTaskNote : task.note,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -1734,11 +1778,14 @@ class _TaskDetailsDialog extends StatelessWidget {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(24, 10, 24, 0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
               child: Text(
-                '+  Add notes or a checklist…',
-                style: TextStyle(color: _MobileColors.tertiary, fontSize: 13),
+                context.l10n.addNotesChecklist,
+                style: const TextStyle(
+                  color: _MobileColors.tertiary,
+                  fontSize: 13,
+                ),
               ),
             ),
             const Spacer(),
@@ -1759,9 +1806,9 @@ class _TaskDetailsDialog extends StatelessWidget {
                     onPressed: () => onRun(
                       () => store.moveToStatus(task, CueTaskStatus.todo),
                     ),
-                    child: const Text(
-                      'Inbox',
-                      style: TextStyle(color: _MobileColors.primary),
+                    child: Text(
+                      context.l10n.inbox,
+                      style: const TextStyle(color: _MobileColors.primary),
                     ),
                   ),
                   const Spacer(),
@@ -1774,9 +1821,9 @@ class _TaskDetailsDialog extends StatelessWidget {
                     onPressed: () => onRun(
                       () => store.moveToStatus(task, CueTaskStatus.doing),
                     ),
-                    child: const Text(
-                      'Doing',
-                      style: TextStyle(color: _MobileColors.secondary),
+                    child: Text(
+                      context.l10n.doing,
+                      style: const TextStyle(color: _MobileColors.secondary),
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -1792,19 +1839,19 @@ class _TaskDetailsDialog extends StatelessWidget {
                         await onRun(() => store.deleteTask(task));
                       }
                     },
-                    itemBuilder: (_) => const [
+                    itemBuilder: (_) => [
                       PopupMenuItem(
                         value: 'complete',
                         child: Text(
-                          'Toggle complete',
-                          style: TextStyle(color: _MobileColors.primary),
+                          context.l10n.toggleComplete,
+                          style: const TextStyle(color: _MobileColors.primary),
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text(
-                          'Delete',
-                          style: TextStyle(color: _MobileColors.danger),
+                          context.l10n.delete,
+                          style: const TextStyle(color: _MobileColors.danger),
                         ),
                       ),
                     ],
@@ -1865,16 +1912,16 @@ class _ProfileSummary extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Cue workspace',
-                    style: TextStyle(
+                  Text(
+                    context.l10n.cueWorkspace,
+                    style: const TextStyle(
                       color: _MobileColors.primary,
                       fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    email ?? 'Focus streak · 12 days',
+                    email ?? context.l10n.focusStreak,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -2122,40 +2169,40 @@ const _mobileSectionStyle = TextStyle(
   letterSpacing: 0.1,
 );
 
-String _longDate(DateTime date) {
-  return '${_weekdayNames[date.weekday - 1]}, ${_monthNames[date.month - 1]} ${date.day}';
-}
-
-String _mobileTaskMeta(CueTask task, DateTime today) {
+String _mobileTaskMeta(BuildContext context, CueTask task, DateTime today) {
+  final l10n = context.l10n;
   if (task.isCompleted && task.completedAt != null) {
-    return 'Completed ${_time(task.completedAt!)}';
+    return l10n.completedAt(_time(task.completedAt!));
   }
-  if (task.dueAt == null) return 'No time';
+  if (task.dueAt == null) return l10n.noTime;
   final time = _hasTime(task.dueAt!) ? _time(task.dueAt!) : null;
   if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return '${time ?? 'Today'} · ${_area(task)}';
+    return '${time ?? l10n.today} · ${_area(context, task)}';
   }
-  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day} · ${_area(task)}';
+  return '${formatShortMonthDay(context, task.dueAt!)} · ${_area(context, task)}';
 }
 
-String _mobileCompactMeta(CueTask task, DateTime today) {
+String _mobileCompactMeta(BuildContext context, CueTask task, DateTime today) {
+  final l10n = context.l10n;
   if (task.isCompleted && task.completedAt != null) {
-    return 'Completed ${_time(task.completedAt!)}';
+    return l10n.completedAt(_time(task.completedAt!));
   }
-  if (task.dueAt == null) return 'No due date';
+  if (task.dueAt == null) return l10n.noDueDate;
   if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return 'Today${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+    return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
   }
-  return '${_shortMonth(task.dueAt!)} ${task.dueAt!.day}';
+  return formatShortMonthDay(context, task.dueAt!);
 }
 
-String _createdLabel(CueTask task, DateTime today) {
-  if (TaskStore.isSameDay(task.createdAt, today)) return 'today';
-  return '${_shortMonth(task.createdAt)} ${task.createdAt.day}';
+String _createdLabel(BuildContext context, CueTask task, DateTime today) {
+  if (TaskStore.isSameDay(task.createdAt, today)) {
+    return context.l10n.createdToday;
+  }
+  return formatShortMonthDay(context, task.createdAt);
 }
 
-String _syncTime(DateTime? date) {
-  if (date == null) return 'Not yet';
+String _syncTime(BuildContext context, DateTime? date) {
+  if (date == null) return context.l10n.notYet;
   return _time(date);
 }
 
@@ -2165,15 +2212,31 @@ String _serverLabel(String serverUrl) {
   return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
 }
 
-String _area(CueTask task) {
+String _area(BuildContext context, CueTask task) {
+  final l10n = context.l10n;
   final title = task.title.toLowerCase();
-  if (title.contains('pcb')) return 'Hardware';
+  if (title.contains('pcb')) return l10n.hardware;
   if (title.contains('thermal') || title.contains('signal')) {
-    return 'Simulation';
+    return l10n.simulation;
   }
-  if (title.contains('report')) return 'Writing';
-  if (title.contains('lab')) return 'Operations';
-  return 'Product';
+  if (title.contains('report')) return l10n.writing;
+  if (title.contains('lab')) return l10n.operations;
+  return l10n.product;
+}
+
+String _statusLabel(
+  BuildContext context,
+  CueTaskStatus status, {
+  bool uppercase = false,
+}) {
+  final label = switch (status) {
+    CueTaskStatus.todo => context.l10n.toDo,
+    CueTaskStatus.doing => context.l10n.doing,
+    CueTaskStatus.done => context.l10n.done,
+  };
+  return uppercase && Localizations.localeOf(context).languageCode == 'en'
+      ? label.toUpperCase()
+      : label;
 }
 
 bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;
@@ -2183,43 +2246,3 @@ String _time(DateTime date) {
   final minute = date.minute.toString().padLeft(2, '0');
   return '$hour:$minute';
 }
-
-String _shortMonth(DateTime date) => const [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-][date.month - 1];
-
-const _monthNames = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-const _weekdayNames = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-];

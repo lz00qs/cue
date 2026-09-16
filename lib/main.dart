@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/api_client.dart';
+import 'data/locale_store.dart';
 import 'data/server_config_store.dart';
 import 'data/task_store.dart';
 import 'data/token_store.dart';
+import 'l10n/l10n.dart';
 import 'ui/cue_home.dart';
 import 'ui/cue_theme.dart';
+import 'ui/language_menu.dart';
 import 'ui/login_screen.dart';
 import 'ui/server_connection_screen.dart';
 
@@ -26,6 +32,7 @@ class CueApp extends StatefulWidget {
 
 class _CueAppState extends State<CueApp> {
   late final TokenStore? _tokens;
+  late final LocaleStore? _localeStore;
   ServerConfigStore? _serverConfig;
   ApiClient? _api;
   TaskStore? _store;
@@ -34,30 +41,31 @@ class _CueAppState extends State<CueApp> {
   String? _initialError;
   bool _booting = true;
   bool _configuringServer = false;
+  Locale? _locale;
 
-  bool get _isMobilePlatform =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.android ||
-          defaultTargetPlatform == TargetPlatform.iOS);
+  bool get _isNativePlatform => !kIsWeb;
 
   @override
   void initState() {
     super.initState();
     if (widget.demoMode) {
       _tokens = null;
+      _localeStore = null;
       _api = null;
       _store = TaskStore.demo();
       _email = 'demo@cue.local';
       _booting = false;
     } else {
       _tokens = TokenStore();
+      _localeStore = LocaleStore();
       _bootstrap();
     }
   }
 
   Future<void> _bootstrap() async {
     try {
-      if (_isMobilePlatform) {
+      await _restoreLocale();
+      if (_isNativePlatform) {
         _serverConfig = ServerConfigStore();
         final savedUrl = await _serverConfig!.serverUrl;
         final initialUrl = savedUrl?.trim().isNotEmpty == true
@@ -83,8 +91,27 @@ class _CueAppState extends State<CueApp> {
       setState(() {
         _booting = false;
         _initialError = error.toString();
-        _configuringServer = _isMobilePlatform && _api == null;
+        _configuringServer = _isNativePlatform && _api == null;
       });
+    }
+  }
+
+  Future<void> _restoreLocale() async {
+    try {
+      final languageCode = await _localeStore!.languageCode;
+      if (languageCode != null && mounted) {
+        setState(() => _locale = Locale(languageCode));
+      }
+    } catch (_) {
+      // A locale preference should never prevent the app from starting.
+    }
+  }
+
+  void _changeLocale(Locale? locale) {
+    setState(() => _locale = locale);
+    final store = _localeStore;
+    if (store != null) {
+      unawaited(store.save(locale?.languageCode).catchError((_) {}));
     }
   }
 
@@ -203,8 +230,8 @@ class _CueAppState extends State<CueApp> {
         ? LoginScreen(
             onLogin: _login,
             initialError: _initialError,
-            serverUrl: _isMobilePlatform ? _serverUrl : null,
-            onChangeServer: _isMobilePlatform
+            serverUrl: _isNativePlatform ? _serverUrl : null,
+            onChangeServer: _isNativePlatform
                 ? _beginServerConfiguration
                 : null,
           )
@@ -212,15 +239,28 @@ class _CueAppState extends State<CueApp> {
             store: _store!,
             userEmail: _email,
             onLogout: widget.demoMode ? null : _logout,
-            serverUrl: _isMobilePlatform ? _serverUrl : null,
-            onConfigureServer: _isMobilePlatform
+            serverUrl: _isNativePlatform ? _serverUrl : null,
+            onConfigureServer: _isNativePlatform
                 ? _beginServerConfiguration
                 : null,
           );
     return MaterialApp(
-      title: 'Cue — Move what’s next',
+      onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
       theme: CueTheme.light,
+      locale: _locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      builder: (context, child) => CueLocaleScope(
+        locale: _locale,
+        onLocaleChanged: _changeLocale,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: home,
     );
   }
