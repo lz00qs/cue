@@ -460,6 +460,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dark => '深色';
 
   @override
+  String get light => '浅色';
+
+  @override
   String get dateAndTime => '日期与时间';
 
   @override

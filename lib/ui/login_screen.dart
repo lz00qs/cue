@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
             width: 420,
             padding: const EdgeInsets.all(36),
             decoration: BoxDecoration(
-              color: CueColors.canvas,
+              color: CueColors.card,
               border: Border.all(color: CueColors.border),
               borderRadius: BorderRadius.circular(20),
               boxShadow: const [

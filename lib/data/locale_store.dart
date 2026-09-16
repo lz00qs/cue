@@ -1,8 +1,10 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'secure_storage.dart';
+
 class LocaleStore {
   LocaleStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? createSecureStorage();
 
   static const _languageCodeKey = 'cue_language_code';
   static const supportedLanguageCodes = {'en', 'zh'};

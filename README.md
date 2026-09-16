@@ -89,6 +89,16 @@ flutter build apk --release --dart-define=CUE_API_URL=https://cue.example.com
 flutter build ipa --release --dart-define=CUE_API_URL=https://cue.example.com
 ```
 
+明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。通过 Flutter 构建变量选择主题，桌面和移动布局会使用同一模式；不指定时默认浅色：
+
+```bash
+flutter run -d macos --dart-define=CUE_THEME=light
+flutter run -d macos --dart-define=CUE_THEME=dark
+flutter build web --release --dart-define=CUE_THEME=dark
+```
+
+切换构建变量后需要停止应用并重新运行，热重载不会修改编译时的主题配置。
+
 移动端允许连接可信局域网内的 HTTP 服务；公网部署应使用 HTTPS。只要移动端、Web 和桌面端使用同一 API 与数据库，任务提交后 PostgreSQL 会通知各 API 进程，再通过 SSE 唤醒客户端按全局 `revision` 增量同步；断线时客户端重连并每分钟轮询兜底。每条任务的 `version` 检测并发写入。
 
 后端位于 `server/`。容器启动时先执行 `server/migrations/001_initial.sql`，再启动 API。

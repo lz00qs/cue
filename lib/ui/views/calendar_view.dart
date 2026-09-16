@@ -232,7 +232,7 @@ class _CalendarCellState extends State<_CalendarCell> {
     final borderColor = widget.selected
         ? CueColors.accent
         : _hovered
-        ? const Color(0xFFCAD1E8)
+        ? CueColors.strongBorder
         : CueColors.border;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -244,7 +244,7 @@ class _CalendarCellState extends State<_CalendarCell> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: _hovered ? const Color(0xFFFBFBFD) : CueColors.canvas,
+            color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
               color: borderColor,
               width: widget.selected ? 2 : 1,

@@ -183,7 +183,7 @@ class _QuadrantPanel extends StatelessWidget {
       height: 336,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: CueColors.canvas,
+        color: CueColors.card,
         border: Border.all(color: CueColors.border),
         borderRadius: BorderRadius.circular(16),
       ),

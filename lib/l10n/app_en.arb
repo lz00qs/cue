@@ -154,6 +154,7 @@
   "preferences": "PREFERENCES",
   "appearance": "Appearance",
   "dark": "Dark",
+  "light": "Light",
   "dateAndTime": "Date & time",
   "system": "System",
   "reminders": "Reminders",

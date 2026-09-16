@@ -4,22 +4,24 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
+import '../cue_theme.dart';
 import '../language_menu.dart';
 
 abstract final class _MobileColors {
-  static const canvas = Color(0xFF0B0C10);
-  static const card = Color(0xFF292B31);
-  static const subtle = Color(0xFF17181C);
-  static const selected = Color(0xFF172455);
-  static const accent = Color(0xFF5B7CFA);
-  static const primary = Color(0xFFFFFFFF);
-  static const secondary = Color(0xFFD9DBE1);
-  static const tertiary = Color(0xFF8E919B);
-  static const border = Color(0xFF30323A);
-  static const danger = Color(0xFFFF6B75);
-  static const dangerBackground = Color(0xFF3A171C);
-  static const orange = Color(0xFFD9822B);
-  static const orangeBackground = Color(0xFF3A2814);
+  static const canvas = CueColors.canvas;
+  static const card = CueColors.card;
+  static const subtle = CueColors.subtle;
+  static const selected = CueColors.selected;
+  static const accent = CueColors.accent;
+  static const primary = CueColors.primary;
+  static const secondary = CueColors.secondary;
+  static const tertiary = CueColors.tertiary;
+  static const border = CueColors.border;
+  static const danger = CueColors.danger;
+  static const dangerBackground = CueColors.dangerBackground;
+  static const orange = CueColors.orange;
+  static const orangeBackground = CueColors.orangeBackground;
+  static const onAccent = CueColors.onAccent;
 }
 
 enum _MobileDestination { today, board, calendar, quadrants, settings }
@@ -769,7 +771,7 @@ class _MobileQuadrantsPage extends StatelessWidget {
       (
         context.l10n.batch,
         context.l10n.urgentLowerValue,
-        const Color(0xFF1E2E68),
+        CueColors.prioritySelected,
         store.quadrantTasks(important: false, urgent: true),
       ),
       (
@@ -895,7 +897,7 @@ class _MobileSettingsPage extends StatelessWidget {
         _SettingsRow(
           icon: Icons.contrast,
           label: context.l10n.appearance,
-          detail: context.l10n.dark,
+          detail: CueColors.isDark ? context.l10n.dark : context.l10n.light,
         ),
         const SizedBox(height: 8),
         _SettingsRow(
@@ -1230,7 +1232,9 @@ class _MobilePill extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          foregroundColor: _MobileColors.primary,
+          foregroundColor: selected
+              ? _MobileColors.onAccent
+              : _MobileColors.primary,
           backgroundColor: selected
               ? _MobileColors.accent
               : _MobileColors.subtle,
@@ -1665,7 +1669,7 @@ class _QuickAddButton extends StatelessWidget {
           width: 24,
           height: 24,
           colorFilter: const ColorFilter.mode(
-            _MobileColors.primary,
+            _MobileColors.onAccent,
             BlendMode.srcIn,
           ),
         ),

@@ -57,7 +57,7 @@ class _TaskDetailsPopoverState extends State<TaskDetailsPopover> {
           alignment: const Alignment(0.72, -0.14),
           insetPadding: const EdgeInsets.all(24),
           elevation: 12,
-          backgroundColor: CueColors.canvas,
+          backgroundColor: CueColors.card,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             side: const BorderSide(color: CueColors.border),

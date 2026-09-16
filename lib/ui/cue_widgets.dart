@@ -26,7 +26,7 @@ class CueActionButton extends StatelessWidget {
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(
-          foregroundColor: primary ? Colors.white : CueColors.primary,
+          foregroundColor: primary ? CueColors.onAccent : CueColors.primary,
           backgroundColor: primary ? CueColors.accent : CueColors.subtle,
           side: primary
               ? BorderSide.none
@@ -63,7 +63,7 @@ class CueViewTab extends StatelessWidget {
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          foregroundColor: selected ? Colors.white : CueColors.primary,
+          foregroundColor: selected ? CueColors.onAccent : CueColors.primary,
           backgroundColor: selected ? CueColors.accent : CueColors.subtle,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: EdgeInsets.zero,
@@ -149,9 +149,9 @@ class _CueTaskRowState extends State<CueTaskRow> {
           height: 72,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: _hovered ? const Color(0xFFFBFBFD) : CueColors.canvas,
+            color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
-              color: _hovered ? const Color(0xFFD9DDEA) : CueColors.border,
+              color: _hovered ? CueColors.strongBorder : CueColors.border,
             ),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -253,9 +253,9 @@ class _CueTaskCardState extends State<CueTaskCard> {
           height: widget.compact ? 82 : 96,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: CueColors.canvas,
+            color: CueColors.card,
             border: Border.all(
-              color: _hovered ? const Color(0xFFCDD4EB) : CueColors.border,
+              color: _hovered ? CueColors.strongBorder : CueColors.border,
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: const [

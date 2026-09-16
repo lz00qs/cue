@@ -654,7 +654,7 @@ class _Sidebar extends StatelessWidget {
             width: 220,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.64),
+              color: CueColors.card.withValues(alpha: 0.64),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -751,7 +751,7 @@ class _SidebarItemState extends State<_SidebarItem> {
             color: widget.selected
                 ? CueColors.selected
                 : _hovered
-                ? const Color(0xFFEDEEF2)
+                ? CueColors.sidebarHover
                 : CueColors.sidebar,
             borderRadius: BorderRadius.circular(8),
           ),
@@ -763,6 +763,10 @@ class _SidebarItemState extends State<_SidebarItem> {
                     : 'assets/figma/indicator.svg',
                 width: 8,
                 height: 8,
+                colorFilter: ColorFilter.mode(
+                  widget.selected ? CueColors.accent : CueColors.secondary,
+                  BlendMode.srcIn,
+                ),
               ),
               const SizedBox(width: 12),
               Text(
@@ -964,13 +968,21 @@ class _QuickCapture extends StatelessWidget {
       height: 52,
       padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
       decoration: BoxDecoration(
-        color: CueColors.canvas,
+        color: CueColors.card,
         border: Border.all(color: CueColors.border),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          SvgPicture.asset('assets/figma/plus.svg', width: 20, height: 20),
+          SvgPicture.asset(
+            'assets/figma/plus.svg',
+            width: 20,
+            height: 20,
+            colorFilter: const ColorFilter.mode(
+              CueColors.accent,
+              BlendMode.srcIn,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(

@@ -247,7 +247,7 @@ class _CueAppState extends State<CueApp> {
     return MaterialApp(
       onGenerateTitle: (context) => context.l10n.appTitle,
       debugShowCheckedModeBanner: false,
-      theme: CueTheme.light,
+      theme: CueTheme.active,
       locale: _locale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [

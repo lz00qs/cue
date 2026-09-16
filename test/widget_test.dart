@@ -2,8 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cue/main.dart';
+import 'package:cue/ui/cue_theme.dart';
 
 void main() {
+  testWidgets('resizing between desktop and mobile preserves the theme', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    final expectedCanvas = CueColors.isDark
+        ? const Color(0xFF0B0C10)
+        : const Color(0xFFFFFFFF);
+    final expectedAccent = CueColors.isDark
+        ? const Color(0xFF5B7CFA)
+        : const Color(0xFF3A63F3);
+    final expectedBrightness = CueColors.isDark
+        ? Brightness.dark
+        : Brightness.light;
+
+    void expectTheme() {
+      final scaffold = find.byType(Scaffold).first;
+      expect(tester.widget<Scaffold>(scaffold).backgroundColor, expectedCanvas);
+      final theme = Theme.of(tester.element(scaffold));
+      expect(theme.brightness, expectedBrightness);
+      expect(theme.colorScheme.primary, expectedAccent);
+    }
+
+    expectTheme();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    expect(find.text('CUE'), findsOneWidget);
+    expectTheme();
+  });
+
   testWidgets('renders the Cue Today view and switches to Board', (
     tester,
   ) async {
@@ -87,6 +122,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
+    expect(find.text(CueColors.isDark ? 'Dark' : 'Light'), findsOneWidget);
     expect(find.text('Import & sync'), findsOneWidget);
     expect(find.text('Local demo'), findsOneWidget);
   });

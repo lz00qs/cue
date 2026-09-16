@@ -1,8 +1,10 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'secure_storage.dart';
+
 class TokenStore {
   TokenStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? createSecureStorage();
 
   static const _accessKey = 'cue_access_token';
   static const _refreshKey = 'cue_refresh_token';
