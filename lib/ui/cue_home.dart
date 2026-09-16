@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,6 +8,7 @@ import '../data/task_store.dart';
 import '../models/cue_task.dart';
 import 'cue_theme.dart';
 import 'cue_widgets.dart';
+import 'mobile/mobile_cue_home.dart';
 import 'views/board_view.dart';
 import 'views/calendar_view.dart';
 import 'views/quadrants_view.dart';
@@ -20,24 +23,57 @@ class CueHome extends StatefulWidget {
     required this.store,
     this.userEmail,
     this.onLogout,
+    this.serverUrl,
+    this.onConfigureServer,
   });
 
   final TaskStore store;
   final String? userEmail;
   final Future<void> Function()? onLogout;
+  final String? serverUrl;
+  final VoidCallback? onConfigureServer;
 
   @override
   State<CueHome> createState() => _CueHomeState();
 }
 
-class _CueHomeState extends State<CueHome> {
+class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   CueView _view = CueView.today;
   CueListFilter _listFilter = CueListFilter.today;
   final _quickAddController = TextEditingController();
   final _quickAddFocus = FocusNode();
+  Timer? _syncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.store.isRemote) {
+      _syncTimer = Timer.periodic(
+        const Duration(seconds: 12),
+        (_) => _syncSilently(),
+      );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _syncSilently();
+  }
+
+  Future<void> _syncSilently() async {
+    if (!widget.store.isRemote) return;
+    try {
+      await widget.store.sync();
+    } catch (_) {
+      // The store exposes the error in Settings. Background polling stays quiet.
+    }
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _syncTimer?.cancel();
     _quickAddController.dispose();
     _quickAddFocus.dispose();
     super.dispose();
@@ -106,100 +142,12 @@ class _CueHomeState extends State<CueHome> {
   }
 
   Widget _buildMobile() {
-    final mobileIndex = switch (_view) {
-      CueView.board => 1,
-      CueView.calendar => 2,
-      CueView.quadrants => 3,
-      _ => 0,
-    };
-    return Scaffold(
-      backgroundColor: _view == CueView.quadrants
-          ? CueColors.subtle
-          : CueColors.canvas,
-      appBar: AppBar(
-        backgroundColor: _view == CueView.quadrants
-            ? CueColors.subtle
-            : CueColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        titleSpacing: 20,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cue',
-              style: TextStyle(
-                color: CueColors.primary,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              'Move what’s next',
-              style: TextStyle(
-                color: CueColors.tertiary,
-                fontSize: 10,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          if (widget.onLogout != null)
-            IconButton(
-              onPressed: widget.onLogout,
-              icon: const Icon(Icons.logout_rounded, size: 20),
-              tooltip: 'Sign out',
-            ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: IconButton.filled(
-              onPressed: () => _showAddTaskDialog(),
-              icon: const Icon(Icons.add, size: 20),
-              style: IconButton.styleFrom(
-                backgroundColor: CueColors.accent,
-                foregroundColor: Colors.white,
-              ),
-              tooltip: 'Add task',
-            ),
-          ),
-        ],
-      ),
-      body: _buildContent(desktop: false),
-      bottomNavigationBar: NavigationBar(
-        height: 68,
-        selectedIndex: mobileIndex,
-        indicatorColor: CueColors.selected,
-        backgroundColor: CueColors.canvas,
-        surfaceTintColor: Colors.transparent,
-        onDestinationSelected: (index) {
-          _selectView(
-            [
-              CueView.today,
-              CueView.board,
-              CueView.calendar,
-              CueView.quadrants,
-            ][index],
-          );
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.today_outlined),
-            label: 'Today',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.view_kanban_outlined),
-            label: 'Board',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            label: 'Calendar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_rounded),
-            label: 'Quadrants',
-          ),
-        ],
-      ),
+    return MobileCueHome(
+      store: widget.store,
+      userEmail: widget.userEmail,
+      onLogout: widget.onLogout,
+      serverUrl: widget.serverUrl,
+      onConfigureServer: widget.onConfigureServer,
     );
   }
 

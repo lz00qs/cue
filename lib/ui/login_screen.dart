@@ -3,10 +3,18 @@ import 'package:flutter/material.dart';
 import 'cue_theme.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.onLogin, this.initialError});
+  const LoginScreen({
+    super.key,
+    required this.onLogin,
+    this.initialError,
+    this.serverUrl,
+    this.onChangeServer,
+  });
 
   final Future<void> Function(String email, String password) onLogin;
   final String? initialError;
+  final String? serverUrl;
+  final VoidCallback? onChangeServer;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -92,7 +100,45 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: CueColors.tertiary, fontSize: 13),
                   ),
-                  const SizedBox(height: 32),
+                  if (widget.serverUrl != null) ...[
+                    const SizedBox(height: 20),
+                    Container(
+                      height: 44,
+                      padding: const EdgeInsets.only(left: 12, right: 4),
+                      decoration: BoxDecoration(
+                        color: CueColors.subtle,
+                        border: Border.all(color: CueColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.dns_outlined,
+                            size: 18,
+                            color: CueColors.secondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.serverUrl!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: CueColors.secondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            key: const Key('change-server-button'),
+                            onPressed: widget.onChangeServer,
+                            child: const Text('Change'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
                   TextFormField(
                     key: const Key('login-email'),
                     controller: _email,

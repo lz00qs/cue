@@ -53,7 +53,7 @@ services:
       dockerfile: Dockerfile
     image: cue-web:1.0.0
     ports:
-      - "127.0.0.1:${CUE_WEB_PORT:-8080}:80"
+      - "${CUE_BIND_ADDRESS:-127.0.0.1}:${CUE_WEB_PORT:-8080}:80"
     depends_on:
       cue-api:
         condition: service_healthy

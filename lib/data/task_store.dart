@@ -145,6 +145,9 @@ class TaskStore extends ChangeNotifier {
   final DateTime today;
   int latestRevision = 0;
   String? lastError;
+  DateTime? lastSyncedAt;
+  bool isSyncing = false;
+  Future<void>? _syncInFlight;
 
   bool get isRemote => api != null;
   UnmodifiableListView<CueTask> get tasks => UnmodifiableListView(_tasks);
@@ -220,6 +223,7 @@ class TaskStore extends ChangeNotifier {
         (latest, task) => task.revision > latest ? task.revision : latest,
       );
       lastError = null;
+      lastSyncedAt = DateTime.now();
       notifyListeners();
     } catch (error) {
       lastError = error.toString();
@@ -227,9 +231,22 @@ class TaskStore extends ChangeNotifier {
     }
   }
 
-  Future<void> sync() async {
+  Future<void> sync() {
+    final active = _syncInFlight;
+    if (active != null) return active;
+    late final Future<void> operation;
+    operation = _performSync().whenComplete(() {
+      if (identical(_syncInFlight, operation)) _syncInFlight = null;
+    });
+    _syncInFlight = operation;
+    return operation;
+  }
+
+  Future<void> _performSync() async {
     final client = api;
     if (client == null) return;
+    isSyncing = true;
+    notifyListeners();
     try {
       final result = await client.sync(latestRevision);
       for (final change in result.changes) {
@@ -244,10 +261,13 @@ class TaskStore extends ChangeNotifier {
       }
       latestRevision = result.latestRevision;
       lastError = null;
-      notifyListeners();
+      lastSyncedAt = DateTime.now();
     } catch (error) {
       lastError = error.toString();
       rethrow;
+    } finally {
+      isSyncing = false;
+      notifyListeners();
     }
   }
 
@@ -286,6 +306,7 @@ class TaskStore extends ChangeNotifier {
       if (index != -1) _tasks[index] = saved;
       latestRevision = _max(latestRevision, saved.revision);
       lastError = null;
+      lastSyncedAt = DateTime.now();
       notifyListeners();
     } catch (error) {
       _tasks.removeWhere((item) => item.id == task.id);
@@ -340,10 +361,16 @@ class TaskStore extends ChangeNotifier {
       final deleted = await client.deleteTask(task);
       latestRevision = _max(latestRevision, deleted.revision);
       lastError = null;
+      lastSyncedAt = DateTime.now();
+      notifyListeners();
     } catch (error) {
       _tasks.insert(index.clamp(0, _tasks.length), task);
       lastError = error.toString();
       notifyListeners();
+      if (error is ApiException &&
+          (error.statusCode == 404 || error.statusCode == 409)) {
+        await _refreshAfterConflict();
+      }
       rethrow;
     }
   }
@@ -365,10 +392,24 @@ class TaskStore extends ChangeNotifier {
       _replace(original.id, saved);
       latestRevision = _max(latestRevision, saved.revision);
       lastError = null;
+      lastSyncedAt = DateTime.now();
     } catch (error) {
       _replace(original.id, original);
       lastError = error.toString();
+      notifyListeners();
+      if (error is ApiException && error.statusCode == 409) {
+        await _refreshAfterConflict();
+      }
       rethrow;
+    }
+  }
+
+  Future<void> _refreshAfterConflict() async {
+    try {
+      await sync();
+    } catch (_) {
+      // Preserve the original mutation error; the next lifecycle or timer sync
+      // will retry without hiding the conflict that caused this refresh.
     }
   }
 

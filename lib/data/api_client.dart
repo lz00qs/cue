@@ -21,8 +21,12 @@ class SyncResult {
 }
 
 class ApiClient {
-  ApiClient(this._tokens, {Dio? dio})
-    : _dio =
+  ApiClient(this._tokens, {Dio? dio, String? baseUrl})
+    : _baseUrl = normalizeServerUrl(
+        baseUrl ?? configuredBaseUrl,
+        allowEmpty: true,
+      ),
+      _dio =
           dio ??
           Dio(
             BaseOptions(
@@ -33,20 +37,31 @@ class ApiClient {
             ),
           );
 
-  static const _configuredBase = String.fromEnvironment(
+  static const configuredBaseUrl = String.fromEnvironment(
     'CUE_API_URL',
     defaultValue: '',
   );
 
   final TokenStore _tokens;
   final Dio _dio;
+  final String _baseUrl;
   Future<void>? _refreshing;
 
+  String get serverUrl => _baseUrl;
+
   String _url(String path) {
-    final base = _configuredBase.endsWith('/')
-        ? _configuredBase.substring(0, _configuredBase.length - 1)
-        : _configuredBase;
-    return '$base/api$path';
+    return '$_baseUrl/api$path';
+  }
+
+  Future<void> checkConnection() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(_url('/health'));
+      if (response.data?['status'] != 'ok') {
+        throw const ApiException('This is not a compatible Cue server');
+      }
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
   }
 
   Future<String> login(String email, String password) async {
@@ -216,4 +231,35 @@ class ApiClient {
       statusCode: error.response?.statusCode,
     );
   }
+}
+
+String normalizeServerUrl(String input, {bool allowEmpty = false}) {
+  var value = input.trim();
+  if (value.isEmpty) {
+    if (allowEmpty) return '';
+    throw const FormatException('Enter a server address');
+  }
+  if (!value.contains('://')) value = 'http://$value';
+
+  final uri = Uri.tryParse(value);
+  if (uri == null ||
+      (uri.scheme != 'http' && uri.scheme != 'https') ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.query.isNotEmpty ||
+      uri.fragment.isNotEmpty) {
+    throw const FormatException(
+      'Use a valid HTTP or HTTPS address, for example http://10.0.2.2:8080',
+    );
+  }
+
+  var path = uri.path;
+  while (path.endsWith('/') && path.length > 1) {
+    path = path.substring(0, path.length - 1);
+  }
+  if (path == '/api') path = '';
+
+  final normalized = uri.replace(path: path, query: null, fragment: null);
+  final result = normalized.toString();
+  return result.endsWith('/') ? result.substring(0, result.length - 1) : result;
 }
