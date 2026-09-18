@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/task_store.dart';
+import '../state/app_state.dart';
+import '../state/page_state.dart';
 import '../data/sync_coordinator.dart';
 import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
@@ -16,33 +19,28 @@ import 'views/board_view.dart';
 import 'views/calendar_view.dart';
 import 'views/quadrants_view.dart';
 
-enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
-
-enum CueListFilter { today, upcoming, completed }
-
-class CueHome extends StatefulWidget {
+class CueHome extends ConsumerStatefulWidget {
   const CueHome({
     super.key,
-    required this.store,
     this.userEmail,
     this.onLogout,
     this.serverUrl,
     this.onConfigureServer,
   });
 
-  final TaskStore store;
   final String? userEmail;
   final Future<void> Function()? onLogout;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
 
   @override
-  State<CueHome> createState() => _CueHomeState();
+  ConsumerState<CueHome> createState() => _CueHomeState();
 }
 
-class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
-  CueView _view = CueView.today;
-  CueListFilter _listFilter = CueListFilter.today;
+class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
+  TaskStore get _store => ref.read(taskStoreProvider)!;
+  CueView get _view => ref.read(cueHomeUiProvider).view;
+  CueListFilter get _listFilter => ref.read(cueHomeUiProvider).filter;
   final _quickAddController = TextEditingController();
   final _quickAddFocus = FocusNode();
   late final SyncCoordinator _syncCoordinator;
@@ -51,7 +49,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _syncCoordinator = SyncCoordinator(widget.store)..start();
+    _syncCoordinator = SyncCoordinator(_store)..start();
   }
 
   @override
@@ -76,43 +74,37 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: widget.store,
-      builder: (context, _) {
-        return Shortcuts(
-          shortcuts: const {
-            SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-                _FocusQuickAddIntent(),
-            SingleActivator(LogicalKeyboardKey.keyK, control: true):
-                _FocusQuickAddIntent(),
-          },
-          child: Actions(
-            actions: {
-              _FocusQuickAddIntent: CallbackAction<_FocusQuickAddIntent>(
-                onInvoke: (_) {
-                  setState(() {
-                    _view = CueView.today;
-                    _listFilter = CueListFilter.today;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback(
-                    (_) => _quickAddFocus.requestFocus(),
-                  );
-                  return null;
-                },
-              ),
-            },
-            child: Focus(
-              autofocus: true,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  if (constraints.maxWidth < 840) return _buildMobile();
-                  return _buildDesktop();
-                },
-              ),
-            ),
-          ),
-        );
+    ref.watch(taskRevisionProvider);
+    ref.watch(cueHomeUiProvider);
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            _FocusQuickAddIntent(),
+        SingleActivator(LogicalKeyboardKey.keyK, control: true):
+            _FocusQuickAddIntent(),
       },
+      child: Actions(
+        actions: {
+          _FocusQuickAddIntent: CallbackAction<_FocusQuickAddIntent>(
+            onInvoke: (_) {
+              ref.read(cueHomeUiProvider.notifier).focusToday();
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _quickAddFocus.requestFocus(),
+              );
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 840) return _buildMobile();
+              return _buildDesktop();
+            },
+          ),
+        ),
+      ),
     );
   }
 
@@ -125,14 +117,14 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Sidebar(
-            store: widget.store,
+            store: _store,
             selected: _view,
             onSelect: _selectView,
             userEmail: widget.userEmail,
             onLogout: widget.onLogout,
             serverUrl: widget.serverUrl,
             onConfigureServer: widget.onConfigureServer,
-            onSync: () => _runTaskOperation(widget.store.sync),
+            onSync: () => _runTaskOperation(_store.sync),
           ),
           Expanded(child: _buildContent(desktop: true)),
         ],
@@ -142,7 +134,6 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
 
   Widget _buildMobile() {
     return MobileCueHome(
-      store: widget.store,
       userEmail: widget.userEmail,
       onLogout: widget.onLogout,
       serverUrl: widget.serverUrl,
@@ -203,16 +194,14 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
     CueView.upcoming => context.l10n.upcoming,
     CueView.list => context.l10n.allTasks,
     CueView.board => context.l10n.board,
-    CueView.calendar => formatMonthYear(context, widget.store.today),
+    CueView.calendar => formatMonthYear(context, _store.today),
     CueView.quadrants => context.l10n.quadrants,
   };
 
   String get _pageSubtitle => switch (_view) {
-    CueView.inbox => context.l10n.openTaskCount(
-      widget.store.activeTasks.length,
-    ),
+    CueView.inbox => context.l10n.openTaskCount(_store.activeTasks.length),
     CueView.today =>
-      '${formatLongDate(context, widget.store.today)} · ${context.l10n.taskCount(widget.store.todayTasks.length)}',
+      '${formatLongDate(context, _store.today)} · ${context.l10n.taskCount(_store.todayTasks.length)}',
     CueView.upcoming => context.l10n.planWhatComesNext,
     CueView.list => context.l10n.oneTaskModel,
     CueView.board => context.l10n.threeStages,
@@ -221,37 +210,27 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   };
 
   Widget get _pageBody => switch (_view) {
-    CueView.board => BoardView(
-      store: widget.store,
-      onOpenTask: _showTaskDetails,
-    ),
+    CueView.board => BoardView(onOpenTask: _showTaskDetails),
     CueView.calendar => CalendarView(
-      store: widget.store,
       onOpenTask: _showTaskDetails,
       onSelectDay: (day) => _showAddTaskDialog(prefilledDate: day),
     ),
-    CueView.quadrants => QuadrantsView(
-      store: widget.store,
-      onOpenTask: _showTaskDetails,
-    ),
+    CueView.quadrants => QuadrantsView(onOpenTask: _showTaskDetails),
     _ => _TaskListView(
-      store: widget.store,
+      store: _store,
       view: _view,
       filter: _listFilter,
       quickAddController: _quickAddController,
       quickAddFocus: _quickAddFocus,
-      onFilterChanged: (filter) => setState(() => _listFilter = filter),
+      onFilterChanged: (filter) =>
+          ref.read(cueHomeUiProvider.notifier).selectFilter(filter),
       onQuickAdd: _quickAdd,
       onOpenTask: _showTaskDetails,
     ),
   };
 
   void _selectView(CueView view) {
-    setState(() {
-      _view = view;
-      if (view == CueView.today) _listFilter = CueListFilter.today;
-      if (view == CueView.upcoming) _listFilter = CueListFilter.upcoming;
-    });
+    ref.read(cueHomeUiProvider.notifier).selectView(view);
   }
 
   Future<void> _quickAdd() async {
@@ -260,9 +239,9 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
       _quickAddFocus.requestFocus();
       return;
     }
-    final today = widget.store.today;
+    final today = _store.today;
     final succeeded = await _runTaskOperation(
-      () => widget.store.addTask(
+      () => _store.addTask(
         title: title,
         dueAt: DateTime(today.year, today.month, today.day, 18),
       ),
@@ -285,7 +264,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
     var priority = 2;
     var important = false;
     var status = CueTaskStatus.todo;
-    final today = widget.store.today;
+    final today = _store.today;
     DateTime? dueAt = prefilledDate == null
         ? DateTime(today.year, today.month, today.day, 18)
         : DateTime(
@@ -416,7 +395,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
                   onPressed: () async {
                     if (titleController.text.trim().isEmpty) return;
                     final succeeded = await _runTaskOperation(
-                      () => widget.store.addTask(
+                      () => _store.addTask(
                         title: titleController.text,
                         note: noteController.text,
                         priority: priority,
@@ -453,14 +432,13 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
       barrierColor: Colors.transparent,
       builder: (dialogContext) => TaskDetailsPopover(
         initialTask: initialTask,
-        store: widget.store,
         onRun: _runTaskOperation,
         onClose: () => Navigator.pop(dialogContext),
         onDelete: (task) async {
           final confirmed = await _confirmDelete(task);
           if (!confirmed || !dialogContext.mounted) return;
           final succeeded = await _runTaskOperation(
-            () => widget.store.deleteTask(task),
+            () => _store.deleteTask(task),
           );
           if (succeeded && dialogContext.mounted) Navigator.pop(dialogContext);
         },
@@ -493,7 +471,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
   }
 
   List<DropdownMenuItem<DateTime?>> _dueDateChoices(DateTime? selected) {
-    final today = widget.store.today;
+    final today = _store.today;
     final values = <DateTime?>[
       DateTime(today.year, today.month, today.day, 18),
       DateTime(today.year, today.month, today.day + 1, 18),

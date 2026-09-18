@@ -1,6 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../state/app_state.dart';
+import '../../state/page_state.dart';
 
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
@@ -8,21 +12,23 @@ import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
-class BoardView extends StatefulWidget {
-  const BoardView({super.key, required this.store, required this.onOpenTask});
+class BoardView extends ConsumerStatefulWidget {
+  const BoardView({super.key, required this.onOpenTask});
 
-  final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
-  State<BoardView> createState() => _BoardViewState();
+  ConsumerState<BoardView> createState() => _BoardViewState();
 }
 
-class _BoardViewState extends State<BoardView> {
-  _BoardGroup _group = _BoardGroup.status;
+class _BoardViewState extends ConsumerState<BoardView> {
+  BoardGroup get _group => ref.read(boardGroupProvider);
+  TaskStore get _store => ref.read(taskStoreProvider)!;
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(taskRevisionProvider);
+    ref.watch(boardGroupProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -32,25 +38,31 @@ class _BoardViewState extends State<BoardView> {
             children: [
               CueViewTab(
                 label: context.l10n.groupStatus,
-                selected: _group == _BoardGroup.status,
-                onTap: () => setState(() => _group = _BoardGroup.status),
+                selected: _group == BoardGroup.status,
+                onTap: () => ref
+                    .read(boardGroupProvider.notifier)
+                    .select(BoardGroup.status),
               ),
               const SizedBox(width: 8),
               CueViewTab(
                 label: context.l10n.groupPriority,
-                selected: _group == _BoardGroup.priority,
-                onTap: () => setState(() => _group = _BoardGroup.priority),
+                selected: _group == BoardGroup.priority,
+                onTap: () => ref
+                    .read(boardGroupProvider.notifier)
+                    .select(BoardGroup.priority),
               ),
               const SizedBox(width: 8),
               CueViewTab(
                 label: context.l10n.groupDueDate,
-                selected: _group == _BoardGroup.dueDate,
-                onTap: () => setState(() => _group = _BoardGroup.dueDate),
+                selected: _group == BoardGroup.dueDate,
+                onTap: () => ref
+                    .read(boardGroupProvider.notifier)
+                    .select(BoardGroup.dueDate),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  _group == _BoardGroup.status
+                  _group == BoardGroup.status
                       ? context.l10n.dragCards
                       : context.l10n.groupingPreview,
                   style: Theme.of(context).textTheme.labelSmall
@@ -60,11 +72,11 @@ class _BoardViewState extends State<BoardView> {
           ),
         ),
         const SizedBox(height: 24),
-        if (_group == _BoardGroup.status)
-          _StatusBoard(store: widget.store, onOpenTask: widget.onOpenTask)
+        if (_group == BoardGroup.status)
+          _StatusBoard(store: _store, onOpenTask: widget.onOpenTask)
         else
           _GroupedPreview(
-            store: widget.store,
+            store: _store,
             group: _group,
             onOpenTask: widget.onOpenTask,
           ),
@@ -257,14 +269,14 @@ class _GroupedPreview extends StatelessWidget {
   });
 
   final TaskStore store;
-  final _BoardGroup group;
+  final BoardGroup group;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
   Widget build(BuildContext context) {
     final tasks = store.tasks.where((task) => task.deletedAt == null).toList();
     final today = store.today;
-    final groups = group == _BoardGroup.priority
+    final groups = group == BoardGroup.priority
         ? <(String, List<CueTask>)>[
             for (var priority = 0; priority < 4; priority++)
               (
@@ -362,5 +374,3 @@ class _GroupedPreview extends StatelessWidget {
     );
   }
 }
-
-enum _BoardGroup { status, priority, dueDate }

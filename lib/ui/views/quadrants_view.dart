@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../state/app_state.dart';
+import '../../state/page_state.dart';
 
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
@@ -6,25 +10,23 @@ import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
-class QuadrantsView extends StatefulWidget {
-  const QuadrantsView({
-    super.key,
-    required this.store,
-    required this.onOpenTask,
-  });
+class QuadrantsView extends ConsumerStatefulWidget {
+  const QuadrantsView({super.key, required this.onOpenTask});
 
-  final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
-  State<QuadrantsView> createState() => _QuadrantsViewState();
+  ConsumerState<QuadrantsView> createState() => _QuadrantsViewState();
 }
 
-class _QuadrantsViewState extends State<QuadrantsView> {
-  _QuadrantFilter _filter = _QuadrantFilter.all;
+class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
+  QuadrantFilter get _filter => ref.read(quadrantFilterProvider);
+  TaskStore get _store => ref.read(taskStoreProvider)!;
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(taskRevisionProvider);
+    ref.watch(quadrantFilterProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -34,21 +36,26 @@ class _QuadrantsViewState extends State<QuadrantsView> {
             children: [
               CueViewTab(
                 label: context.l10n.allTasksFilter,
-                selected: _filter == _QuadrantFilter.all,
-                onTap: () => setState(() => _filter = _QuadrantFilter.all),
+                selected: _filter == QuadrantFilter.all,
+                onTap: () => ref
+                    .read(quadrantFilterProvider.notifier)
+                    .select(QuadrantFilter.all),
               ),
               const SizedBox(width: 8),
               CueViewTab(
                 label: context.l10n.importantFilter,
-                selected: _filter == _QuadrantFilter.important,
-                onTap: () =>
-                    setState(() => _filter = _QuadrantFilter.important),
+                selected: _filter == QuadrantFilter.important,
+                onTap: () => ref
+                    .read(quadrantFilterProvider.notifier)
+                    .select(QuadrantFilter.important),
               ),
               const SizedBox(width: 8),
               CueViewTab(
                 label: context.l10n.dueSoon,
-                selected: _filter == _QuadrantFilter.dueSoon,
-                onTap: () => setState(() => _filter = _QuadrantFilter.dueSoon),
+                selected: _filter == QuadrantFilter.dueSoon,
+                onTap: () => ref
+                    .read(quadrantFilterProvider.notifier)
+                    .select(QuadrantFilter.dueSoon),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
@@ -144,17 +151,17 @@ class _QuadrantsViewState extends State<QuadrantsView> {
     required bool important,
     required bool urgent,
   }) {
-    var tasks = widget.store
+    var tasks = _store
         .quadrantTasks(important: important, urgent: urgent)
         .toList();
-    if (_filter == _QuadrantFilter.important && !important) tasks = [];
-    if (_filter == _QuadrantFilter.dueSoon && !urgent) tasks = [];
+    if (_filter == QuadrantFilter.important && !important) tasks = [];
+    if (_filter == QuadrantFilter.dueSoon && !urgent) tasks = [];
     return _QuadrantPanel(
       title: title,
       rule: rule,
       color: color,
       tasks: tasks,
-      today: widget.store.today,
+      today: _store.today,
       onOpenTask: widget.onOpenTask,
     );
   }
@@ -243,5 +250,3 @@ class _EmptyQuadrant extends StatelessWidget {
     );
   }
 }
-
-enum _QuadrantFilter { all, important, dueSoon }

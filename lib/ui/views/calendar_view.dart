@@ -1,6 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../state/app_state.dart';
+import '../../state/page_state.dart';
 
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
@@ -8,31 +12,32 @@ import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
-class CalendarView extends StatefulWidget {
+class CalendarView extends ConsumerStatefulWidget {
   const CalendarView({
     super.key,
-    required this.store,
     required this.onOpenTask,
     required this.onSelectDay,
   });
 
-  final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<DateTime> onSelectDay;
 
   @override
-  State<CalendarView> createState() => _CalendarViewState();
+  ConsumerState<CalendarView> createState() => _CalendarViewState();
 }
 
-class _CalendarViewState extends State<CalendarView> {
-  bool _dueOnly = false;
+class _CalendarViewState extends ConsumerState<CalendarView> {
+  bool get _dueOnly => ref.read(calendarDueOnlyProvider);
+  TaskStore get _store => ref.read(taskStoreProvider)!;
 
   @override
   Widget build(BuildContext context) {
-    final today = widget.store.today;
+    ref.watch(taskRevisionProvider);
+    ref.watch(calendarDueOnlyProvider);
+    final today = _store.today;
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 7));
-    final scheduled = widget.store.tasks.where(
+    final scheduled = _store.tasks.where(
       (task) =>
           task.deletedAt == null &&
           task.dueAt != null &&
@@ -67,7 +72,8 @@ class _CalendarViewState extends State<CalendarView> {
               CueViewTab(
                 label: context.l10n.dueOnly,
                 selected: _dueOnly,
-                onTap: () => setState(() => _dueOnly = !_dueOnly),
+                onTap: () =>
+                    ref.read(calendarDueOnlyProvider.notifier).toggle(),
               ),
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
@@ -95,7 +101,7 @@ class _CalendarViewState extends State<CalendarView> {
                       height: weekCount * 132,
                       child: _MonthGrid(
                         width: calendarWidth,
-                        store: widget.store,
+                        store: _store,
                         weekCount: weekCount,
                         dueOnly: _dueOnly,
                         onOpenTask: widget.onOpenTask,

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../state/page_state.dart';
 
 import '../l10n/l10n.dart';
 import 'cue_theme.dart';
 import 'language_menu.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({
     super.key,
     required this.onLogin,
@@ -19,21 +22,18 @@ class LoginScreen extends StatefulWidget {
   final VoidCallback? onChangeServer;
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController(text: 'admin@cue.local');
   final _password = TextEditingController();
-  bool _submitting = false;
-  bool _obscurePassword = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _error = widget.initialError;
+  bool get _submitting => ref.read(loginUiProvider).submitting;
+  bool get _obscurePassword => ref.read(loginUiProvider).obscurePassword;
+  String? get _error {
+    final ui = ref.read(loginUiProvider);
+    return ui.interacted ? ui.error : widget.initialError;
   }
 
   @override
@@ -45,22 +45,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _submitting) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
+    ref.read(loginUiProvider.notifier).setSubmitting(true);
     try {
       await widget.onLogin(_email.text, _password.text);
     } catch (error) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      ref.read(loginUiProvider.notifier).setError(error.toString());
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) ref.read(loginUiProvider.notifier).setSubmitting(false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(loginUiProvider);
     return Scaffold(
       backgroundColor: CueColors.subtle,
       body: Center(
@@ -171,9 +169,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: context.l10n.password,
                       suffixIcon: IconButton(
-                        onPressed: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
+                        onPressed: () => ref
+                            .read(loginUiProvider.notifier)
+                            .togglePasswordVisibility(),
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined

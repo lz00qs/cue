@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/task_store.dart';
+import '../../state/app_state.dart';
+import '../../state/page_state.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
@@ -25,41 +28,40 @@ abstract final class _MobileColors {
   static const onAccent = CueColors.onAccent;
 }
 
-enum _MobileDestination { today, board, calendar, quadrants, settings }
-
-class MobileCueHome extends StatefulWidget {
+class MobileCueHome extends ConsumerStatefulWidget {
   const MobileCueHome({
     super.key,
-    required this.store,
     this.userEmail,
     this.onLogout,
     this.serverUrl,
     this.onConfigureServer,
   });
 
-  final TaskStore store;
   final String? userEmail;
   final Future<void> Function()? onLogout;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
 
   @override
-  State<MobileCueHome> createState() => _MobileCueHomeState();
+  ConsumerState<MobileCueHome> createState() => _MobileCueHomeState();
 }
 
-class _MobileCueHomeState extends State<MobileCueHome> {
-  _MobileDestination _destination = _MobileDestination.today;
-  bool _showLater = false;
-  CueTaskStatus _boardStatus = CueTaskStatus.doing;
+class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
+  TaskStore get _store => ref.read(taskStoreProvider)!;
+  MobileDestination get _destination => ref.read(mobileUiProvider).destination;
+  bool get _showLater => ref.read(mobileUiProvider).showLater;
+  CueTaskStatus get _boardStatus => ref.read(mobileUiProvider).boardStatus;
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(taskRevisionProvider);
+    ref.watch(mobileUiProvider);
     return Scaffold(
       backgroundColor: _MobileColors.canvas,
       body: Stack(
         children: [
           Positioned.fill(child: _buildPage()),
-          if (_destination != _MobileDestination.settings)
+          if (_destination != MobileDestination.settings)
             Positioned(
               right: 20,
               bottom: 16,
@@ -70,7 +72,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
       bottomNavigationBar: _MobileBottomNavigation(
         destination: _destination,
         onSelect: (destination) {
-          setState(() => _destination = destination);
+          ref.read(mobileUiProvider.notifier).selectDestination(destination);
         },
       ),
     );
@@ -78,7 +80,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
 
   CueTask? _liveTask(CueTask? task) {
     if (task == null) return null;
-    for (final item in widget.store.tasks) {
+    for (final item in _store.tasks) {
       if (item.id == task.id && item.deletedAt == null) return item;
     }
     return null;
@@ -86,39 +88,36 @@ class _MobileCueHomeState extends State<MobileCueHome> {
 
   Widget _buildPage() {
     return switch (_destination) {
-      _MobileDestination.today => _MobileTodayPage(
-        store: widget.store,
+      MobileDestination.today => _MobileTodayPage(
         showLater: _showLater,
-        onFilterChanged: (value) => setState(() => _showLater = value),
+        onFilterChanged: (value) =>
+            ref.read(mobileUiProvider.notifier).showLater(value),
         onOpenTask: _openTask,
         onToggleTask: (task) =>
-            _runOperation(() => widget.store.toggleComplete(task)),
+            _runOperation(() => _store.toggleComplete(task)),
         onOpenBoard: _openBoard,
         onSync: _syncNow,
       ),
-      _MobileDestination.board => _MobileBoardPage(
-        store: widget.store,
+      MobileDestination.board => _MobileBoardPage(
         status: _boardStatus,
-        onStatusChanged: (status) => setState(() => _boardStatus = status),
+        onStatusChanged: (status) =>
+            ref.read(mobileUiProvider.notifier).selectBoardStatus(status),
         onOpenTask: _openTask,
         onBackToToday: _openToday,
         onSync: _syncNow,
       ),
-      _MobileDestination.calendar => _MobileCalendarPage(
-        store: widget.store,
+      MobileDestination.calendar => _MobileCalendarPage(
         onOpenTask: _openTask,
         onSelectEmptyDay: (day) => _showAddTaskSheet(prefilledDate: day),
         onOpenBoard: _openBoard,
         onSync: _syncNow,
       ),
-      _MobileDestination.quadrants => _MobileQuadrantsPage(
-        store: widget.store,
+      MobileDestination.quadrants => _MobileQuadrantsPage(
         onOpenTask: _openTask,
         onOpenBoard: _openBoard,
         onSync: _syncNow,
       ),
-      _MobileDestination.settings => _MobileSettingsPage(
-        store: widget.store,
+      MobileDestination.settings => _MobileSettingsPage(
         email: widget.userEmail,
         onSync: _syncNow,
         onLogout: widget.onLogout,
@@ -135,8 +134,9 @@ class _MobileCueHomeState extends State<MobileCueHome> {
       barrierColor: _MobileColors.canvas.withValues(alpha: 0.68),
       barrierLabel: context.l10n.closeTaskDetails,
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
+        return Consumer(
+          builder: (context, ref, _) {
+            ref.watch(taskRevisionProvider);
             final liveTask = _liveTask(task);
             if (liveTask != null) task = liveTask;
 
@@ -150,14 +150,12 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                 Navigator.pop(dialogContext);
               } else {
                 task = updatedTask;
-                setDialogState(() {});
               }
               return succeeded;
             }
 
             return _TaskDetailsDialog(
               task: task,
-              store: widget.store,
               onClose: () => Navigator.pop(dialogContext),
               onRun: runAndRefresh,
             );
@@ -168,14 +166,18 @@ class _MobileCueHomeState extends State<MobileCueHome> {
   }
 
   void _openBoard() {
-    setState(() => _destination = _MobileDestination.board);
+    ref
+        .read(mobileUiProvider.notifier)
+        .selectDestination(MobileDestination.board);
   }
 
   void _openToday() {
-    setState(() => _destination = _MobileDestination.today);
+    ref
+        .read(mobileUiProvider.notifier)
+        .selectDestination(MobileDestination.today);
   }
 
-  Future<void> _syncNow() => _runOperation(widget.store.sync);
+  Future<void> _syncNow() => _runOperation(_store.sync);
 
   Future<bool> _runOperation(Future<void> Function() operation) async {
     try {
@@ -196,7 +198,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
   Future<void> _showAddTaskSheet({DateTime? prefilledDate}) async {
     final titleController = TextEditingController();
     final noteController = TextEditingController();
-    final today = widget.store.today;
+    final today = _store.today;
     var priority = 2;
     var important = false;
     var dueAt = prefilledDate == null
@@ -342,7 +344,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                           onPressed: () async {
                             if (titleController.text.trim().isEmpty) return;
                             final succeeded = await _runOperation(
-                              () => widget.store.addTask(
+                              () => _store.addTask(
                                 title: titleController.text,
                                 note: noteController.text,
                                 priority: priority,
@@ -371,9 +373,8 @@ class _MobileCueHomeState extends State<MobileCueHome> {
   }
 }
 
-class _MobileTodayPage extends StatelessWidget {
+class _MobileTodayPage extends ConsumerWidget {
   const _MobileTodayPage({
-    required this.store,
     required this.showLater,
     required this.onFilterChanged,
     required this.onOpenTask,
@@ -382,7 +383,6 @@ class _MobileTodayPage extends StatelessWidget {
     required this.onSync,
   });
 
-  final TaskStore store;
   final bool showLater;
   final ValueChanged<bool> onFilterChanged;
   final ValueChanged<CueTask> onOpenTask;
@@ -391,7 +391,9 @@ class _MobileTodayPage extends StatelessWidget {
   final Future<void> Function() onSync;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     final tasks = showLater ? store.upcomingTasks : store.todayTasks;
     final morning = tasks
         .where((task) => task.dueAt != null && task.dueAt!.hour < 12)
@@ -503,9 +505,8 @@ class _TaskGroup extends StatelessWidget {
   }
 }
 
-class _MobileBoardPage extends StatefulWidget {
+class _MobileBoardPage extends ConsumerStatefulWidget {
   const _MobileBoardPage({
-    required this.store,
     required this.status,
     required this.onStatusChanged,
     required this.onOpenTask,
@@ -513,7 +514,6 @@ class _MobileBoardPage extends StatefulWidget {
     required this.onSync,
   });
 
-  final TaskStore store;
   final CueTaskStatus status;
   final ValueChanged<CueTaskStatus> onStatusChanged;
   final ValueChanged<CueTask> onOpenTask;
@@ -521,10 +521,11 @@ class _MobileBoardPage extends StatefulWidget {
   final Future<void> Function() onSync;
 
   @override
-  State<_MobileBoardPage> createState() => _MobileBoardPageState();
+  ConsumerState<_MobileBoardPage> createState() => _MobileBoardPageState();
 }
 
-class _MobileBoardPageState extends State<_MobileBoardPage> {
+class _MobileBoardPageState extends ConsumerState<_MobileBoardPage> {
+  TaskStore get _store => ref.read(taskStoreProvider)!;
   late final PageController _controller;
 
   @override
@@ -553,6 +554,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(taskRevisionProvider);
     return RefreshIndicator(
       color: _MobileColors.accent,
       backgroundColor: _MobileColors.card,
@@ -564,7 +566,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
           _MobileHeader(
             title: context.l10n.board,
             subtitle: context.l10n.swipeStages(
-              context.l10n.openTaskCount(widget.store.activeTasks.length),
+              context.l10n.openTaskCount(_store.activeTasks.length),
             ),
             boardIsOpen: true,
             onOpenBoard: widget.onBackToToday,
@@ -587,7 +589,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
           ),
           const SizedBox(height: 20),
           Text(
-            '${_statusLabel(context, widget.status, uppercase: true)} · ${widget.store.tasksForStatus(widget.status).length}',
+            '${_statusLabel(context, widget.status, uppercase: true)} · ${_store.tasksForStatus(widget.status).length}',
             style: TextStyle(
               color: _MobileColors.secondary,
               fontSize: 13,
@@ -602,7 +604,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
               onPageChanged: (index) =>
                   widget.onStatusChanged(CueTaskStatus.values[index]),
               children: CueTaskStatus.values.map((status) {
-                final tasks = widget.store.tasksForStatus(status);
+                final tasks = _store.tasksForStatus(status);
                 return ListView.separated(
                   padding: EdgeInsets.zero,
                   physics: const NeverScrollableScrollPhysics(),
@@ -610,7 +612,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
                   separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) => _MobileTaskCard(
                     task: tasks[index],
-                    today: widget.store.today,
+                    today: _store.today,
                     onOpen: () => widget.onOpenTask(tasks[index]),
                   ),
                 );
@@ -623,23 +625,23 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
   }
 }
 
-class _MobileCalendarPage extends StatelessWidget {
+class _MobileCalendarPage extends ConsumerWidget {
   const _MobileCalendarPage({
-    required this.store,
     required this.onOpenTask,
     required this.onSelectEmptyDay,
     required this.onOpenBoard,
     required this.onSync,
   });
 
-  final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<DateTime> onSelectEmptyDay;
   final VoidCallback onOpenBoard;
   final Future<void> Function() onSync;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     final month = DateTime(store.today.year, store.today.month);
     final first = month.subtract(Duration(days: month.weekday - 1));
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
@@ -739,21 +741,21 @@ class _MobileCalendarPage extends StatelessWidget {
   }
 }
 
-class _MobileQuadrantsPage extends StatelessWidget {
+class _MobileQuadrantsPage extends ConsumerWidget {
   const _MobileQuadrantsPage({
-    required this.store,
     required this.onOpenTask,
     required this.onOpenBoard,
     required this.onSync,
   });
 
-  final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
   final VoidCallback onOpenBoard;
   final Future<void> Function() onSync;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     final panels = [
       (
         context.l10n.doNow,
@@ -822,9 +824,8 @@ class _MobileQuadrantsPage extends StatelessWidget {
   }
 }
 
-class _MobileSettingsPage extends StatelessWidget {
+class _MobileSettingsPage extends ConsumerWidget {
   const _MobileSettingsPage({
-    required this.store,
     required this.email,
     required this.onSync,
     required this.onLogout,
@@ -832,7 +833,6 @@ class _MobileSettingsPage extends StatelessWidget {
     required this.onConfigureServer,
   });
 
-  final TaskStore store;
   final String? email;
   final Future<void> Function() onSync;
   final Future<void> Function()? onLogout;
@@ -840,7 +840,10 @@ class _MobileSettingsPage extends StatelessWidget {
   final VoidCallback? onConfigureServer;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final app = ref.watch(appControllerProvider);
+    ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     final syncDetail = !store.isRemote
         ? context.l10n.localDemo
         : store.isSyncing
@@ -848,7 +851,7 @@ class _MobileSettingsPage extends StatelessWidget {
         : store.lastError != null
         ? context.l10n.needsAttention
         : context.l10n.connected;
-    final locale = CueLocaleScope.of(context).locale;
+    final locale = app.locale;
     final languageDetail = locale == null
         ? context.l10n.systemDefault
         : locale.languageCode == 'zh'
@@ -896,7 +899,7 @@ class _MobileSettingsPage extends StatelessWidget {
         _SettingsRow(
           icon: Icons.contrast,
           label: context.l10n.appearance,
-          detail: CueAppearanceScope.of(context).mode == ThemeMode.dark
+          detail: app.themeMode == ThemeMode.dark
               ? context.l10n.dark
               : context.l10n.light,
           onTap: () => showAppearancePicker(context, mobile: true),
@@ -960,9 +963,10 @@ class _MobileSettingsPage extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => AnimatedBuilder(
-        animation: store,
-        builder: (context, _) {
+      builder: (sheetContext) => Consumer(
+        builder: (context, ref, _) {
+          ref.watch(taskRevisionProvider);
+          final store = ref.watch(taskStoreProvider)!;
           return Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
             child: Column(
@@ -1559,28 +1563,28 @@ class _MobileBottomNavigation extends StatelessWidget {
     required this.onSelect,
   });
 
-  final _MobileDestination destination;
-  final ValueChanged<_MobileDestination> onSelect;
+  final MobileDestination destination;
+  final ValueChanged<MobileDestination> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final items = [
       (
-        _MobileDestination.today,
+        MobileDestination.today,
         Icons.check_circle_outline_rounded,
         context.l10n.today,
       ),
       (
-        _MobileDestination.calendar,
+        MobileDestination.calendar,
         Icons.calendar_month_outlined,
         context.l10n.calendar,
       ),
       (
-        _MobileDestination.quadrants,
+        MobileDestination.quadrants,
         Icons.grid_view_rounded,
         context.l10n.quadrants,
       ),
-      (_MobileDestination.settings, Icons.tune_rounded, context.l10n.settings),
+      (MobileDestination.settings, Icons.tune_rounded, context.l10n.settings),
     ];
     return Container(
       height: 84,
@@ -1594,8 +1598,8 @@ class _MobileBottomNavigation extends StatelessWidget {
         children: items.map((item) {
           final selected =
               destination == item.$1 ||
-              (destination == _MobileDestination.board &&
-                  item.$1 == _MobileDestination.today);
+              (destination == MobileDestination.board &&
+                  item.$1 == MobileDestination.today);
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => onSelect(item.$1),
@@ -1674,21 +1678,21 @@ class _QuickAddButton extends StatelessWidget {
   }
 }
 
-class _TaskDetailsDialog extends StatelessWidget {
+class _TaskDetailsDialog extends ConsumerWidget {
   const _TaskDetailsDialog({
     required this.task,
-    required this.store,
     required this.onClose,
     required this.onRun,
   });
 
   final CueTask task;
-  final TaskStore store;
   final VoidCallback onClose;
   final Future<bool> Function(Future<void> Function()) onRun;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     return Dialog(
       key: const Key('task-details-dialog'),
       backgroundColor: _MobileColors.card,

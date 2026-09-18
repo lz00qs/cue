@@ -90,6 +90,8 @@ docker compose down
 
 ## 本地开发
 
+Flutter 界面使用 Riverpod 管理应用会话、主题、语言及各页面的导航和筛选状态。`lib/state/app_state.dart` 定义应用级 Provider，`lib/state/page_state.dart` 定义页面状态。任务的乐观更新、冲突恢复和增量同步逻辑仍集中在 `TaskStore`，由 `taskRevisionProvider` 把任务变更送到 Riverpod 页面；组件内的文本控制器、悬停与拖拽反馈仍由 Flutter Widget 管理。
+
 Web 默认请求同源 `/api`。如果 Flutter 开发服务器和 API 不同源，可在构建或运行时指定完整地址：
 
 ```bash

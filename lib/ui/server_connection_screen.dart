@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../state/page_state.dart';
 
 import '../data/api_client.dart';
 import '../l10n/l10n.dart';
 import 'cue_theme.dart';
 import 'language_menu.dart';
 
-class ServerConnectionScreen extends StatefulWidget {
+class ServerConnectionScreen extends ConsumerStatefulWidget {
   const ServerConnectionScreen({
     super.key,
     required this.onConnect,
@@ -18,14 +21,16 @@ class ServerConnectionScreen extends StatefulWidget {
   final VoidCallback? onCancel;
 
   @override
-  State<ServerConnectionScreen> createState() => _ServerConnectionScreenState();
+  ConsumerState<ServerConnectionScreen> createState() =>
+      _ServerConnectionScreenState();
 }
 
-class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
+class _ServerConnectionScreenState
+    extends ConsumerState<ServerConnectionScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _serverUrl;
-  bool _connecting = false;
-  String? _error;
+  bool get _connecting => ref.read(serverConnectionUiProvider).connecting;
+  String? get _error => ref.read(serverConnectionUiProvider).error;
 
   @override
   void initState() {
@@ -41,33 +46,33 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
 
   Future<void> _connect() async {
     if (!_formKey.currentState!.validate() || _connecting) return;
-    setState(() {
-      _connecting = true;
-      _error = null;
-    });
+    ref.read(serverConnectionUiProvider.notifier).setConnecting(true);
     try {
       await widget.onConnect(normalizeServerUrl(_serverUrl.text));
     } on ServerConnectionException catch (error) {
       if (!mounted) return;
-      setState(() {
-        _error = switch (error.failure) {
-          ServerConnectionFailure.unreachable => context.l10n.serverUnreachable,
-          ServerConnectionFailure.incompatible =>
-            context.l10n.serverIncompatible,
-          ServerConnectionFailure.verificationFailed =>
-            context.l10n.serverVerificationFailed,
-        };
+      ref.read(serverConnectionUiProvider.notifier).setError(switch (error
+          .failure) {
+        ServerConnectionFailure.unreachable => context.l10n.serverUnreachable,
+        ServerConnectionFailure.incompatible => context.l10n.serverIncompatible,
+        ServerConnectionFailure.verificationFailed =>
+          context.l10n.serverVerificationFailed,
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = context.l10n.serverVerificationFailed);
+      ref
+          .read(serverConnectionUiProvider.notifier)
+          .setError(context.l10n.serverVerificationFailed);
     } finally {
-      if (mounted) setState(() => _connecting = false);
+      if (mounted) {
+        ref.read(serverConnectionUiProvider.notifier).setConnecting(false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(serverConnectionUiProvider);
     return Scaffold(
       backgroundColor: CueColors.subtle,
       appBar: widget.onCancel == null
@@ -154,7 +159,11 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     autocorrect: false,
                     enableSuggestions: false,
                     onChanged: (_) {
-                      if (_error != null) setState(() => _error = null);
+                      if (_error != null) {
+                        ref
+                            .read(serverConnectionUiProvider.notifier)
+                            .setError(null);
+                      }
                     },
                     onFieldSubmitted: (_) => _connect(),
                     decoration: InputDecoration(

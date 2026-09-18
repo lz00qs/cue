@@ -1,28 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/l10n.dart';
+import '../state/app_state.dart';
 import 'preference_picker.dart';
-
-class CueLocaleScope extends InheritedWidget {
-  const CueLocaleScope({
-    super.key,
-    required this.locale,
-    required this.onLocaleChanged,
-    required super.child,
-  });
-
-  final Locale? locale;
-  final ValueChanged<Locale?> onLocaleChanged;
-
-  static CueLocaleScope of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<CueLocaleScope>()!;
-  }
-
-  @override
-  bool updateShouldNotify(CueLocaleScope oldWidget) =>
-      locale != oldWidget.locale ||
-      onLocaleChanged != oldWidget.onLocaleChanged;
-}
 
 class LanguageMenuButton extends StatelessWidget {
   const LanguageMenuButton({super.key, this.showLabel = false});
@@ -43,13 +24,14 @@ class LanguageMenuButton extends StatelessWidget {
 }
 
 Future<void> showLanguagePicker(BuildContext context, {bool? mobile}) async {
-  final scope = CueLocaleScope.of(context);
+  final container = ProviderScope.containerOf(context, listen: false);
+  final locale = container.read(appControllerProvider).locale;
   final l10n = context.l10n;
   final selected = await showCuePreferencePicker<String>(
     context: context,
     title: l10n.language,
     icon: Icons.language_rounded,
-    selected: scope.locale?.languageCode ?? 'system',
+    selected: locale?.languageCode ?? 'system',
     mobile: mobile ?? MediaQuery.sizeOf(context).width < 840,
     options: [
       CuePreferenceOption(
@@ -73,6 +55,8 @@ Future<void> showLanguagePicker(BuildContext context, {bool? mobile}) async {
     ],
   );
   if (selected != null && context.mounted) {
-    scope.onLocaleChanged(selected == 'system' ? null : Locale(selected));
+    container
+        .read(appControllerProvider.notifier)
+        .changeLocale(selected == 'system' ? null : Locale(selected));
   }
 }

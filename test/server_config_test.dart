@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:cue/data/api_client.dart';
 import 'package:cue/l10n/l10n.dart';
-import 'package:cue/ui/language_menu.dart';
 import 'package:cue/ui/login_screen.dart';
 import 'package:cue/ui/server_connection_screen.dart';
 
@@ -185,20 +185,17 @@ Widget _localizedApp({
   required Widget home,
   Locale locale = const Locale('en'),
 }) {
-  return MaterialApp(
-    locale: locale,
-    supportedLocales: AppLocalizations.supportedLocales,
-    localizationsDelegates: const [
-      AppLocalizations.delegate,
-      GlobalMaterialLocalizations.delegate,
-      GlobalWidgetsLocalizations.delegate,
-      GlobalCupertinoLocalizations.delegate,
-    ],
-    builder: (context, child) => CueLocaleScope(
+  return ProviderScope(
+    child: MaterialApp(
       locale: locale,
-      onLocaleChanged: (_) {},
-      child: child ?? const SizedBox.shrink(),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      home: home,
     ),
-    home: home,
   );
 }
