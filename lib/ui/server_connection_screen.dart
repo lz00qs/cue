@@ -47,9 +47,20 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
     });
     try {
       await widget.onConnect(normalizeServerUrl(_serverUrl.text));
-    } catch (error) {
+    } on ServerConnectionException catch (error) {
       if (!mounted) return;
-      setState(() => _error = error.toString());
+      setState(() {
+        _error = switch (error.failure) {
+          ServerConnectionFailure.unreachable => context.l10n.serverUnreachable,
+          ServerConnectionFailure.incompatible =>
+            context.l10n.serverIncompatible,
+          ServerConnectionFailure.verificationFailed =>
+            context.l10n.serverVerificationFailed,
+        };
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = context.l10n.serverVerificationFailed);
     } finally {
       if (mounted) setState(() => _connecting = false);
     }
@@ -135,22 +146,38 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                     key: const Key('server-url-field'),
                     controller: _serverUrl,
                     autofocus: true,
+                    enabled: !_connecting,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    forceErrorText: _error,
                     keyboardType: TextInputType.url,
                     textInputAction: TextInputAction.go,
                     autocorrect: false,
                     enableSuggestions: false,
+                    onChanged: (_) {
+                      if (_error != null) setState(() => _error = null);
+                    },
                     onFieldSubmitted: (_) => _connect(),
                     decoration: InputDecoration(
                       labelText: context.l10n.serverUrl,
-                      hintText: 'http://10.0.2.2:8080',
+                      hintText: 'https://cue.example.com',
                       prefixIcon: const Icon(Icons.language_rounded, size: 20),
+                      errorMaxLines: 2,
                     ),
                     validator: (value) {
+                      final input = (value ?? '').trim();
+                      if (input.isEmpty) {
+                        return context.l10n.serverUrlRequired;
+                      }
+                      final lowerInput = input.toLowerCase();
+                      if (!lowerInput.startsWith('http://') &&
+                          !lowerInput.startsWith('https://')) {
+                        return context.l10n.serverUrlSchemeRequired;
+                      }
                       try {
-                        normalizeServerUrl(value ?? '');
+                        normalizeServerUrl(input);
                         return null;
-                      } on FormatException catch (error) {
-                        return error.message.toString();
+                      } on FormatException {
+                        return context.l10n.serverUrlInvalid;
                       }
                     },
                   ),
@@ -162,20 +189,6 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                       fontSize: 11,
                     ),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: CueColors.dangerBackground,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(color: CueColors.danger, fontSize: 12),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 22),
                   SizedBox(
                     height: 48,

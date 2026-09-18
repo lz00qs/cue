@@ -96,7 +96,7 @@ Web 默认请求同源 `/api`。如果 Flutter 开发服务器和 API 不同源�
 flutter run -d chrome --dart-define=CUE_API_URL=http://localhost:8080
 ```
 
-原生移动端和桌面端首次启动会先显示服务器连接页。输入所有设备共用的 Cue 服务基础地址，App 会通过 `/api/health` 验证后保存；`/api` 后缀可省略。移动端可在 `Settings → Import & sync → Change server` 修改地址，桌面端可在侧栏底部修改并手动同步。切换服务器时会清除旧服务器的登录令牌。
+原生移动端和桌面端首次启动会先显示服务器连接页。输入所有设备共用的 Cue 服务基础地址，必须明确以 `http://` 或 `https://` 开头。App 会通过 `/api/health` 验证后保存；`/api` 后缀可省略。移动端可在 `Settings → Import & sync → Change server` 修改地址，桌面端可在侧栏底部修改并手动同步。切换服务器时会清除旧服务器的登录令牌。
 
 Android 模拟器访问宿主机使用 `10.0.2.2`，iOS 模拟器使用 `127.0.0.1`；真机使用电脑的局域网地址或可访问的 HTTPS 域名。`CUE_API_URL` 仍可作为预配置默认值：
 

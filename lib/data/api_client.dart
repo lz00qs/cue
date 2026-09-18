@@ -16,6 +16,14 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+enum ServerConnectionFailure { unreachable, incompatible, verificationFailed }
+
+class ServerConnectionException implements Exception {
+  const ServerConnectionException(this.failure);
+
+  final ServerConnectionFailure failure;
+}
+
 class SyncResult {
   const SyncResult({required this.changes, required this.latestRevision});
 
@@ -60,10 +68,20 @@ class ApiClient {
     try {
       final response = await _dio.get<Map<String, dynamic>>(_url('/health'));
       if (response.data?['status'] != 'ok') {
-        throw const ApiException('This is not a compatible Cue server');
+        throw const ServerConnectionException(
+          ServerConnectionFailure.incompatible,
+        );
       }
     } on DioException catch (error) {
-      throw _mapError(error);
+      throw ServerConnectionException(
+        error.response == null
+            ? ServerConnectionFailure.unreachable
+            : ServerConnectionFailure.verificationFailed,
+      );
+    } on TypeError {
+      throw const ServerConnectionException(
+        ServerConnectionFailure.incompatible,
+      );
     }
   }
 
@@ -309,12 +327,15 @@ Stream<int> parseSseRevisions(Stream<List<int>> bytes) async* {
 }
 
 String normalizeServerUrl(String input, {bool allowEmpty = false}) {
-  var value = input.trim();
+  final value = input.trim();
   if (value.isEmpty) {
     if (allowEmpty) return '';
     throw const FormatException('Enter a server address');
   }
-  if (!value.contains('://')) value = 'http://$value';
+  final scheme = value.toLowerCase();
+  if (!scheme.startsWith('http://') && !scheme.startsWith('https://')) {
+    throw const FormatException('Start with http:// or https://');
+  }
 
   final uri = Uri.tryParse(value);
   if (uri == null ||
@@ -323,9 +344,7 @@ String normalizeServerUrl(String input, {bool allowEmpty = false}) {
       uri.userInfo.isNotEmpty ||
       uri.query.isNotEmpty ||
       uri.fragment.isNotEmpty) {
-    throw const FormatException(
-      'Use a valid HTTP or HTTPS address, for example http://10.0.2.2:8080',
-    );
+    throw const FormatException('Enter a valid server URL');
   }
 
   var path = uri.path;

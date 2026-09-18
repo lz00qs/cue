@@ -224,10 +224,46 @@ abstract class AppLocalizations {
   /// **'Server URL'**
   String get serverUrl;
 
+  /// No description provided for @serverUrlRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a server URL'**
+  String get serverUrlRequired;
+
+  /// No description provided for @serverUrlSchemeRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Start with http:// or https://'**
+  String get serverUrlSchemeRequired;
+
+  /// No description provided for @serverUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid server URL'**
+  String get serverUrlInvalid;
+
+  /// No description provided for @serverUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the server. Check the URL.'**
+  String get serverUnreachable;
+
+  /// No description provided for @serverIncompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'This is not a Cue server.'**
+  String get serverIncompatible;
+
+  /// No description provided for @serverVerificationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not verify the server. Try again.'**
+  String get serverVerificationFailed;
+
   /// No description provided for @serverUrlHelp.
   ///
   /// In en, this message translates to:
-  /// **'Use the base address you open in a browser. “/api” is optional. Prefer HTTPS outside a trusted local network.'**
+  /// **'Start with http:// or https://; /api is optional.'**
   String get serverUrlHelp;
 
   /// No description provided for @connect.

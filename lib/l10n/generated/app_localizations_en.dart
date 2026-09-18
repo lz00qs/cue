@@ -74,8 +74,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get serverUrl => 'Server URL';
 
   @override
+  String get serverUrlRequired => 'Enter a server URL';
+
+  @override
+  String get serverUrlSchemeRequired => 'Start with http:// or https://';
+
+  @override
+  String get serverUrlInvalid => 'Enter a valid server URL';
+
+  @override
+  String get serverUnreachable => 'Can\'t reach the server. Check the URL.';
+
+  @override
+  String get serverIncompatible => 'This is not a Cue server.';
+
+  @override
+  String get serverVerificationFailed =>
+      'Could not verify the server. Try again.';
+
+  @override
   String get serverUrlHelp =>
-      'Use the base address you open in a browser. “/api” is optional. Prefer HTTPS outside a trusted local network.';
+      'Start with http:// or https://; /api is optional.';
 
   @override
   String get connect => 'Connect';

@@ -73,8 +73,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverUrl => '服务器地址';
 
   @override
-  String get serverUrlHelp =>
-      '请输入可在浏览器中访问的基础地址，“/api” 可省略。在可信本地网络之外请优先使用 HTTPS。';
+  String get serverUrlRequired => '请输入服务器地址';
+
+  @override
+  String get serverUrlSchemeRequired => '请以 http:// 或 https:// 开头';
+
+  @override
+  String get serverUrlInvalid => '请输入有效的服务器地址';
+
+  @override
+  String get serverUnreachable => '无法连接服务器，请检查地址。';
+
+  @override
+  String get serverIncompatible => '这不是 Cue 服务器。';
+
+  @override
+  String get serverVerificationFailed => '无法验证服务器，请重试。';
+
+  @override
+  String get serverUrlHelp => '以 http:// 或 https:// 开头，/api 可省略。';
 
   @override
   String get connect => '连接';
