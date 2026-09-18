@@ -5,22 +5,23 @@ import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
+import '../appearance_menu.dart';
 import '../language_menu.dart';
 
 abstract final class _MobileColors {
-  static const canvas = CueColors.canvas;
-  static const card = CueColors.card;
-  static const subtle = CueColors.subtle;
-  static const selected = CueColors.selected;
-  static const accent = CueColors.accent;
-  static const primary = CueColors.primary;
-  static const secondary = CueColors.secondary;
+  static Color get canvas => CueColors.canvas;
+  static Color get card => CueColors.card;
+  static Color get subtle => CueColors.subtle;
+  static Color get selected => CueColors.selected;
+  static Color get accent => CueColors.accent;
+  static Color get primary => CueColors.primary;
+  static Color get secondary => CueColors.secondary;
   static const tertiary = CueColors.tertiary;
-  static const border = CueColors.border;
-  static const danger = CueColors.danger;
-  static const dangerBackground = CueColors.dangerBackground;
+  static Color get border => CueColors.border;
+  static Color get danger => CueColors.danger;
+  static Color get dangerBackground => CueColors.dangerBackground;
   static const orange = CueColors.orange;
-  static const orangeBackground = CueColors.orangeBackground;
+  static Color get orangeBackground => CueColors.orangeBackground;
   static const onAccent = CueColors.onAccent;
 }
 
@@ -220,7 +221,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
               ),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: _MobileColors.card,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
@@ -233,7 +234,7 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                       const SizedBox(height: 16),
                       Text(
                         context.l10n.newTask,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: _MobileColors.primary,
                           fontSize: 20,
                           height: 25 / 20,
@@ -319,13 +320,11 @@ class _MobileCueHomeState extends State<MobileCueHome> {
                         activeTrackColor: _MobileColors.accent,
                         title: Text(
                           context.l10n.important,
-                          style: const TextStyle(color: _MobileColors.primary),
+                          style: TextStyle(color: _MobileColors.primary),
                         ),
                         subtitle: Text(
                           context.l10n.showInPriorityQuadrants,
-                          style: const TextStyle(
-                            color: _MobileColors.secondary,
-                          ),
+                          style: TextStyle(color: _MobileColors.secondary),
                         ),
                         onChanged: (value) =>
                             setSheetState(() => important = value),
@@ -589,7 +588,7 @@ class _MobileBoardPageState extends State<_MobileBoardPage> {
           const SizedBox(height: 20),
           Text(
             '${_statusLabel(context, widget.status, uppercase: true)} · ${widget.store.tasksForStatus(widget.status).length}',
-            style: const TextStyle(
+            style: TextStyle(
               color: _MobileColors.secondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -718,7 +717,7 @@ class _MobileCalendarPage extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             context.l10n.nextUp,
-            style: const TextStyle(
+            style: TextStyle(
               color: _MobileColors.secondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -860,7 +859,7 @@ class _MobileSettingsPage extends StatelessWidget {
       children: [
         Text(
           context.l10n.settings,
-          style: const TextStyle(
+          style: TextStyle(
             color: _MobileColors.primary,
             fontSize: 20,
             height: 25 / 20,
@@ -871,7 +870,7 @@ class _MobileSettingsPage extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           context.l10n.personalizeCue,
-          style: const TextStyle(
+          style: TextStyle(
             color: _MobileColors.secondary,
             fontSize: 13,
             height: 18 / 13,
@@ -891,13 +890,16 @@ class _MobileSettingsPage extends StatelessWidget {
           icon: Icons.language_rounded,
           label: context.l10n.language,
           detail: languageDetail,
-          trailing: const LanguageMenuButton(),
+          onTap: () => showLanguagePicker(context, mobile: true),
         ),
         const SizedBox(height: 8),
         _SettingsRow(
           icon: Icons.contrast,
           label: context.l10n.appearance,
-          detail: CueColors.isDark ? context.l10n.dark : context.l10n.light,
+          detail: CueAppearanceScope.of(context).mode == ThemeMode.dark
+              ? context.l10n.dark
+              : context.l10n.light,
+          onTap: () => showAppearancePicker(context, mobile: true),
         ),
         const SizedBox(height: 8),
         _SettingsRow(
@@ -931,7 +933,7 @@ class _MobileSettingsPage extends StatelessWidget {
           label: context.l10n.importAndSync,
           detail: syncDetail,
           trailing: store.isSyncing
-              ? const SizedBox(
+              ? SizedBox(
                   width: 14,
                   height: 14,
                   child: CircularProgressIndicator(
@@ -971,7 +973,7 @@ class _MobileSettingsPage extends StatelessWidget {
                 const SizedBox(height: 20),
                 Text(
                   context.l10n.multiDeviceSync,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _MobileColors.primary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -1034,7 +1036,7 @@ class _MobileSettingsPage extends StatelessWidget {
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _MobileColors.secondary,
-                        side: const BorderSide(color: _MobileColors.border),
+                        side: BorderSide(color: _MobileColors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1077,7 +1079,7 @@ class _MobileSettingsPage extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               email ?? context.l10n.cueWorkspace,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _MobileColors.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -1087,7 +1089,7 @@ class _MobileSettingsPage extends StatelessWidget {
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: _MobileColors.danger,
-                side: const BorderSide(color: _MobileColors.border),
+                side: BorderSide(color: _MobileColors.border),
                 minimumSize: const Size.fromHeight(48),
               ),
               onPressed: () async {
@@ -1125,7 +1127,7 @@ class _MobileHeader extends StatelessWidget {
       height: 78,
       child: Stack(
         children: [
-          const Positioned(
+          Positioned(
             left: 0,
             top: 0,
             child: Text(
@@ -1143,7 +1145,7 @@ class _MobileHeader extends StatelessWidget {
             top: 16,
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _MobileColors.primary,
                 fontSize: 28,
                 fontWeight: FontWeight.w600,
@@ -1155,10 +1157,7 @@ class _MobileHeader extends StatelessWidget {
             top: 52,
             child: Text(
               subtitle,
-              style: const TextStyle(
-                color: _MobileColors.secondary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: _MobileColors.secondary, fontSize: 12),
             ),
           ),
           Positioned(
@@ -1179,18 +1178,18 @@ class _MobileHeader extends StatelessWidget {
                     boardIsOpen
                         ? context.l10n.backToToday
                         : context.l10n.openBoard,
-                    style: const TextStyle(color: _MobileColors.primary),
+                    style: TextStyle(color: _MobileColors.primary),
                   ),
                 ),
                 PopupMenuItem(
                   value: 'sync',
                   child: Text(
                     context.l10n.syncNow,
-                    style: const TextStyle(color: _MobileColors.primary),
+                    style: TextStyle(color: _MobileColors.primary),
                   ),
                 ),
               ],
-              child: const SizedBox(
+              child: SizedBox(
                 width: 28,
                 height: 32,
                 child: Align(
@@ -1314,7 +1313,7 @@ class _MobileTaskRow extends StatelessWidget {
                     _mobileTaskMeta(context, task, today),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _MobileColors.secondary,
                       fontSize: 13,
                       height: 18 / 13,
@@ -1370,7 +1369,7 @@ class _MobileTaskCard extends StatelessWidget {
               task.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: _MobileColors.primary,
                 fontSize: 15,
                 height: 20 / 15,
@@ -1382,7 +1381,7 @@ class _MobileTaskCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _mobileCompactMeta(context, task, today),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _MobileColors.secondary,
                       fontSize: 12,
                     ),
@@ -1510,7 +1509,7 @@ class _MobileQuadrant extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: _MobileColors.primary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -1519,10 +1518,7 @@ class _MobileQuadrant extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             rule,
-            style: const TextStyle(
-              color: _MobileColors.secondary,
-              fontSize: 10,
-            ),
+            style: TextStyle(color: _MobileColors.secondary, fontSize: 10),
           ),
           const SizedBox(height: 8),
           for (final task in tasks.take(3)) ...[
@@ -1541,7 +1537,7 @@ class _MobileQuadrant extends StatelessWidget {
                   'P${task.priority} · ${task.title}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: _MobileColors.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -1589,7 +1585,7 @@ class _MobileBottomNavigation extends StatelessWidget {
     return Container(
       height: 84,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _MobileColors.card,
         border: Border(top: BorderSide(color: _MobileColors.border)),
       ),
@@ -1652,7 +1648,7 @@ class _QuickAddButton extends StatelessWidget {
         width: 56,
         height: 56,
         alignment: Alignment.center,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: _MobileColors.accent,
           shape: BoxShape.circle,
           boxShadow: [
@@ -1699,7 +1695,7 @@ class _TaskDetailsDialog extends StatelessWidget {
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: _MobileColors.border),
+        side: BorderSide(color: _MobileColors.border),
         borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1728,7 +1724,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                   Expanded(
                     child: Text(
                       _mobileCompactMeta(context, task, store.today),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _MobileColors.secondary,
                         fontSize: 13,
                       ),
@@ -1751,7 +1747,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                 task.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _MobileColors.primary,
                   fontSize: 20,
                   height: 25 / 20,
@@ -1763,10 +1759,7 @@ class _TaskDetailsDialog extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
               child: Text(
                 '${_area(context, task)} · ${context.l10n.createdOn(_createdLabel(context, task, store.today))}',
-                style: const TextStyle(
-                  color: _MobileColors.secondary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
               ),
             ),
             Padding(
@@ -1775,7 +1768,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                 task.note.isEmpty ? context.l10n.defaultTaskNote : task.note,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _MobileColors.primary,
                   fontSize: 15,
                   height: 21 / 15,
@@ -1796,7 +1789,7 @@ class _TaskDetailsDialog extends StatelessWidget {
             Container(
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: _MobileColors.border)),
               ),
               child: Row(
@@ -1812,7 +1805,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                     ),
                     child: Text(
                       context.l10n.inbox,
-                      style: const TextStyle(color: _MobileColors.primary),
+                      style: TextStyle(color: _MobileColors.primary),
                     ),
                   ),
                   const Spacer(),
@@ -1827,7 +1820,7 @@ class _TaskDetailsDialog extends StatelessWidget {
                     ),
                     child: Text(
                       context.l10n.doing,
-                      style: const TextStyle(color: _MobileColors.secondary),
+                      style: TextStyle(color: _MobileColors.secondary),
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -1848,14 +1841,14 @@ class _TaskDetailsDialog extends StatelessWidget {
                         value: 'complete',
                         child: Text(
                           context.l10n.toggleComplete,
-                          style: const TextStyle(color: _MobileColors.primary),
+                          style: TextStyle(color: _MobileColors.primary),
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text(
                           context.l10n.delete,
-                          style: const TextStyle(color: _MobileColors.danger),
+                          style: TextStyle(color: _MobileColors.danger),
                         ),
                       ),
                     ],
@@ -1897,13 +1890,13 @@ class _ProfileSummary extends StatelessWidget {
               width: 52,
               height: 52,
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: _MobileColors.selected,
                 shape: BoxShape.circle,
               ),
               child: Text(
                 monogram,
-                style: const TextStyle(
+                style: TextStyle(
                   color: _MobileColors.accent,
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -1918,7 +1911,7 @@ class _ProfileSummary extends StatelessWidget {
                 children: [
                   Text(
                     context.l10n.cueWorkspace,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _MobileColors.primary,
                       fontSize: 15,
                     ),
@@ -1928,7 +1921,7 @@ class _ProfileSummary extends StatelessWidget {
                     email ?? context.l10n.focusStreak,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _MobileColors.secondary,
                       fontSize: 13,
                     ),
@@ -1936,7 +1929,7 @@ class _ProfileSummary extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               color: _MobileColors.secondary,
               size: 18,
@@ -1995,7 +1988,7 @@ class _SettingsRow extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: _MobileColors.primary,
                       fontSize: 15,
                       height: 21 / 15,
@@ -2004,7 +1997,7 @@ class _SettingsRow extends StatelessWidget {
                   if (detail != null)
                     Text(
                       detail!,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: _MobileColors.secondary,
                         fontSize: 13,
                         height: 18 / 13,
@@ -2014,7 +2007,7 @@ class _SettingsRow extends StatelessWidget {
               ),
             ),
             trailing ??
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
                   color: _MobileColors.secondary,
                   size: 16,
@@ -2038,12 +2031,12 @@ class _SyncFact extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: _MobileColors.secondary, fontSize: 13),
+          style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
         ),
         const Spacer(),
         Text(
           value,
-          style: const TextStyle(color: _MobileColors.primary, fontSize: 13),
+          style: TextStyle(color: _MobileColors.primary, fontSize: 13),
         ),
       ],
     );
@@ -2069,18 +2062,18 @@ class _MobileTextField extends StatelessWidget {
       controller: controller,
       autofocus: autofocus,
       maxLines: maxLines,
-      style: const TextStyle(color: _MobileColors.primary),
+      style: TextStyle(color: _MobileColors.primary),
       cursorColor: _MobileColors.accent,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: _MobileColors.secondary),
+        labelStyle: TextStyle(color: _MobileColors.secondary),
         filled: true,
         fillColor: _MobileColors.subtle,
-        enabledBorder: const OutlineInputBorder(
+        enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: _MobileColors.border),
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
-        focusedBorder: const OutlineInputBorder(
+        focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: _MobileColors.accent),
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
@@ -2165,7 +2158,7 @@ const _mobileEyebrowStyle = TextStyle(
   fontWeight: FontWeight.w600,
 );
 
-const _mobileSectionStyle = TextStyle(
+TextStyle get _mobileSectionStyle => TextStyle(
   color: _MobileColors.secondary,
   fontSize: 12,
   height: 16 / 12,

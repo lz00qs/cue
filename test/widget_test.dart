@@ -39,6 +39,57 @@ void main() {
     expectTheme();
   });
 
+  testWidgets('appearance can be changed on desktop and mobile', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Appearance'));
+    await tester.pumpAndSettle();
+    expect(find.byType(Dialog), findsOneWidget);
+    await tester.tap(find.byKey(const Key('appearance-option-dark')));
+    await tester.pumpAndSettle();
+    expect(CueColors.isDark, isTrue);
+    expect(
+      Theme.of(tester.element(find.byType(Scaffold).first)).brightness,
+      Brightness.dark,
+    );
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+      const Color(0xFF0B0C10),
+    );
+
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Dark'), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+      const Color(0xFF0B0C10),
+    );
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tap(find.byKey(const Key('appearance-option-light')));
+    await tester.pumpAndSettle();
+    expect(CueColors.isDark, isFalse);
+    expect(find.text('Light'), findsOneWidget);
+    expect(
+      Theme.of(tester.element(find.byType(Scaffold).first)).brightness,
+      Brightness.light,
+    );
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+      const Color(0xFFFFFFFF),
+    );
+  });
+
   testWidgets('renders the Cue Today view and switches to Board', (
     tester,
   ) async {
@@ -183,13 +234,38 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Language'));
+    await tester.tap(find.text('Language'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('中文').last);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tap(find.byKey(const Key('language-option-zh')));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsWidgets);
     expect(find.text('让 Cue 更适合你的工作方式'), findsOneWidget);
     expect(find.text('导入与同步'), findsOneWidget);
+  });
+
+  testWidgets('desktop language and appearance use the same dialog position', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Language'));
+    await tester.pumpAndSettle();
+    final languageDialog = find.byType(Dialog);
+    expect(languageDialog, findsOneWidget);
+    final languageCenter = tester.getCenter(languageDialog);
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Appearance'));
+    await tester.pumpAndSettle();
+    final appearanceDialog = find.byType(Dialog);
+    expect(appearanceDialog, findsOneWidget);
+    expect(tester.getCenter(appearanceDialog), languageCenter);
   });
 }

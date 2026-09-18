@@ -1,16 +1,13 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'secure_storage.dart';
+import 'app_storage.dart';
 
 class TokenStore {
-  TokenStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? createSecureStorage();
+  TokenStore({AppStorage? storage}) : _storage = storage ?? createAppStorage();
 
   static const _accessKey = 'cue_access_token';
   static const _refreshKey = 'cue_refresh_token';
   static const _emailKey = 'cue_user_email';
 
-  final FlutterSecureStorage _storage;
+  final AppStorage _storage;
 
   Future<String?> get accessToken => _storage.read(key: _accessKey);
   Future<String?> get refreshToken => _storage.read(key: _refreshKey);

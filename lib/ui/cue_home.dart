@@ -7,6 +7,7 @@ import '../data/sync_coordinator.dart';
 import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
 import 'cue_theme.dart';
+import 'appearance_menu.dart';
 import 'cue_widgets.dart';
 import 'desktop/task_details_popover.dart';
 import 'language_menu.dart';
@@ -305,7 +306,7 @@ class _CueHomeState extends State<CueHome> with WidgetsBindingObserver {
               actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
               title: Text(
                 context.l10n.newTask,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w600,
                   color: CueColors.primary,
@@ -563,14 +564,14 @@ class _Sidebar extends StatelessWidget {
     return Container(
       width: 252,
       padding: const EdgeInsets.fromLTRB(16, 28, 4, 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: CueColors.sidebar,
         border: Border(right: BorderSide(color: CueColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Cue',
             style: TextStyle(
               color: CueColors.primary,
@@ -608,7 +609,7 @@ class _Sidebar extends StatelessWidget {
             onTap: () => onSelect(CueView.upcoming),
           ),
           const SizedBox(height: 8),
-          const SizedBox(
+          SizedBox(
             width: 220,
             child: Divider(height: 1, thickness: 1, color: CueColors.border),
           ),
@@ -637,6 +638,10 @@ class _Sidebar extends StatelessWidget {
             onTap: () => onSelect(CueView.quadrants),
           ),
           const Spacer(),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: AppearanceMenuButton(showLabel: true),
+          ),
           const Padding(
             padding: EdgeInsets.only(left: 4, bottom: 8),
             child: LanguageMenuButton(showLabel: true),
@@ -679,10 +684,7 @@ class _Sidebar extends StatelessWidget {
                             ? context.l10n.synced
                             : context.l10n.userSynced(userEmail!)),
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: CueColors.secondary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: CueColors.secondary, fontSize: 11),
                   ),
                 ),
                 if (store.isRemote)
@@ -978,10 +980,7 @@ class _QuickCapture extends StatelessWidget {
             'assets/figma/plus.svg',
             width: 20,
             height: 20,
-            colorFilter: const ColorFilter.mode(
-              CueColors.accent,
-              BlendMode.srcIn,
-            ),
+            colorFilter: ColorFilter.mode(CueColors.accent, BlendMode.srcIn),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -990,7 +989,7 @@ class _QuickCapture extends StatelessWidget {
               controller: controller,
               focusNode: focusNode,
               onSubmitted: (_) => onAdd(),
-              style: const TextStyle(
+              style: TextStyle(
                 color: CueColors.primary,
                 fontSize: 13,
                 height: 18 / 13,

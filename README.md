@@ -35,7 +35,7 @@ admin@cue.local
 Cue-Local-2026!
 ```
 
-不要将这组本地凭据用于公网部署。公网部署前请使用长随机密码和两个独立随机 JWT 密钥，并在外层反向代理启用 HTTPS。
+不要将这组本地凭据用于公网部署。公网部署前请使用长随机密码和两个独立随机 JWT 密钥，并启用下文的 HTTPS 入口。
 
 任务种子数据和 PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时可在 `.env` 修改。
 
@@ -50,6 +50,24 @@ docker compose up --build -d
 ```
 
 浏览器打开 [http://localhost:8080](http://localhost:8080)。端口默认只绑定 `127.0.0.1`，不会直接暴露到局域网。
+
+Compose 将宿主机的 `CUE_WEB_PORT`（默认 8080）映射到 Web 容器的 HTTP 80 端口。HTTPS 使用独立的 443 入口，可在 `.env` 修改绑定地址、端口和证书路径：
+
+```dotenv
+CUE_HTTPS_BIND_ADDRESS=0.0.0.0
+CUE_HTTPS_PORT=443
+CUE_TLS_CERT_FILE=./certs/fullchain.pem
+CUE_TLS_KEY_FILE=./certs/privkey.pem
+```
+
+先将域名对应的有效证书和私钥放到上述路径（也可在 `.env` 填写宿主机上的绝对路径），再启动 HTTPS：
+
+```bash
+docker compose --profile https up --build -d
+curl https://your-domain.example/api/health
+```
+
+HTTPS 代理会将 `/api` 和同步事件转发给 API，其余请求转发给 Web 容器。客户端服务器地址填写 `https://your-domain.example`；使用非默认端口时在地址末尾加上端口号。`certs/` 已被 Git 忽略。没有证书时继续使用默认的 `docker compose up --build -d` 启动 HTTP 服务。
 
 Android Studio 默认模拟器可通过宿主机回环别名 `http://10.0.2.2:8080` 访问，无需放宽监听。只有真机或其他可信局域网设备需要访问时，才在 `.env` 设置 `CUE_BIND_ADDRESS=0.0.0.0` 并重新创建 Web 容器；验证完成后应改回 `127.0.0.1`。
 
@@ -89,7 +107,7 @@ flutter build apk --release --dart-define=CUE_API_URL=https://cue.example.com
 flutter build ipa --release --dart-define=CUE_API_URL=https://cue.example.com
 ```
 
-明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。通过 Flutter 构建变量选择主题，桌面和移动布局会使用同一模式；不指定时默认浅色：
+明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 
 ```bash
 flutter run -d macos --dart-define=CUE_THEME=light
@@ -97,7 +115,9 @@ flutter run -d macos --dart-define=CUE_THEME=dark
 flutter build web --release --dart-define=CUE_THEME=dark
 ```
 
-切换构建变量后需要停止应用并重新运行，热重载不会修改编译时的主题配置。
+修改 `CUE_THEME` 构建变量需要重新运行应用；已保存的外观选择优先于构建默认值。
+
+macOS 版将登录令牌、服务器地址、语言和外观偏好保存在应用沙箱的 `Library/Application Support/Cue/` 中，不再访问 Keychain。令牌文件只允许当前用户读写，但内容不加密；请勿共享该用户账户或复制这些文件。首次使用此版本时，旧 Keychain 数据不会自动迁移，需要重新填写服务器地址并登录一次。
 
 移动端允许连接可信局域网内的 HTTP 服务；公网部署应使用 HTTPS。只要移动端、Web 和桌面端使用同一 API 与数据库，任务提交后 PostgreSQL 会通知各 API 进程，再通过 SSE 唤醒客户端按全局 `revision` 增量同步；断线时客户端重连并每分钟轮询兜底。每条任务的 `version` 检测并发写入。
 

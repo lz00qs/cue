@@ -1,15 +1,12 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'secure_storage.dart';
+import 'app_storage.dart';
 
 class LocaleStore {
-  LocaleStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? createSecureStorage();
+  LocaleStore({AppStorage? storage}) : _storage = storage ?? createAppStorage();
 
   static const _languageCodeKey = 'cue_language_code';
   static const supportedLanguageCodes = {'en', 'zh'};
 
-  final FlutterSecureStorage _storage;
+  final AppStorage _storage;
 
   Future<String?> get languageCode async {
     final value = await _storage.read(key: _languageCodeKey);

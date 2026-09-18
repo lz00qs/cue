@@ -65,5 +65,27 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  cue-https:
+    image: nginx:1.27-alpine
+    profiles: [https]
+    ports:
+      - "${CUE_HTTPS_BIND_ADDRESS:-0.0.0.0}:${CUE_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./docker/https.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${CUE_TLS_CERT_FILE:-./certs/fullchain.pem}:/etc/nginx/tls/fullchain.pem:ro
+      - ${CUE_TLS_KEY_FILE:-./certs/privkey.pem}:/etc/nginx/tls/privkey.pem:ro
+    depends_on:
+      cue-web:
+        condition: service_healthy
+      cue-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   cue-postgres-data:

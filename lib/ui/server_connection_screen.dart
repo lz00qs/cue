@@ -102,11 +102,11 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                       width: 56,
                       height: 56,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: CueColors.selected,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.dns_outlined,
                         color: CueColors.accent,
                         size: 26,
@@ -117,7 +117,7 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                   Text(
                     context.l10n.connectToCue,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: CueColors.primary,
                       fontSize: 28,
                       fontWeight: FontWeight.w600,
@@ -128,10 +128,7 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                   Text(
                     context.l10n.enterServerAddress,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: CueColors.secondary,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: CueColors.secondary, fontSize: 13),
                   ),
                   const SizedBox(height: 28),
                   TextFormField(
@@ -175,10 +172,7 @@ class _ServerConnectionScreenState extends State<ServerConnectionScreen> {
                       ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(
-                          color: CueColors.danger,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: CueColors.danger, fontSize: 12),
                       ),
                     ),
                   ],

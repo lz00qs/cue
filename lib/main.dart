@@ -8,10 +8,12 @@ import 'data/api_client.dart';
 import 'data/locale_store.dart';
 import 'data/server_config_store.dart';
 import 'data/task_store.dart';
+import 'data/theme_store.dart';
 import 'data/token_store.dart';
 import 'l10n/l10n.dart';
 import 'ui/cue_home.dart';
 import 'ui/cue_theme.dart';
+import 'ui/appearance_menu.dart';
 import 'ui/language_menu.dart';
 import 'ui/login_screen.dart';
 import 'ui/server_connection_screen.dart';
@@ -33,6 +35,7 @@ class CueApp extends StatefulWidget {
 class _CueAppState extends State<CueApp> {
   late final TokenStore? _tokens;
   late final LocaleStore? _localeStore;
+  late final ThemeStore? _themeStore;
   ServerConfigStore? _serverConfig;
   ApiClient? _api;
   TaskStore? _store;
@@ -42,15 +45,20 @@ class _CueAppState extends State<CueApp> {
   bool _booting = true;
   bool _configuringServer = false;
   Locale? _locale;
+  ThemeMode _themeMode = CueColors.defaultMode == 'dark'
+      ? ThemeMode.dark
+      : ThemeMode.light;
 
   bool get _isNativePlatform => !kIsWeb;
 
   @override
   void initState() {
     super.initState();
+    CueColors.isDark = _themeMode == ThemeMode.dark;
     if (widget.demoMode) {
       _tokens = null;
       _localeStore = null;
+      _themeStore = null;
       _api = null;
       _store = TaskStore.demo();
       _email = 'demo@cue.local';
@@ -58,12 +66,14 @@ class _CueAppState extends State<CueApp> {
     } else {
       _tokens = TokenStore();
       _localeStore = LocaleStore();
+      _themeStore = ThemeStore();
       _bootstrap();
     }
   }
 
   Future<void> _bootstrap() async {
     try {
+      await _restoreTheme();
       await _restoreLocale();
       if (_isNativePlatform) {
         _serverConfig = ServerConfigStore();
@@ -104,6 +114,33 @@ class _CueAppState extends State<CueApp> {
       }
     } catch (_) {
       // A locale preference should never prevent the app from starting.
+    }
+  }
+
+  Future<void> _restoreTheme() async {
+    try {
+      final mode = await _themeStore!.mode;
+      if (mode != null && mounted) {
+        _changeTheme(
+          mode == 'dark' ? ThemeMode.dark : ThemeMode.light,
+          persist: false,
+        );
+      }
+    } catch (_) {
+      // A theme preference should never prevent the app from starting.
+    }
+  }
+
+  void _changeTheme(ThemeMode mode, {bool persist = true}) {
+    CueColors.isDark = mode == ThemeMode.dark;
+    setState(() => _themeMode = mode);
+    final store = _themeStore;
+    if (persist && store != null) {
+      unawaited(
+        store
+            .save(mode == ThemeMode.dark ? 'dark' : 'light')
+            .catchError((_) {}),
+      );
     }
   }
 
@@ -259,7 +296,11 @@ class _CueAppState extends State<CueApp> {
       builder: (context, child) => CueLocaleScope(
         locale: _locale,
         onLocaleChanged: _changeLocale,
-        child: child ?? const SizedBox.shrink(),
+        child: CueAppearanceScope(
+          mode: _themeMode,
+          onModeChanged: _changeTheme,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: home,
     );
@@ -271,7 +312,7 @@ class _BootScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: CueColors.subtle,
       body: Center(
         child: Column(

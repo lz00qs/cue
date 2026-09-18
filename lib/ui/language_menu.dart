@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
+import 'preference_picker.dart';
 
 class CueLocaleScope extends InheritedWidget {
   const CueLocaleScope({
@@ -30,30 +31,48 @@ class LanguageMenuButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scope = CueLocaleScope.of(context);
     final l10n = context.l10n;
-    final selected = scope.locale?.languageCode ?? 'system';
-    return PopupMenuButton<String>(
-      tooltip: l10n.language,
-      initialValue: selected,
-      onSelected: (value) {
-        scope.onLocaleChanged(value == 'system' ? null : Locale(value));
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(value: 'system', child: Text(l10n.systemDefault)),
-        PopupMenuItem(value: 'zh', child: Text(l10n.chinese)),
-        PopupMenuItem(value: 'en', child: Text(l10n.english)),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.language_rounded, size: 19),
-            if (showLabel) ...[const SizedBox(width: 8), Text(l10n.language)],
-          ],
-        ),
-      ),
+    return CuePreferenceButton(
+      label: l10n.language,
+      icon: Icons.language_rounded,
+      showLabel: showLabel,
+      onTap: () =>
+          showLanguagePicker(context, mobile: showLabel ? false : null),
     );
+  }
+}
+
+Future<void> showLanguagePicker(BuildContext context, {bool? mobile}) async {
+  final scope = CueLocaleScope.of(context);
+  final l10n = context.l10n;
+  final selected = await showCuePreferencePicker<String>(
+    context: context,
+    title: l10n.language,
+    icon: Icons.language_rounded,
+    selected: scope.locale?.languageCode ?? 'system',
+    mobile: mobile ?? MediaQuery.sizeOf(context).width < 840,
+    options: [
+      CuePreferenceOption(
+        value: 'system',
+        label: l10n.systemDefault,
+        icon: Icons.devices_rounded,
+        key: const Key('language-option-system'),
+      ),
+      CuePreferenceOption(
+        value: 'zh',
+        label: l10n.chinese,
+        icon: Icons.translate_rounded,
+        key: const Key('language-option-zh'),
+      ),
+      CuePreferenceOption(
+        value: 'en',
+        label: l10n.english,
+        icon: Icons.abc_rounded,
+        key: const Key('language-option-en'),
+      ),
+    ],
+  );
+  if (selected != null && context.mounted) {
+    scope.onLocaleChanged(selected == 'system' ? null : Locale(selected));
   }
 }

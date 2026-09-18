@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: LanguageMenuButton(),
                   ),
-                  const Text(
+                  Text(
                     'Cue',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.dns_outlined,
                             size: 18,
                             color: CueColors.secondary,
@@ -132,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               widget.serverUrl!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: CueColors.secondary,
                                 fontSize: 12,
                               ),
@@ -198,10 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(
-                          color: CueColors.danger,
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: CueColors.danger, fontSize: 12),
                       ),
                     ),
                   ],

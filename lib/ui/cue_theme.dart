@@ -2,44 +2,55 @@ import 'package:flutter/material.dart';
 
 abstract final class CueColors {
   // Matches the Light and Dark modes of Figma's Cue Color collection.
-  static const mode = String.fromEnvironment(
+  static const defaultMode = String.fromEnvironment(
     'CUE_THEME',
     defaultValue: 'light',
   );
-  static const isDark = mode == 'dark';
+  static bool isDark = defaultMode == 'dark';
 
-  static const canvas = isDark ? Color(0xFF0B0C10) : Color(0xFFFFFFFF);
-  static const sidebar = isDark ? Color(0xFF0B0C10) : Color(0xFFF3F4F7);
-  static const card = isDark ? Color(0xFF292B31) : Color(0xFFFFFFFF);
-  static const subtle = isDark ? Color(0xFF17181C) : Color(0xFFF8F8FA);
-  static const selected = isDark ? Color(0xFF172455) : Color(0xFFE9EEFF);
-  static const accent = isDark ? Color(0xFF5B7CFA) : Color(0xFF3A63F3);
-  static const primary = isDark ? Color(0xFFFFFFFF) : Color(0xFF17181C);
-  static const secondary = isDark ? Color(0xFFD9DBE1) : Color(0xFF5D606B);
+  static Color get canvas =>
+      isDark ? const Color(0xFF0B0C10) : const Color(0xFFFFFFFF);
+  static Color get sidebar =>
+      isDark ? const Color(0xFF0B0C10) : const Color(0xFFF3F4F7);
+  static Color get card =>
+      isDark ? const Color(0xFF292B31) : const Color(0xFFFFFFFF);
+  static Color get subtle =>
+      isDark ? const Color(0xFF17181C) : const Color(0xFFF8F8FA);
+  static Color get selected =>
+      isDark ? const Color(0xFF172455) : const Color(0xFFE9EEFF);
+  static Color get accent =>
+      isDark ? const Color(0xFF5B7CFA) : const Color(0xFF3A63F3);
+  static Color get primary =>
+      isDark ? const Color(0xFFFFFFFF) : const Color(0xFF17181C);
+  static Color get secondary =>
+      isDark ? const Color(0xFFD9DBE1) : const Color(0xFF5D606B);
   static const tertiary = Color(0xFF8E919B);
   static const onAccent = Color(0xFFFFFFFF);
-  static const border = isDark ? Color(0xFF30323A) : Color(0xFFE9EAF0);
-  static const strongBorder = isDark ? Color(0xFF5D606B) : Color(0xFFD9DBE1);
-  static const danger = isDark ? Color(0xFFFF6B75) : Color(0xFFE45151);
-  static const dangerBackground = isDark
-      ? Color(0xFF3A171C)
-      : Color(0xFFFDECEC);
+  static Color get border =>
+      isDark ? const Color(0xFF30323A) : const Color(0xFFE9EAF0);
+  static Color get strongBorder =>
+      isDark ? const Color(0xFF5D606B) : const Color(0xFFD9DBE1);
+  static Color get danger =>
+      isDark ? const Color(0xFFFF6B75) : const Color(0xFFE45151);
+  static Color get dangerBackground =>
+      isDark ? const Color(0xFF3A171C) : const Color(0xFFFDECEC);
   static const orange = Color(0xFFD9822B);
-  static const orangeBackground = isDark
-      ? Color(0xFF3A2814)
-      : Color(0xFFFFF1DE);
+  static Color get orangeBackground =>
+      isDark ? const Color(0xFF3A2814) : const Color(0xFFFFF1DE);
   static const green = Color(0xFF2F9B63);
-  static const greenBackground = isDark ? Color(0xFF123326) : Color(0xFFE5F6EC);
-  static const prioritySelected = isDark
-      ? Color(0xFF1E2E68)
-      : Color(0xFFE9EEFF);
-  static const hover = isDark ? Color(0xFF34363D) : Color(0xFFFBFBFD);
-  static const sidebarHover = isDark ? Color(0xFF17181C) : Color(0xFFEDEEF2);
+  static Color get greenBackground =>
+      isDark ? const Color(0xFF123326) : const Color(0xFFE5F6EC);
+  static Color get prioritySelected =>
+      isDark ? const Color(0xFF1E2E68) : const Color(0xFFE9EEFF);
+  static Color get hover =>
+      isDark ? const Color(0xFF34363D) : const Color(0xFFFBFBFD);
+  static Color get sidebarHover =>
+      isDark ? const Color(0xFF17181C) : const Color(0xFFEDEEF2);
 }
 
 abstract final class CueTheme {
   static ThemeData get active {
-    const brightness = CueColors.isDark ? Brightness.dark : Brightness.light;
+    final brightness = CueColors.isDark ? Brightness.dark : Brightness.light;
     final base = ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -61,32 +72,32 @@ abstract final class CueTheme {
       highlightColor: Colors.transparent,
       dividerColor: CueColors.border,
       textTheme: base.textTheme.copyWith(
-        headlineMedium: const TextStyle(
+        headlineMedium: TextStyle(
           color: CueColors.primary,
           fontSize: 32,
           height: 38 / 32,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.5,
         ),
-        titleMedium: const TextStyle(
+        titleMedium: TextStyle(
           color: CueColors.primary,
           fontSize: 15,
           height: 20 / 15,
           fontWeight: FontWeight.w600,
         ),
-        bodyMedium: const TextStyle(
+        bodyMedium: TextStyle(
           color: CueColors.primary,
           fontSize: 15,
           height: 21 / 15,
           fontWeight: FontWeight.w400,
         ),
-        bodySmall: const TextStyle(
+        bodySmall: TextStyle(
           color: CueColors.secondary,
           fontSize: 13,
           height: 18 / 13,
           fontWeight: FontWeight.w400,
         ),
-        labelSmall: const TextStyle(
+        labelSmall: TextStyle(
           color: CueColors.secondary,
           fontSize: 12,
           height: 16 / 12,
@@ -94,14 +105,14 @@ abstract final class CueTheme {
           letterSpacing: 0.1,
         ),
       ),
-      dialogTheme: const DialogThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: CueColors.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: CueColors.card,
         contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),

@@ -60,7 +60,7 @@ class _TaskDetailsPopoverState extends State<TaskDetailsPopover> {
           backgroundColor: CueColors.card,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            side: const BorderSide(color: CueColors.border),
+            side: BorderSide(color: CueColors.border),
             borderRadius: BorderRadius.circular(16),
           ),
           clipBehavior: Clip.antiAlias,
@@ -119,7 +119,7 @@ class _TaskDetailsPopoverState extends State<TaskDetailsPopover> {
                       children: [
                         Text(
                           task.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: CueColors.primary,
                             fontSize: 20,
                             height: 25 / 20,
@@ -171,7 +171,7 @@ class _TaskDetailsPopoverState extends State<TaskDetailsPopover> {
                             task.note.isEmpty
                                 ? context.l10n.defaultTaskNote
                                 : task.note,
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: CueColors.primary,
                               fontSize: 15,
                               height: 21 / 15,
@@ -197,7 +197,7 @@ class _TaskDetailsPopoverState extends State<TaskDetailsPopover> {
                 Container(
                   height: 56,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     border: Border(top: BorderSide(color: CueColors.border)),
                   ),
                   child: Row(

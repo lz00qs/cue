@@ -28,9 +28,7 @@ class CueActionButton extends StatelessWidget {
         style: TextButton.styleFrom(
           foregroundColor: primary ? CueColors.onAccent : CueColors.primary,
           backgroundColor: primary ? CueColors.accent : CueColors.subtle,
-          side: primary
-              ? BorderSide.none
-              : const BorderSide(color: CueColors.border),
+          side: primary ? BorderSide.none : BorderSide(color: CueColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: EdgeInsets.zero,
           textStyle: const TextStyle(fontSize: 13, height: 18 / 13),

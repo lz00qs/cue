@@ -257,7 +257,7 @@ class _CalendarCellState extends State<_CalendarCell> {
               children: [
                 Text(
                   '${widget.day.day}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: CueColors.primary,
                     fontSize: 12,
                     height: 16 / 12,
@@ -299,7 +299,7 @@ class _TaskPill extends StatelessWidget {
         task.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
+        style: TextStyle(
           color: CueColors.accent,
           fontSize: 11,
           height: 14 / 11,

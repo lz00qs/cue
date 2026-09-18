@@ -1,14 +1,12 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'secure_storage.dart';
+import 'app_storage.dart';
 
 class ServerConfigStore {
-  ServerConfigStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? createSecureStorage();
+  ServerConfigStore({AppStorage? storage})
+    : _storage = storage ?? createAppStorage();
 
   static const _serverUrlKey = 'cue_server_url';
 
-  final FlutterSecureStorage _storage;
+  final AppStorage _storage;
 
   Future<String?> get serverUrl => _storage.read(key: _serverUrlKey);
 
