@@ -194,6 +194,7 @@ class _MonthGrid extends StatelessWidget {
                   tasks: tasks,
                   currentMonth: day.month == month.month,
                   selected: TaskStore.isSameDay(day, store.today),
+                  onOpenTask: onOpenTask,
                   onTap: () {
                     if (tasks.isNotEmpty) {
                       onOpenTask(tasks.first);
@@ -217,6 +218,7 @@ class _CalendarCell extends StatefulWidget {
     required this.tasks,
     required this.currentMonth,
     required this.selected,
+    required this.onOpenTask,
     required this.onTap,
   });
 
@@ -224,6 +226,7 @@ class _CalendarCell extends StatefulWidget {
   final List<CueTask> tasks;
   final bool currentMonth;
   final bool selected;
+  final ValueChanged<CueTask> onOpenTask;
   final VoidCallback onTap;
 
   @override
@@ -273,7 +276,7 @@ class _CalendarCellState extends State<_CalendarCell> {
                 ),
                 const SizedBox(height: 12),
                 for (final task in widget.tasks.take(2)) ...[
-                  _TaskPill(task: task),
+                  _TaskPill(task: task, onTap: () => widget.onOpenTask(task)),
                   const SizedBox(height: 4),
                 ],
               ],
@@ -286,31 +289,40 @@ class _CalendarCellState extends State<_CalendarCell> {
 }
 
 class _TaskPill extends StatelessWidget {
-  const _TaskPill({required this.task});
+  const _TaskPill({required this.task, required this.onTap});
 
   final CueTask task;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 24,
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: CueColors.selected,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        task.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: CueColors.accent,
-          fontSize: 11,
-          height: 14 / 11,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.1,
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        key: Key('calendar-task-${task.id}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          height: 24,
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: CueColors.selected,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            task.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: CueColors.accent,
+              fontSize: 11,
+              height: 14 / 11,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.1,
+            ),
+          ),
         ),
       ),
     );

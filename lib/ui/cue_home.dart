@@ -429,7 +429,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   Future<void> _showTaskDetails(CueTask initialTask) async {
     await showDialog<void>(
       context: context,
-      barrierColor: Colors.transparent,
+      barrierColor: CueColors.modalBarrier,
       builder: (dialogContext) => TaskDetailsPopover(
         initialTask: initialTask,
         onRun: _runTaskOperation,
