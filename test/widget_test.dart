@@ -237,6 +237,13 @@ void main() {
     await tester.tap(find.text('Language'));
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('language-option-en')),
+        matching: find.byIcon(Icons.text_format_rounded),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const Key('language-option-zh')));
     await tester.pumpAndSettle();
 

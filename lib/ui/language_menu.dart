@@ -49,7 +49,7 @@ Future<void> showLanguagePicker(BuildContext context, {bool? mobile}) async {
       CuePreferenceOption(
         value: 'en',
         label: l10n.english,
-        icon: Icons.abc_rounded,
+        icon: Icons.text_format_rounded,
         key: const Key('language-option-en'),
       ),
     ],
