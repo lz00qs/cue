@@ -10,10 +10,10 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Cue — 推进下一件事';
+  String get appTitle => 'Cue — 给任务一个 Cue';
 
   @override
-  String get tagline => '推进下一件事';
+  String get tagline => '给任务一个 Cue';
 
   @override
   String get language => '语言';

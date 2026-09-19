@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "top.hylcreative" "\0"
-            VALUE "FileDescription", "cue" "\0"
+            VALUE "FileDescription", "Cue" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "cue" "\0"
+            VALUE "InternalName", "Cue" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 top.hylcreative. All rights reserved." "\0"
             VALUE "OriginalFilename", "cue.exe" "\0"
-            VALUE "ProductName", "cue" "\0"
+            VALUE "ProductName", "Cue" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
