@@ -54,7 +54,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
     final task = matches.isEmpty ? widget.initialTask : matches.first;
     return Dialog(
       key: const Key('desktop-task-details-popover'),
-      alignment: const Alignment(0.72, -0.14),
+      alignment: Alignment.center,
       insetPadding: const EdgeInsets.all(24),
       elevation: 24,
       shadowColor: Colors.black.withValues(alpha: 0.72),

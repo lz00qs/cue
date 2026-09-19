@@ -22,6 +22,7 @@ void main() {
     final popover = find.byKey(const Key('desktop-task-details-popover'));
     expect(popover, findsOneWidget);
     expect(tester.widget<Dialog>(popover).backgroundColor, CueColors.popover);
+    expect(tester.widget<Dialog>(popover).alignment, Alignment.center);
     expect(
       find.descendant(
         of: popover,
