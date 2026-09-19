@@ -167,12 +167,14 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                   _PageHeader(
                     title: _pageTitle,
                     subtitle: _pageSubtitle,
-                    actionLabel: _view == CueView.calendar
-                        ? context.l10n.today
-                        : context.l10n.addTask,
-                    onAction: _view == CueView.calendar
-                        ? () => _selectView(CueView.today)
-                        : () => _showAddTaskDialog(),
+                    onTitleTap: _view == CueView.calendar
+                        ? _showMonthPickerPopover
+                        : null,
+                    extraActions: _view == CueView.calendar
+                        ? const _CalendarMonthHeaderNavigation()
+                        : null,
+                    actionLabel: context.l10n.addTask,
+                    onAction: () => _showAddTaskDialog(),
                   ),
                   const SizedBox(height: 24),
                   AnimatedSwitcher(
@@ -194,7 +196,10 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     CueView.upcoming => context.l10n.upcoming,
     CueView.list => context.l10n.allTasks,
     CueView.board => context.l10n.board,
-    CueView.calendar => formatMonthYear(context, _store.today),
+    CueView.calendar => formatMonthYear(
+      context,
+      ref.watch(calendarFocusedMonthProvider),
+    ),
     CueView.quadrants => context.l10n.quadrants,
   };
 
@@ -256,6 +261,14 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         ),
       );
     }
+  }
+
+  Future<void> _showMonthPickerPopover() async {
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (dialogContext) => const MonthPickerPopover(),
+    );
   }
 
   Future<void> _showAddTaskDialog({DateTime? prefilledDate}) async {
@@ -771,40 +784,141 @@ class _PageHeader extends StatelessWidget {
     required this.subtitle,
     required this.actionLabel,
     required this.onAction,
+    this.extraActions,
+    this.onTitleTap,
   });
 
   final String title;
   final String subtitle;
   final String actionLabel;
   final VoidCallback onAction;
+  final Widget? extraActions;
+  final VoidCallback? onTitleTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 68,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 68),
       child: Row(
         children: [
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
+                if (onTitleTap != null)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      key: const Key('calendar-title-picker-trigger'),
+                      onTap: onTitleTap,
+                      behavior: HitTestBehavior.opaque,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 20,
+                            color: CueColors.secondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
                 const SizedBox(height: 4),
                 Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
               ],
             ),
           ),
           const SizedBox(width: 16),
+          if (extraActions != null) ...[
+            extraActions!,
+            const SizedBox(width: 12),
+          ],
           CueActionButton(
             label: actionLabel,
             primary: actionLabel != context.l10n.today,
             onPressed: onAction,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarMonthHeaderNavigation extends ConsumerWidget {
+  const _CalendarMonthHeaderNavigation();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: CueColors.subtle,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: CueColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            key: const Key('calendar-prev-month'),
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+            icon: Icon(Icons.chevron_left_rounded, color: CueColors.primary),
+            onPressed: () => ref
+                .read(calendarFocusedMonthProvider.notifier)
+                .previousMonth(),
+            tooltip: context.l10n.month,
+          ),
+          Container(width: 1, height: 16, color: CueColors.border),
+          InkWell(
+            key: const Key('calendar-today-button'),
+            onTap: () => ref
+                .read(calendarFocusedMonthProvider.notifier)
+                .resetToToday(),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                context.l10n.today,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: CueColors.primary,
+                ),
+              ),
+            ),
+          ),
+          Container(width: 1, height: 16, color: CueColors.border),
+          IconButton(
+            key: const Key('calendar-next-month'),
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+            icon: Icon(Icons.chevron_right_rounded, color: CueColors.primary),
+            onPressed: () => ref
+                .read(calendarFocusedMonthProvider.notifier)
+                .nextMonth(),
+            tooltip: context.l10n.month,
           ),
         ],
       ),
@@ -1018,6 +1132,141 @@ class _EmptyTaskList extends StatelessWidget {
         context.l10n.emptyList,
         style: Theme.of(context).textTheme.bodySmall
             ?.copyWith(color: CueColors.tertiary),
+      ),
+    );
+  }
+}
+
+class MonthPickerPopover extends ConsumerStatefulWidget {
+  const MonthPickerPopover({super.key});
+
+  @override
+  ConsumerState<MonthPickerPopover> createState() =>
+      _MonthPickerPopoverState();
+}
+
+class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
+  late int _displayedYear;
+
+  @override
+  void initState() {
+    super.initState();
+    final focused = ref.read(calendarFocusedMonthProvider);
+    _displayedYear = focused.year;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final focused = ref.watch(calendarFocusedMonthProvider);
+    final store = ref.read(taskStoreProvider);
+    final today = store?.today ?? DateTime.now();
+
+    return Dialog(
+      key: const Key('month-picker-popover'),
+      backgroundColor: CueColors.popover,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: CueColors.border),
+      ),
+      insetPadding: const EdgeInsets.all(24),
+      child: Container(
+        width: 300,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '$_displayedYear年',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: CueColors.primary,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  key: const Key('month-picker-prev-year'),
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: Icon(Icons.chevron_left_rounded, color: CueColors.secondary),
+                  onPressed: () => setState(() => _displayedYear--),
+                  tooltip: '上一年',
+                ),
+                IconButton(
+                  key: const Key('month-picker-today-year'),
+                  iconSize: 16,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: Icon(Icons.panorama_fish_eye_rounded, color: CueColors.secondary),
+                  onPressed: () {
+                    ref
+                        .read(calendarFocusedMonthProvider.notifier)
+                        .resetToToday();
+                    Navigator.pop(context);
+                  },
+                  tooltip: '本月',
+                ),
+                IconButton(
+                  key: const Key('month-picker-next-year'),
+                  iconSize: 18,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: Icon(Icons.chevron_right_rounded, color: CueColors.secondary),
+                  onPressed: () => setState(() => _displayedYear++),
+                  tooltip: '下一年',
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 12,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.1,
+              ),
+              itemBuilder: (context, index) {
+                final month = index + 1;
+                final isSelected =
+                    focused.year == _displayedYear && focused.month == month;
+                return Material(
+                  color: isSelected ? CueColors.accent : Colors.transparent,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: Key('month-picker-item-$month'),
+                    onTap: () {
+                      ref
+                          .read(calendarFocusedMonthProvider.notifier)
+                          .setMonth(DateTime(_displayedYear, month));
+                      Navigator.pop(context);
+                    },
+                    child: Center(
+                      child: Text(
+                        '$month月',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          color: isSelected
+                              ? CueColors.onAccent
+                              : CueColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

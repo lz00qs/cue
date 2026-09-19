@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_state.dart';
+import '../data/task_store.dart';
 import '../models/cue_task.dart';
 
 enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
@@ -89,6 +91,38 @@ class CalendarDueOnly extends Notifier<bool> {
   @override
   bool build() => false;
   void toggle() => state = !state;
+}
+
+final calendarFocusedMonthProvider =
+    NotifierProvider.autoDispose<CalendarFocusedMonth, DateTime>(
+      CalendarFocusedMonth.new,
+    );
+
+class CalendarFocusedMonth extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final store = ref.read(taskStoreProvider);
+    final today = store?.today ?? DateTime.now();
+    return DateTime(today.year, today.month);
+  }
+
+  void previousMonth() {
+    state = DateTime(state.year, state.month - 1);
+  }
+
+  void nextMonth() {
+    state = DateTime(state.year, state.month + 1);
+  }
+
+  void resetToToday() {
+    final store = ref.read(taskStoreProvider);
+    final today = store?.today ?? DateTime.now();
+    state = DateTime(today.year, today.month);
+  }
+
+  void setMonth(DateTime month) {
+    state = DateTime(month.year, month.month);
+  }
 }
 
 enum QuadrantFilter { all, important, dueSoon }

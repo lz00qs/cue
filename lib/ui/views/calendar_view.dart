@@ -1,12 +1,12 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../state/app_state.dart';
-import '../../state/page_state.dart';
 
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
+import '../../state/app_state.dart';
+import '../../state/page_state.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
@@ -25,13 +25,33 @@ class CalendarView extends ConsumerStatefulWidget {
 }
 
 class _CalendarViewState extends ConsumerState<CalendarView> {
+  DateTime _lastScrollTime = DateTime.fromMillisecondsSinceEpoch(0);
+
   bool get _dueOnly => ref.read(calendarDueOnlyProvider);
   TaskStore get _store => ref.read(taskStoreProvider)!;
+
+  void _handleScroll(PointerScrollEvent event) {
+    final now = DateTime.now();
+    if (now.difference(_lastScrollTime).inMilliseconds < 250) {
+      return;
+    }
+    if (event.scrollDelta.dy.abs() < 5) {
+      return;
+    }
+
+    _lastScrollTime = now;
+    if (event.scrollDelta.dy > 0) {
+      ref.read(calendarFocusedMonthProvider.notifier).nextMonth();
+    } else {
+      ref.read(calendarFocusedMonthProvider.notifier).previousMonth();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     ref.watch(calendarDueOnlyProvider);
+    final focusedMonth = ref.watch(calendarFocusedMonthProvider);
     final today = _store.today;
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 7));
@@ -39,8 +59,8 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
       (task) =>
           task.deletedAt == null &&
           task.dueAt != null &&
-          task.dueAt!.year == today.year &&
-          task.dueAt!.month == today.month,
+          task.dueAt!.year == focusedMonth.year &&
+          task.dueAt!.month == focusedMonth.month,
     );
     final dueThisWeek = scheduled
         .where(
@@ -50,53 +70,55 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
               task.dueAt!.isBefore(weekEnd),
         )
         .length;
-    final month = DateTime(today.year, today.month);
+    final month = DateTime(focusedMonth.year, focusedMonth.month);
     final leadingDays = month.weekday - 1;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final weekCount = ((leadingDays + daysInMonth + 6) ~/ 7);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          height: 40,
-          child: Row(
-            children: [
-              CueViewTab(
-                label: context.l10n.month,
-                selected: true,
-                onTap: () {},
-              ),
-              const SizedBox(width: 8),
-              CueViewTab(
-                label: context.l10n.dueOnly,
-                selected: _dueOnly,
-                onTap: () =>
-                    ref.read(calendarDueOnlyProvider.notifier).toggle(),
-              ),
-              const Spacer(),
-              if (MediaQuery.sizeOf(context).width >= 720)
-                Text(
-                  context.l10n.scheduledSummary(scheduled.length, dueThisWeek),
-                  style: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(color: CueColors.tertiary),
+    return Listener(
+      onPointerSignal: (pointerSignal) {
+        if (pointerSignal is PointerScrollEvent) {
+          _handleScroll(pointerSignal);
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: 40,
+            child: Row(
+              children: [
+                CueViewTab(
+                  label: context.l10n.dueOnly,
+                  selected: _dueOnly,
+                  onTap: () =>
+                      ref.read(calendarDueOnlyProvider.notifier).toggle(),
                 ),
-            ],
+                const Spacer(),
+                if (MediaQuery.sizeOf(context).width >= 720)
+                  Text(
+                    context.l10n.scheduledSummary(scheduled.length, dueThisWeek),
+                    style: Theme.of(context).textTheme.labelSmall
+                        ?.copyWith(color: CueColors.tertiary),
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 24),
-        const _WeekdayHeader(),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: weekCount * 132,
-          child: _MonthGrid(
-            store: _store,
-            weekCount: weekCount,
-            dueOnly: _dueOnly,
-            onOpenTask: widget.onOpenTask,
-            onSelectDay: widget.onSelectDay,
+          const SizedBox(height: 24),
+          const _WeekdayHeader(),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: weekCount * 132,
+            child: _MonthGrid(
+              focusedMonth: focusedMonth,
+              store: _store,
+              weekCount: weekCount,
+              dueOnly: _dueOnly,
+              onOpenTask: widget.onOpenTask,
+              onSelectDay: widget.onSelectDay,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -137,6 +159,7 @@ class _WeekdayHeader extends StatelessWidget {
 
 class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
+    required this.focusedMonth,
     required this.store,
     required this.weekCount,
     required this.dueOnly,
@@ -144,6 +167,7 @@ class _MonthGrid extends StatelessWidget {
     required this.onSelectDay,
   });
 
+  final DateTime focusedMonth;
   final TaskStore store;
   final int weekCount;
   final bool dueOnly;
@@ -152,7 +176,7 @@ class _MonthGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final month = DateTime(store.today.year, store.today.month);
+    final month = DateTime(focusedMonth.year, focusedMonth.month);
     final first = month.subtract(Duration(days: month.weekday - 1));
     final days = List.generate(
       weekCount * 7,
@@ -216,6 +240,13 @@ class _CalendarCell extends StatefulWidget {
 class _CalendarCellState extends State<_CalendarCell> {
   bool _hovered = false;
 
+  String get _dateText {
+    if (widget.day.day == 1) {
+      return '${widget.day.month}月1日';
+    }
+    return '${widget.day.day}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final borderColor = widget.selected
@@ -245,7 +276,7 @@ class _CalendarCellState extends State<_CalendarCell> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${widget.day.day}',
+                  _dateText,
                   style: TextStyle(
                     color: CueColors.primary,
                     fontSize: 12,

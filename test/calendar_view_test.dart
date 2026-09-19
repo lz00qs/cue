@@ -61,7 +61,7 @@ void main() {
 
     // Verify cell sizes adapt to surface width
     final firstCell = find.ancestor(
-      of: find.text('1').first,
+      of: find.text('2').first,
       matching: find.byType(GestureDetector),
     ).first;
     final firstCellSizeWide = tester.getSize(firstCell);
@@ -71,5 +71,75 @@ void main() {
 
     final firstCellSizeNarrow = tester.getSize(firstCell);
     expect(firstCellSizeNarrow.width, lessThan(firstCellSizeWide.width));
+  });
+
+  testWidgets('calendar header controls navigate months correctly', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    // Initial month should be September 2026
+    expect(find.text('September 2026'), findsOneWidget);
+
+    // Tap next month icon
+    await tester.tap(find.byKey(const Key('calendar-next-month')));
+    await tester.pumpAndSettle();
+    expect(find.text('October 2026'), findsOneWidget);
+
+    // Tap previous month icon twice
+    await tester.tap(find.byKey(const Key('calendar-prev-month')));
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('calendar-prev-month')));
+    await tester.pumpAndSettle();
+    expect(find.text('August 2026'), findsOneWidget);
+
+    // Tap Today button to return to current month
+    await tester.tap(find.byKey(const Key('calendar-today-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsOneWidget);
+  });
+
+  testWidgets('clicking header title opens month picker popover and changes month', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    // Tap title trigger to open month picker popover
+    await tester.tap(find.byKey(const Key('calendar-title-picker-trigger')));
+    await tester.pumpAndSettle();
+
+    final monthPicker = find.byKey(const Key('month-picker-popover'));
+    expect(monthPicker, findsOneWidget);
+
+    // Tap June (6月)
+    await tester.tap(find.byKey(const Key('month-picker-item-6')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('month-picker-popover')), findsNothing);
+    expect(find.text('June 2026'), findsOneWidget);
+
+    // Open popover again and click circle button to reset to current year & month
+    await tester.tap(find.byKey(const Key('calendar-title-picker-trigger')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('month-picker-today-year')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('month-picker-popover')), findsNothing);
+    expect(find.text('September 2026'), findsOneWidget);
   });
 }
