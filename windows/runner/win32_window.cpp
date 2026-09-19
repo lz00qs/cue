@@ -30,6 +30,12 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 static int g_active_window_count = 0;
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
+using AdjustWindowRectExForDpiProc = BOOL(WINAPI*)(
+    LPRECT rect,
+    DWORD style,
+    BOOL has_menu,
+    DWORD ex_style,
+    UINT dpi);
 
 // Scale helper to convert logical scaler values to physical using passed in
 // scale factor
@@ -207,6 +213,44 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
 
+    case WM_GETMINMAXINFO: {
+      if (!minimum_size_) {
+        break;
+      }
+
+      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+      UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
+      double scale_factor = dpi / 96.0;
+      RECT minimum_window_rect = {
+          0,
+          0,
+          Scale(minimum_size_->width, scale_factor),
+          Scale(minimum_size_->height, scale_factor),
+      };
+      DWORD style = static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_STYLE));
+      DWORD ex_style =
+          static_cast<DWORD>(GetWindowLongPtr(hwnd, GWL_EXSTYLE));
+      BOOL has_menu = GetMenu(hwnd) != nullptr;
+
+      HMODULE user32_module = GetModuleHandle(L"User32.dll");
+      auto adjust_window_rect_for_dpi =
+          reinterpret_cast<AdjustWindowRectExForDpiProc>(GetProcAddress(
+              user32_module, "AdjustWindowRectExForDpi"));
+      if (adjust_window_rect_for_dpi != nullptr) {
+        adjust_window_rect_for_dpi(&minimum_window_rect, style, has_menu,
+                                   ex_style, dpi);
+      } else {
+        AdjustWindowRectEx(&minimum_window_rect, style, has_menu, ex_style);
+      }
+
+      auto min_max_info = reinterpret_cast<MINMAXINFO*>(lparam);
+      min_max_info->ptMinTrackSize.x =
+          minimum_window_rect.right - minimum_window_rect.left;
+      min_max_info->ptMinTrackSize.y =
+          minimum_window_rect.bottom - minimum_window_rect.top;
+      return 0;
+    }
+
     case WM_ACTIVATE:
       if (child_content_ != nullptr) {
         SetFocus(child_content_);
@@ -261,6 +305,10 @@ HWND Win32Window::GetHandle() {
 
 void Win32Window::SetQuitOnClose(bool quit_on_close) {
   quit_on_close_ = quit_on_close;
+}
+
+void Win32Window::SetMinimumSize(const Size& size) {
+  minimum_size_ = size;
 }
 
 bool Win32Window::OnCreate() {
