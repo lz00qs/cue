@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -86,33 +84,17 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
           ),
         ),
         const SizedBox(height: 24),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final calendarWidth = math.max(840.0, constraints.maxWidth);
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: calendarWidth,
-                child: Column(
-                  children: [
-                    const _WeekdayHeader(),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: weekCount * 132,
-                      child: _MonthGrid(
-                        width: calendarWidth,
-                        store: _store,
-                        weekCount: weekCount,
-                        dueOnly: _dueOnly,
-                        onOpenTask: widget.onOpenTask,
-                        onSelectDay: widget.onSelectDay,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        const _WeekdayHeader(),
+        const SizedBox(height: 24),
+        SizedBox(
+          height: weekCount * 132,
+          child: _MonthGrid(
+            store: _store,
+            weekCount: weekCount,
+            dueOnly: _dueOnly,
+            onOpenTask: widget.onOpenTask,
+            onSelectDay: widget.onSelectDay,
+          ),
         ),
       ],
     );
@@ -155,7 +137,6 @@ class _WeekdayHeader extends StatelessWidget {
 
 class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
-    required this.width,
     required this.store,
     required this.weekCount,
     required this.dueOnly,
@@ -163,7 +144,6 @@ class _MonthGrid extends StatelessWidget {
     required this.onSelectDay,
   });
 
-  final double width;
   final TaskStore store;
   final int weekCount;
   final bool dueOnly;

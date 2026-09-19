@@ -39,4 +39,37 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('calendar view scales cells dynamically without horizontal scroll', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    // Verify there is no horizontal SingleChildScrollView in CalendarView
+    final horizontalScrollView = find.byWidgetPredicate(
+      (widget) =>
+          widget is SingleChildScrollView &&
+          widget.scrollDirection == Axis.horizontal,
+    );
+    expect(horizontalScrollView, findsNothing);
+
+    // Verify cell sizes adapt to surface width
+    final firstCell = find.ancestor(
+      of: find.text('1').first,
+      matching: find.byType(GestureDetector),
+    ).first;
+    final firstCellSizeWide = tester.getSize(firstCell);
+
+    await tester.binding.setSurfaceSize(const Size(900, 900));
+    await tester.pumpAndSettle();
+
+    final firstCellSizeNarrow = tester.getSize(firstCell);
+    expect(firstCellSizeNarrow.width, lessThan(firstCellSizeWide.width));
+  });
 }
