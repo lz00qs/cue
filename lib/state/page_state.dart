@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_state.dart';
-import '../data/task_store.dart';
 import '../models/cue_task.dart';
 
 enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
@@ -15,20 +14,28 @@ class CueHomeUiState {
 }
 
 final cueHomeUiProvider =
-    NotifierProvider.autoDispose<CueHomeUi, CueHomeUiState>(CueHomeUi.new);
+    NotifierProvider<CueHomeUi, CueHomeUiState>(CueHomeUi.new);
 
 class CueHomeUi extends Notifier<CueHomeUiState> {
   @override
   CueHomeUiState build() =>
       const CueHomeUiState(CueView.today, CueListFilter.today);
 
-  void selectView(CueView view) {
+  void selectView(CueView view, {bool syncMobile = true}) {
     final filter = switch (view) {
       CueView.today => CueListFilter.today,
       CueView.upcoming => CueListFilter.upcoming,
       _ => state.filter,
     };
     state = CueHomeUiState(view, filter);
+    if (syncMobile) {
+      final dest = _mapViewToDestination(view);
+      if (dest != null) {
+        ref
+            .read(mobileUiProvider.notifier)
+            .selectDestination(dest, syncDesktop: false);
+      }
+    }
   }
 
   void selectFilter(CueListFilter filter) {
@@ -36,8 +43,20 @@ class CueHomeUi extends Notifier<CueHomeUiState> {
   }
 
   void focusToday() {
-    state = const CueHomeUiState(CueView.today, CueListFilter.today);
+    selectView(CueView.today);
   }
+}
+
+MobileDestination? _mapViewToDestination(CueView view) {
+  return switch (view) {
+    CueView.inbox => MobileDestination.today,
+    CueView.today => MobileDestination.today,
+    CueView.upcoming => MobileDestination.today,
+    CueView.list => MobileDestination.today,
+    CueView.board => MobileDestination.board,
+    CueView.calendar => MobileDestination.calendar,
+    CueView.quadrants => MobileDestination.quadrants,
+  };
 }
 
 enum MobileDestination { today, board, calendar, quadrants, settings }
@@ -49,7 +68,7 @@ class MobileUiState {
   final CueTaskStatus boardStatus;
 }
 
-final mobileUiProvider = NotifierProvider.autoDispose<MobileUi, MobileUiState>(
+final mobileUiProvider = NotifierProvider<MobileUi, MobileUiState>(
   MobileUi.new,
 );
 
@@ -58,8 +77,16 @@ class MobileUi extends Notifier<MobileUiState> {
   MobileUiState build() =>
       const MobileUiState(MobileDestination.today, false, CueTaskStatus.doing);
 
-  void selectDestination(MobileDestination destination) {
+  void selectDestination(MobileDestination destination, {bool syncDesktop = true}) {
     state = MobileUiState(destination, state.showLater, state.boardStatus);
+    if (syncDesktop) {
+      final view = _mapDestinationToView(destination);
+      if (view != null) {
+        ref
+            .read(cueHomeUiProvider.notifier)
+            .selectView(view, syncMobile: false);
+      }
+    }
   }
 
   void showLater(bool value) {
@@ -69,6 +96,16 @@ class MobileUi extends Notifier<MobileUiState> {
   void selectBoardStatus(CueTaskStatus status) {
     state = MobileUiState(state.destination, state.showLater, status);
   }
+}
+
+CueView? _mapDestinationToView(MobileDestination destination) {
+  return switch (destination) {
+    MobileDestination.today => CueView.today,
+    MobileDestination.board => CueView.board,
+    MobileDestination.calendar => CueView.calendar,
+    MobileDestination.quadrants => CueView.quadrants,
+    MobileDestination.settings => null,
+  };
 }
 
 enum BoardGroup { status, priority, dueDate }

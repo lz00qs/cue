@@ -1515,44 +1515,56 @@ class _MobileQuadrant extends StatelessWidget {
         children: [
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: _MobileColors.primary,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             rule,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(color: _MobileColors.secondary, fontSize: 10),
           ),
           const SizedBox(height: 8),
-          for (final task in tasks.take(3)) ...[
-            GestureDetector(
-              onTap: () => onOpenTask(task),
-              child: Container(
-                width: double.infinity,
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(
-                  color: _MobileColors.card,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'P${task.priority} · ${task.title}',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _MobileColors.primary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                for (final task in tasks.take(3)) ...[
+                  GestureDetector(
+                    onTap: () => onOpenTask(task),
+                    child: Container(
+                      width: double.infinity,
+                      height: 52,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      alignment: Alignment.centerLeft,
+                      decoration: BoxDecoration(
+                        color: _MobileColors.card,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'P${task.priority} · ${task.title}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: _MobileColors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 8),
+                ],
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ],
       ),
     );

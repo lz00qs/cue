@@ -76,6 +76,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     ref.watch(cueHomeUiProvider);
+    ref.watch(mobileUiProvider);
     return Shortcuts(
       shortcuts: const {
         SingleActivator(LogicalKeyboardKey.keyK, meta: true):

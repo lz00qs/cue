@@ -39,6 +39,39 @@ void main() {
     expectTheme();
   });
 
+  testWidgets(
+    'resizing between desktop and mobile preserves selected page',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+
+      // Switch to Calendar on desktop
+      await tester.tap(find.text('Calendar'));
+      await tester.pumpAndSettle();
+      expect(find.text('September 2026'), findsOneWidget);
+
+      // Resize to mobile
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pumpAndSettle();
+      // Should remain on Calendar page
+      expect(find.text('September'), findsWidgets);
+
+      // Switch to Quadrants on mobile
+      await tester.tap(find.text('Quadrants'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Importance × urgency'), findsWidgets);
+
+      // Resize back to desktop
+      await tester.binding.setSurfaceSize(const Size(1200, 900));
+      await tester.pumpAndSettle();
+      // Should remain on Quadrants view
+      expect(find.textContaining('Importance × urgency'), findsWidgets);
+    },
+  );
+
   testWidgets('appearance can be changed on desktop and mobile', (
     tester,
   ) async {
