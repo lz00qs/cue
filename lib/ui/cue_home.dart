@@ -151,6 +151,38 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         : 20.0;
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (_view == CueView.calendar) {
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              desktop ? 32 : 20,
+              horizontalPadding,
+              24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _PageHeader(
+                  title: _pageTitle,
+                  subtitle: _pageSubtitle,
+                  onTitleTap: _showMonthPickerPopover,
+                  extraActions: const _CalendarMonthHeaderNavigation(),
+                  actionLabel: context.l10n.addTask,
+                  onAction: () => _showAddTaskDialog(),
+                  useIconButton: true,
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
@@ -786,6 +818,7 @@ class _PageHeader extends StatelessWidget {
     required this.onAction,
     this.extraActions,
     this.onTitleTap,
+    this.useIconButton = false,
   });
 
   final String title;
@@ -794,6 +827,7 @@ class _PageHeader extends StatelessWidget {
   final VoidCallback onAction;
   final Widget? extraActions;
   final VoidCallback? onTitleTap;
+  final bool useIconButton;
 
   @override
   Widget build(BuildContext context) {
@@ -852,11 +886,29 @@ class _PageHeader extends StatelessWidget {
             extraActions!,
             const SizedBox(width: 12),
           ],
-          CueActionButton(
-            label: actionLabel,
-            primary: actionLabel != context.l10n.today,
-            onPressed: onAction,
-          ),
+          if (useIconButton)
+            SizedBox(
+              width: 36,
+              height: 36,
+              child: IconButton(
+                key: const Key('calendar-add-task-button'),
+                style: IconButton.styleFrom(
+                  backgroundColor: CueColors.accent,
+                  foregroundColor: CueColors.onAccent,
+                  shape: const CircleBorder(),
+                  padding: EdgeInsets.zero,
+                ),
+                icon: const Icon(Icons.add_rounded, size: 20),
+                onPressed: onAction,
+                tooltip: actionLabel,
+              ),
+            )
+          else
+            CueActionButton(
+              label: actionLabel,
+              primary: actionLabel != context.l10n.today,
+              onPressed: onAction,
+            ),
         ],
       ),
     );
@@ -868,60 +920,72 @@ class _CalendarMonthHeaderNavigation extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
-      height: 36,
-      decoration: BoxDecoration(
-        color: CueColors.subtle,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: CueColors.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            key: const Key('calendar-prev-month'),
-            iconSize: 18,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-            icon: Icon(Icons.chevron_left_rounded, color: CueColors.primary),
-            onPressed: () => ref
-                .read(calendarFocusedMonthProvider.notifier)
-                .previousMonth(),
-            tooltip: context.l10n.month,
+    final dueOnly = ref.watch(calendarDueOnlyProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CueViewTab(
+          label: context.l10n.dueOnly,
+          selected: dueOnly,
+          onTap: () => ref.read(calendarDueOnlyProvider.notifier).toggle(),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          height: 36,
+          decoration: BoxDecoration(
+            color: CueColors.subtle,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: CueColors.border),
           ),
-          Container(width: 1, height: 16, color: CueColors.border),
-          InkWell(
-            key: const Key('calendar-today-button'),
-            onTap: () => ref
-                .read(calendarFocusedMonthProvider.notifier)
-                .resetToToday(),
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Text(
-                context.l10n.today,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: CueColors.primary,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                key: const Key('calendar-prev-month'),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                icon: Icon(Icons.chevron_left_rounded, color: CueColors.primary),
+                onPressed: () => ref
+                    .read(calendarFocusedMonthProvider.notifier)
+                    .previousMonth(),
+                tooltip: context.l10n.month,
+              ),
+              Container(width: 1, height: 16, color: CueColors.border),
+              InkWell(
+                key: const Key('calendar-today-button'),
+                onTap: () => ref
+                    .read(calendarFocusedMonthProvider.notifier)
+                    .resetToToday(),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    context.l10n.today,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: CueColors.primary,
+                    ),
+                  ),
                 ),
               ),
-            ),
+              Container(width: 1, height: 16, color: CueColors.border),
+              IconButton(
+                key: const Key('calendar-next-month'),
+                iconSize: 18,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+                icon: Icon(Icons.chevron_right_rounded, color: CueColors.primary),
+                onPressed: () => ref
+                    .read(calendarFocusedMonthProvider.notifier)
+                    .nextMonth(),
+                tooltip: context.l10n.month,
+              ),
+            ],
           ),
-          Container(width: 1, height: 16, color: CueColors.border),
-          IconButton(
-            key: const Key('calendar-next-month'),
-            iconSize: 18,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-            icon: Icon(Icons.chevron_right_rounded, color: CueColors.primary),
-            onPressed: () => ref
-                .read(calendarFocusedMonthProvider.notifier)
-                .nextMonth(),
-            tooltip: context.l10n.month,
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1158,8 +1222,6 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
   @override
   Widget build(BuildContext context) {
     final focused = ref.watch(calendarFocusedMonthProvider);
-    final store = ref.read(taskStoreProvider);
-    final today = store?.today ?? DateTime.now();
 
     return Dialog(
       key: const Key('month-picker-popover'),

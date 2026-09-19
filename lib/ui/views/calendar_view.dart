@@ -83,31 +83,9 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 40,
-            child: Row(
-              children: [
-                CueViewTab(
-                  label: context.l10n.dueOnly,
-                  selected: _dueOnly,
-                  onTap: () =>
-                      ref.read(calendarDueOnlyProvider.notifier).toggle(),
-                ),
-                const Spacer(),
-                if (MediaQuery.sizeOf(context).width >= 720)
-                  Text(
-                    context.l10n.scheduledSummary(scheduled.length, dueThisWeek),
-                    style: Theme.of(context).textTheme.labelSmall
-                        ?.copyWith(color: CueColors.tertiary),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
           const _WeekdayHeader(),
-          const SizedBox(height: 24),
-          SizedBox(
-            height: weekCount * 132,
+          const SizedBox(height: 12),
+          Expanded(
             child: _MonthGrid(
               focusedMonth: focusedMonth,
               store: _store,
@@ -184,8 +162,7 @@ class _MonthGrid extends StatelessWidget {
     );
     return Column(
       children: List.generate(weekCount, (week) {
-        return SizedBox(
-          height: 132,
+        return Expanded(
           child: Row(
             children: days.skip(week * 7).take(7).map((day) {
               var tasks = store.tasksForDay(day);
@@ -254,6 +231,7 @@ class _CalendarCellState extends State<_CalendarCell> {
         : _hovered
         ? CueColors.strongBorder
         : CueColors.border;
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -262,7 +240,7 @@ class _CalendarCellState extends State<_CalendarCell> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
             color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
@@ -285,11 +263,68 @@ class _CalendarCellState extends State<_CalendarCell> {
                     letterSpacing: 0.1,
                   ),
                 ),
-                const SizedBox(height: 12),
-                for (final task in widget.tasks.take(2)) ...[
-                  _TaskPill(task: task, onTap: () => widget.onOpenTask(task)),
-                  const SizedBox(height: 4),
-                ],
+                const SizedBox(height: 4),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availableHeight = constraints.maxHeight;
+                      const itemHeight = 21.0;
+                      const gap = 3.0;
+                      const stride = itemHeight + gap;
+                      final total = widget.tasks.length;
+
+                      if (total == 0) return const SizedBox.shrink();
+
+                      int visibleCount;
+                      bool showMore = false;
+                      int moreCount = 0;
+
+                      if (total * stride - gap <= availableHeight) {
+                        visibleCount = total;
+                      } else {
+                        visibleCount =
+                            ((availableHeight - itemHeight + gap) / stride)
+                                .floor();
+                        if (visibleCount < 1) {
+                          visibleCount = availableHeight >= itemHeight ? 1 : 0;
+                          showMore = false;
+                        } else {
+                          showMore = true;
+                          moreCount = total - visibleCount;
+                        }
+                      }
+
+                      final visibleTasks =
+                          widget.tasks.take(visibleCount).toList();
+
+                      return ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(
+                          context,
+                        ).copyWith(scrollbars: false),
+                        child: SingleChildScrollView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final task in visibleTasks) ...[
+                                _TaskPill(
+                                  task: task,
+                                  onTap: () => widget.onOpenTask(task),
+                                ),
+                                const SizedBox(height: gap),
+                              ],
+                              if (showMore && moreCount > 0)
+                                _MoreTasksPill(
+                                  count: moreCount,
+                                  onTap: widget.onTap,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
@@ -315,24 +350,80 @@ class _TaskPill extends StatelessWidget {
         onTap: onTap,
         child: Container(
           width: double.infinity,
-          height: 24,
+          height: 21,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
-            color: CueColors.selected,
-            borderRadius: BorderRadius.circular(8),
+            color: task.isCompleted ? CueColors.subtle : CueColors.selected,
+            borderRadius: BorderRadius.circular(4),
           ),
-          child: Text(
-            task.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: CueColors.accent,
-              fontSize: 11,
-              height: 14 / 11,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0.1,
-            ),
+          child: Row(
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: task.isCompleted
+                      ? CueColors.tertiary
+                      : CueColors.accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: task.isCompleted
+                        ? CueColors.tertiary
+                        : CueColors.accent,
+                    fontSize: 11,
+                    height: 13 / 11,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                    decoration: task.isCompleted
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MoreTasksPill extends StatelessWidget {
+  const _MoreTasksPill({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: 21,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: CueColors.subtle,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          '+$count 更多',
+          style: TextStyle(
+            color: CueColors.secondary,
+            fontSize: 11,
+            height: 13 / 11,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
