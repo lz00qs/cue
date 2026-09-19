@@ -61,6 +61,24 @@ void main() {
       expect(store.tasks.single.version, 2);
     },
   );
+
+  test('updates task title, priority, and due date in store', () async {
+    final store = TaskStore([_task(revision: 1)]);
+    final task = store.tasks.single;
+
+    await store.updateTitle(task, 'New Title');
+    expect(store.tasks.single.title, 'New Title');
+
+    await store.updatePriority(store.tasks.single, 0);
+    expect(store.tasks.single.priority, 0);
+
+    final tomorrow = DateTime(2026, 9, 16, 18);
+    await store.updateDueAt(store.tasks.single, tomorrow);
+    expect(store.tasks.single.dueAt, tomorrow);
+
+    await store.updateDueAt(store.tasks.single, null);
+    expect(store.tasks.single.dueAt, isNull);
+  });
 }
 
 class _FakeApiClient extends ApiClient {

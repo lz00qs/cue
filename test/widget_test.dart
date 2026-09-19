@@ -283,7 +283,7 @@ void main() {
     final dialogMenu = find.descendant(
       of: find.byKey(const Key('task-details-dialog')),
       matching: find.byType(PopupMenuButton<String>),
-    );
+    ).last;
     await tester.tap(dialogMenu);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
@@ -344,4 +344,42 @@ void main() {
     expect(appearanceDialog, findsOneWidget);
     expect(tester.getCenter(appearanceDialog), languageCenter);
   });
+
+  testWidgets(
+    'desktop task details popover updates title, priority, and due date',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Review PCB layout'));
+      await tester.pumpAndSettle();
+
+      // Edit title
+      await tester.tap(find.byKey(const Key('desktop-task-title-text')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('desktop-task-title-field')),
+        'Review revised PCB layout',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('Review revised PCB layout'), findsWidgets);
+
+      // Edit priority
+      await tester.tap(find.byKey(const Key('desktop-task-priority-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('P1').last);
+      await tester.pumpAndSettle();
+      expect(find.text('P1'), findsWidgets);
+
+      // Edit due date to Tomorrow
+      await tester.tap(find.byKey(const Key('desktop-task-duedate-picker')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tomorrow'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tomorrow'), findsWidgets);
+    },
+  );
 }

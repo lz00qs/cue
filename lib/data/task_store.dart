@@ -374,6 +374,40 @@ class TaskStore extends ChangeNotifier {
   Future<void> updateNote(CueTask task, String note) =>
       _update(task, task.copyWith(note: note.trim()), {'note': note.trim()});
 
+  Future<void> updateTitle(CueTask task, String title) {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty || trimmed == task.title) return Future.value();
+    return _update(
+      task,
+      task.copyWith(title: trimmed),
+      {'title': trimmed},
+    );
+  }
+
+  Future<void> updatePriority(CueTask task, int priority) {
+    if (priority == task.priority) return Future.value();
+    return _update(
+      task,
+      task.copyWith(priority: priority),
+      {'priority': priority},
+    );
+  }
+
+  Future<void> updateDueAt(CueTask task, DateTime? dueAt) {
+    if (dueAt?.millisecondsSinceEpoch == task.dueAt?.millisecondsSinceEpoch &&
+        (dueAt == null) == (task.dueAt == null)) {
+      return Future.value();
+    }
+    return _update(
+      task,
+      task.copyWith(
+        dueAt: dueAt,
+        clearDueAt: dueAt == null,
+      ),
+      {'dueAt': dueAt?.toUtc().toIso8601String()},
+    );
+  }
+
   Future<void> deleteTask(CueTask task) async {
     if (_pendingIds.contains(task.id)) {
       throw const ApiException('Task is still saving');

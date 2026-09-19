@@ -1692,7 +1692,7 @@ class _QuickAddButton extends StatelessWidget {
   }
 }
 
-class _TaskDetailsDialog extends ConsumerWidget {
+class _TaskDetailsDialog extends ConsumerStatefulWidget {
   const _TaskDetailsDialog({
     required this.task,
     required this.onClose,
@@ -1704,9 +1704,58 @@ class _TaskDetailsDialog extends ConsumerWidget {
   final Future<bool> Function(Future<void> Function()) onRun;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TaskDetailsDialog> createState() => _TaskDetailsDialogState();
+}
+
+class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
+  late final TextEditingController _titleController;
+  late final FocusNode _titleFocusNode;
+  bool _editingTitle = false;
+  CueTask? _currentTask;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.task.title);
+    _titleFocusNode = FocusNode();
+    _titleFocusNode.addListener(_onTitleFocusChange);
+  }
+
+  void _onTitleFocusChange() {
+    if (!_titleFocusNode.hasFocus && _editingTitle) {
+      _saveTitle();
+    }
+  }
+
+  Future<void> _saveTitle() async {
+    if (!_editingTitle) return;
+    final task = _currentTask;
+    if (task == null) return;
+    final store = ref.read(taskStoreProvider)!;
+    final newTitle = _titleController.text.trim();
+    if (newTitle.isNotEmpty && newTitle != task.title) {
+      await widget.onRun(() => store.updateTitle(task, newTitle));
+    }
+    if (mounted) {
+      setState(() => _editingTitle = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleFocusNode.removeListener(_onTitleFocusChange);
+    _titleFocusNode.dispose();
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
+    final matches = store.tasks.where((item) => item.id == widget.task.id);
+    final task = matches.isEmpty ? widget.task : matches.first;
+    _currentTask = task;
     return Dialog(
       key: const Key('task-details-dialog'),
       backgroundColor: _MobileColors.card,
@@ -1729,7 +1778,7 @@ class _TaskDetailsDialog extends ConsumerWidget {
                 children: [
                   const SizedBox(width: 20),
                   GestureDetector(
-                    onTap: () => onRun(() => store.toggleComplete(task)),
+                    onTap: () => widget.onRun(() => store.toggleComplete(task)),
                     child: SvgPicture.asset(
                       task.isCompleted
                           ? 'assets/figma/checkbox-completed.svg'
@@ -1738,19 +1787,191 @@ class _TaskDetailsDialog extends ConsumerWidget {
                       height: 20,
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      _mobileCompactMeta(context, task, store.today),
-                      style: TextStyle(
-                        color: _MobileColors.secondary,
-                        fontSize: 13,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: PopupMenuButton<String>(
+                        key: const Key('mobile-task-duedate-picker'),
+                        tooltip: context.l10n.dueDate,
+                        offset: const Offset(0, 28),
+                        color: _MobileColors.card,
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(color: _MobileColors.border),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        onSelected: (value) async {
+                          if (value == 'today') {
+                            final t = store.today;
+                            widget.onRun(
+                              () => store.updateDueAt(
+                                task,
+                                DateTime(t.year, t.month, t.day, 18),
+                              ),
+                            );
+                          } else if (value == 'tomorrow') {
+                            final t = store.today.add(const Duration(days: 1));
+                            widget.onRun(
+                              () => store.updateDueAt(
+                                task,
+                                DateTime(t.year, t.month, t.day, 18),
+                              ),
+                            );
+                          } else if (value == 'pick') {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: task.dueAt ?? store.today,
+                              firstDate: DateTime(store.today.year - 1),
+                              lastDate: DateTime(store.today.year + 5),
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: ColorScheme.dark(
+                                      primary: CueColors.accent,
+                                      surface: CueColors.popover,
+                                      onSurface: CueColors.primary,
+                                    ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              final newDue = DateTime(
+                                picked.year,
+                                picked.month,
+                                picked.day,
+                                task.dueAt?.hour ?? 18,
+                                task.dueAt?.minute ?? 0,
+                              );
+                              widget.onRun(() => store.updateDueAt(task, newDue));
+                            }
+                          } else if (value == 'clear') {
+                            widget.onRun(() => store.updateDueAt(task, null));
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'today',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.today,
+                                  size: 16,
+                                  color: CueColors.accent,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  context.l10n.today,
+                                  style: TextStyle(color: _MobileColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'tomorrow',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event,
+                                  size: 16,
+                                  color: CueColors.orange,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  context.l10n.tomorrow,
+                                  style: TextStyle(color: _MobileColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'pick',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_month,
+                                  size: 16,
+                                  color: CueColors.secondary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${context.l10n.dueDate}…',
+                                  style: TextStyle(color: _MobileColors.primary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (task.dueAt != null)
+                            PopupMenuItem(
+                              value: 'clear',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.event_busy,
+                                    size: 16,
+                                    color: CueColors.tertiary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    context.l10n.noDueDate,
+                                    style: TextStyle(color: _MobileColors.primary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                        child: Text(
+                          _mobileCompactMeta(context, task, store.today),
+                          style: TextStyle(
+                            color: task.dueAt != null
+                                ? CueColors.accent
+                                : _MobileColors.secondary,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  _MobilePriorityBadge(priority: task.priority),
+                  PopupMenuButton<int>(
+                    key: const Key('mobile-task-priority-picker'),
+                    tooltip: context.l10n.priority,
+                    offset: const Offset(0, 28),
+                    color: _MobileColors.card,
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: _MobileColors.border),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    onSelected: (p) {
+                      widget.onRun(() => store.updatePriority(task, p));
+                    },
+                    itemBuilder: (context) => [
+                      for (var p = 0; p < 4; p++)
+                        PopupMenuItem<int>(
+                          value: p,
+                          child: Row(
+                            children: [
+                              _MobilePriorityBadge(priority: p),
+                              const SizedBox(width: 10),
+                              Text(
+                                'P$p',
+                                style: TextStyle(
+                                  color: p == task.priority
+                                      ? CueColors.accent
+                                      : _MobileColors.primary,
+                                  fontWeight: p == task.priority
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                    child: _MobilePriorityBadge(priority: task.priority),
+                  ),
                   IconButton(
-                    onPressed: onClose,
+                    onPressed: widget.onClose,
                     color: _MobileColors.secondary,
                     icon: const Icon(Icons.close, size: 18),
                     tooltip: context.l10n.closeTaskDetails,
@@ -1760,18 +1981,71 @@ class _TaskDetailsDialog extends ConsumerWidget {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
-              child: Text(
-                task.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _MobileColors.primary,
-                  fontSize: 20,
-                  height: 25 / 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              child: _editingTitle
+                  ? TextField(
+                      key: const Key('mobile-task-title-field'),
+                      controller: _titleController,
+                      focusNode: _titleFocusNode,
+                      autofocus: true,
+                      style: TextStyle(
+                        color: _MobileColors.primary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: context.l10n.taskTitle,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: CueColors.accent),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: CueColors.accent,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      onTapOutside: (_) => _saveTitle(),
+                      onSubmitted: (_) => _saveTitle(),
+                    )
+                  : InkWell(
+                      key: const Key('mobile-task-title-text'),
+                      onTap: () {
+                        _titleController.text = task.title;
+                        setState(() => _editingTitle = true);
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              task.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _MobileColors.primary,
+                                fontSize: 20,
+                                height: 25 / 20,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.edit_outlined,
+                            size: 16,
+                            color: _MobileColors.tertiary,
+                          ),
+                        ],
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
@@ -1818,7 +2092,7 @@ class _TaskDetailsDialog extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: () => onRun(
+                    onPressed: () => widget.onRun(
                       () => store.moveToStatus(task, CueTaskStatus.todo),
                     ),
                     child: Text(
@@ -1833,7 +2107,7 @@ class _TaskDetailsDialog extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: () => onRun(
+                    onPressed: () => widget.onRun(
                       () => store.moveToStatus(task, CueTaskStatus.doing),
                     ),
                     child: Text(
@@ -1848,10 +2122,10 @@ class _TaskDetailsDialog extends ConsumerWidget {
                     constraints: const BoxConstraints.tightFor(width: 36),
                     onSelected: (value) async {
                       if (value == 'complete') {
-                        await onRun(() => store.toggleComplete(task));
+                        await widget.onRun(() => store.toggleComplete(task));
                       }
                       if (value == 'delete') {
-                        await onRun(() => store.deleteTask(task));
+                        await widget.onRun(() => store.deleteTask(task));
                       }
                     },
                     itemBuilder: (_) => [
