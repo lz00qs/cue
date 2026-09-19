@@ -16,11 +16,14 @@ class AppearanceMenuButton extends ConsumerWidget {
       appControllerProvider.select((app) => app.themeMode),
     );
     final l10n = context.l10n;
+    final icon = switch (mode) {
+      ThemeMode.system => Icons.hdr_auto_rounded,
+      ThemeMode.dark => Icons.dark_mode_outlined,
+      ThemeMode.light => Icons.light_mode_outlined,
+    };
     return CuePreferenceButton(
       label: l10n.appearance,
-      icon: mode == ThemeMode.dark
-          ? Icons.dark_mode_outlined
-          : Icons.light_mode_outlined,
+      icon: icon,
       showLabel: showLabel,
       onTap: () =>
           showAppearancePicker(context, mobile: showLabel ? false : null),
@@ -39,6 +42,12 @@ Future<void> showAppearancePicker(BuildContext context, {bool? mobile}) async {
     selected: mode,
     mobile: mobile ?? MediaQuery.sizeOf(context).width < 840,
     options: [
+      CuePreferenceOption(
+        value: ThemeMode.system,
+        label: l10n.systemDefault,
+        icon: Icons.hdr_auto_rounded,
+        key: const Key('appearance-option-system'),
+      ),
       CuePreferenceOption(
         value: ThemeMode.light,
         label: l10n.light,

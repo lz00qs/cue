@@ -88,7 +88,43 @@ void main() {
       tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
       const Color(0xFFFFFFFF),
     );
+
+    await tester.tap(find.text('Appearance'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tap(find.byKey(const Key('appearance-option-system')));
+    await tester.pumpAndSettle();
+    expect(find.text('System default'), findsWidgets);
   });
+
+  testWidgets(
+    'system theme mode responds to system platform brightness changes',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+      addTearDown(() => tester.platformDispatcher.clearPlatformBrightnessTestValue());
+
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+
+      expect(CueColors.isDark, isFalse);
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+        const Color(0xFFFFFFFF),
+      );
+
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      await tester.pumpAndSettle();
+
+      expect(CueColors.isDark, isTrue);
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor,
+        const Color(0xFF0B0C10),
+      );
+    },
+  );
 
   testWidgets('renders the Cue Today view and switches to Board', (
     tester,
@@ -173,7 +209,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
-    expect(find.text(CueColors.isDark ? 'Dark' : 'Light'), findsOneWidget);
+    expect(find.text('System default'), findsNWidgets(2));
     expect(find.text('Import & sync'), findsOneWidget);
     expect(find.text('Local demo'), findsOneWidget);
   });

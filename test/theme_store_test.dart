@@ -32,8 +32,11 @@ void main() {
     await store.save('light');
     expect(await ThemeStore(storage: storage).mode, 'light');
 
+    await store.save('system');
+    expect(await ThemeStore(storage: storage).mode, 'system');
+
     storage.values['cue_theme'] = 'unexpected';
     expect(await store.mode, isNull);
-    expect(() => store.save('system'), throwsArgumentError);
+    expect(() => store.save('invalid'), throwsArgumentError);
   });
 }

@@ -899,9 +899,11 @@ class _MobileSettingsPage extends ConsumerWidget {
         _SettingsRow(
           icon: Icons.contrast,
           label: context.l10n.appearance,
-          detail: app.themeMode == ThemeMode.dark
-              ? context.l10n.dark
-              : context.l10n.light,
+          detail: switch (app.themeMode) {
+            ThemeMode.system => context.l10n.systemDefault,
+            ThemeMode.dark => context.l10n.dark,
+            ThemeMode.light => context.l10n.light,
+          },
           onTap: () => showAppearancePicker(context, mobile: true),
         ),
         const SizedBox(height: 8),

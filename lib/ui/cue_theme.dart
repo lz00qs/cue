@@ -4,7 +4,7 @@ abstract final class CueColors {
   // Matches the Light and Dark modes of Figma's Cue Color collection.
   static const defaultMode = String.fromEnvironment(
     'CUE_THEME',
-    defaultValue: 'light',
+    defaultValue: 'system',
   );
   static bool isDark = defaultMode == 'dark';
 

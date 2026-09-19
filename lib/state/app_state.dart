@@ -45,7 +45,7 @@ class AppState {
     this.booting = true,
     this.configuringServer = false,
     this.locale,
-    this.themeMode = ThemeMode.light,
+    this.themeMode = ThemeMode.system,
   });
 
   final TaskStore? store;
@@ -84,7 +84,7 @@ class AppState {
   );
 }
 
-class AppController extends Notifier<AppState> {
+class AppController extends Notifier<AppState> with WidgetsBindingObserver {
   TokenStore? _tokens;
   LocaleStore? _localeStore;
   ThemeStore? _themeStore;
@@ -96,11 +96,15 @@ class AppController extends Notifier<AppState> {
 
   @override
   AppState build() {
-    final defaultMode = CueColors.defaultMode == 'dark'
-        ? ThemeMode.dark
-        : ThemeMode.light;
-    CueColors.isDark = defaultMode == ThemeMode.dark;
-    ref.onDispose(() => _activeStore?.dispose());
+    WidgetsBinding.instance.addObserver(this);
+    ref.onDispose(() {
+      WidgetsBinding.instance.removeObserver(this);
+      _activeStore?.dispose();
+    });
+
+    final defaultMode = _parseThemeMode(CueColors.defaultMode);
+    _applyThemeMode(defaultMode);
+
     if (ref.read(demoModeProvider)) {
       _activeStore = TaskStore.demo();
       return AppState(
@@ -115,6 +119,37 @@ class AppController extends Notifier<AppState> {
     _themeStore = ThemeStore();
     Future.microtask(_bootstrap);
     return AppState(themeMode: defaultMode);
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    if (state.themeMode == ThemeMode.system) {
+      final newIsDark = _resolveIsDark(ThemeMode.system);
+      if (CueColors.isDark != newIsDark) {
+        CueColors.isDark = newIsDark;
+        state = state.copyWith();
+      }
+    }
+  }
+
+  static ThemeMode _parseThemeMode(String value) {
+    return switch (value) {
+      'dark' => ThemeMode.dark,
+      'light' => ThemeMode.light,
+      _ => ThemeMode.system,
+    };
+  }
+
+  static bool _resolveIsDark(ThemeMode mode) {
+    if (mode == ThemeMode.system) {
+      return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.dark;
+    }
+    return mode == ThemeMode.dark;
+  }
+
+  void _applyThemeMode(ThemeMode mode) {
+    CueColors.isDark = _resolveIsDark(mode);
   }
 
   Future<void> _bootstrap() async {
@@ -166,7 +201,7 @@ class AppController extends Notifier<AppState> {
       final mode = await _themeStore!.mode;
       if (mode != null && ref.mounted) {
         changeTheme(
-          mode == 'dark' ? ThemeMode.dark : ThemeMode.light,
+          _parseThemeMode(mode),
           persist: false,
         );
       }
@@ -176,13 +211,18 @@ class AppController extends Notifier<AppState> {
   }
 
   void changeTheme(ThemeMode mode, {bool persist = true}) {
-    CueColors.isDark = mode == ThemeMode.dark;
+    _applyThemeMode(mode);
     state = state.copyWith(themeMode: mode);
     final store = _themeStore;
     if (persist && store != null) {
+      final modeString = switch (mode) {
+        ThemeMode.dark => 'dark',
+        ThemeMode.light => 'light',
+        ThemeMode.system => 'system',
+      };
       unawaited(
         store
-            .save(mode == ThemeMode.dark ? 'dark' : 'light')
+            .save(modeString)
             .catchError((_) {}),
       );
     }

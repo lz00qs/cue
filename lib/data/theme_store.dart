@@ -8,11 +8,13 @@ class ThemeStore {
 
   Future<String?> get mode async {
     final value = await _storage.read(key: _themeKey);
-    return value == 'light' || value == 'dark' ? value : null;
+    return value == 'light' || value == 'dark' || value == 'system'
+        ? value
+        : null;
   }
 
   Future<void> save(String mode) {
-    if (mode != 'light' && mode != 'dark') {
+    if (mode != 'light' && mode != 'dark' && mode != 'system') {
       throw ArgumentError.value(mode, 'mode');
     }
     return _storage.write(key: _themeKey, value: mode);
