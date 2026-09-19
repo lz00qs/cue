@@ -2022,28 +2022,16 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         setState(() => _editingTitle = true);
                       },
                       borderRadius: BorderRadius.circular(6),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              task.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: _MobileColors.primary,
-                                fontSize: 20,
-                                height: 25 / 20,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 16,
-                            color: _MobileColors.tertiary,
-                          ),
-                        ],
+                      child: Text(
+                        task.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: _MobileColors.primary,
+                          fontSize: 20,
+                          height: 25 / 20,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
             ),

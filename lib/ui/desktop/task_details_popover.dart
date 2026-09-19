@@ -391,26 +391,14 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                             vertical: 4,
                             horizontal: 4,
                           ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  task.title,
-                                  style: TextStyle(
-                                    color: CueColors.primary,
-                                    fontSize: 20,
-                                    height: 25 / 20,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 16,
-                                color: CueColors.tertiary,
-                              ),
-                            ],
+                          child: Text(
+                            task.title,
+                            style: TextStyle(
+                              color: CueColors.primary,
+                              fontSize: 20,
+                              height: 25 / 20,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
