@@ -1709,21 +1709,33 @@ class _TaskDetailsDialog extends ConsumerStatefulWidget {
 
 class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
   late final TextEditingController _titleController;
+  late final TextEditingController _noteController;
   late final FocusNode _titleFocusNode;
+  late final FocusNode _noteFocusNode;
   bool _editingTitle = false;
+  bool _editingNote = false;
   CueTask? _currentTask;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.task.title);
+    _noteController = TextEditingController(text: widget.task.note);
     _titleFocusNode = FocusNode();
     _titleFocusNode.addListener(_onTitleFocusChange);
+    _noteFocusNode = FocusNode();
+    _noteFocusNode.addListener(_onNoteFocusChange);
   }
 
   void _onTitleFocusChange() {
     if (!_titleFocusNode.hasFocus && _editingTitle) {
       _saveTitle();
+    }
+  }
+
+  void _onNoteFocusChange() {
+    if (!_noteFocusNode.hasFocus && _editingNote) {
+      _saveNote();
     }
   }
 
@@ -1741,11 +1753,28 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
     }
   }
 
+  Future<void> _saveNote() async {
+    if (!_editingNote) return;
+    final task = _currentTask;
+    if (task == null) return;
+    final store = ref.read(taskStoreProvider)!;
+    final newNote = _noteController.text.trim();
+    if (newNote != task.note) {
+      await widget.onRun(() => store.updateNote(task, newNote));
+    }
+    if (mounted) {
+      setState(() => _editingNote = false);
+    }
+  }
+
   @override
   void dispose() {
     _titleFocusNode.removeListener(_onTitleFocusChange);
     _titleFocusNode.dispose();
+    _noteFocusNode.removeListener(_onNoteFocusChange);
+    _noteFocusNode.dispose();
     _titleController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -2044,26 +2073,62 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-              child: Text(
-                task.note.isEmpty ? context.l10n.defaultTaskNote : task.note,
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _MobileColors.primary,
-                  fontSize: 15,
-                  height: 21 / 15,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-              child: Text(
-                context.l10n.addNotesChecklist,
-                style: const TextStyle(
-                  color: _MobileColors.tertiary,
-                  fontSize: 13,
-                ),
-              ),
+              child: _editingNote
+                  ? TextField(
+                      key: const Key('mobile-task-note-field'),
+                      controller: _noteController,
+                      focusNode: _noteFocusNode,
+                      autofocus: true,
+                      maxLines: 4,
+                      style: TextStyle(
+                        color: _MobileColors.primary,
+                        fontSize: 15,
+                        height: 21 / 15,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: context.l10n.note,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: CueColors.accent),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: CueColors.accent,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      onTapOutside: (_) => _saveNote(),
+                      onSubmitted: (_) => _saveNote(),
+                    )
+                  : InkWell(
+                      key: const Key('mobile-task-note-text'),
+                      onTap: () {
+                        _noteController.text = task.note;
+                        setState(() => _editingNote = true);
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Text(
+                        task.note.isEmpty
+                            ? context.l10n.defaultTaskNote
+                            : task.note,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: task.note.isEmpty
+                              ? _MobileColors.secondary
+                              : _MobileColors.primary,
+                          fontSize: 15,
+                          height: 21 / 15,
+                        ),
+                      ),
+                    ),
             ),
             const Spacer(),
             Container(

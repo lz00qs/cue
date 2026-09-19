@@ -33,6 +33,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
   late final TextEditingController _noteController;
   late final TextEditingController _titleController;
   late final FocusNode _titleFocusNode;
+  late final FocusNode _noteFocusNode;
   bool _editingNote = false;
   bool _editingTitle = false;
   CueTask? _currentTask;
@@ -44,11 +45,19 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
     _titleController = TextEditingController(text: widget.initialTask.title);
     _titleFocusNode = FocusNode();
     _titleFocusNode.addListener(_onTitleFocusChange);
+    _noteFocusNode = FocusNode();
+    _noteFocusNode.addListener(_onNoteFocusChange);
   }
 
   void _onTitleFocusChange() {
     if (!_titleFocusNode.hasFocus && _editingTitle) {
       _saveTitle();
+    }
+  }
+
+  void _onNoteFocusChange() {
+    if (!_noteFocusNode.hasFocus && _editingNote) {
+      _saveNote();
     }
   }
 
@@ -65,10 +74,25 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
     }
   }
 
+  Future<void> _saveNote() async {
+    if (!_editingNote) return;
+    final task = _currentTask;
+    if (task == null) return;
+    final newNote = _noteController.text.trim();
+    if (newNote != task.note) {
+      await widget.onRun(() => _store.updateNote(task, newNote));
+    }
+    if (mounted) {
+      setState(() => _editingNote = false);
+    }
+  }
+
   @override
   void dispose() {
     _titleFocusNode.removeListener(_onTitleFocusChange);
     _titleFocusNode.dispose();
+    _noteFocusNode.removeListener(_onNoteFocusChange);
+    _noteFocusNode.dispose();
     _noteController.dispose();
     _titleController.dispose();
     super.dispose();
@@ -413,58 +437,60 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                       TextField(
                         key: const Key('desktop-task-note-field'),
                         controller: _noteController,
+                        focusNode: _noteFocusNode,
                         autofocus: true,
                         maxLines: 4,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.notes,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: () =>
-                                setState(() => _editingNote = false),
-                            child: Text(context.l10n.cancel),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              final saved = await widget.onRun(
-                                () => _store.updateNote(
-                                  task,
-                                  _noteController.text,
-                                ),
-                              );
-                              if (saved && mounted) {
-                                setState(() => _editingNote = false);
-                              }
-                            },
-                            child: Text(context.l10n.save),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      Text(
-                        task.note.isEmpty
-                            ? context.l10n.defaultTaskNote
-                            : task.note,
                         style: TextStyle(
                           color: CueColors.primary,
                           fontSize: 15,
                           height: 21 / 15,
                         ),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.note,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: CueColors.accent),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: CueColors.accent,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onTapOutside: (_) => _saveNote(),
                       ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: () {
+                    ] else ...[
+                      InkWell(
+                        key: const Key('desktop-task-note-text'),
+                        onTap: () {
                           _noteController.text = task.note;
                           setState(() => _editingNote = true);
                         },
-                        style: TextButton.styleFrom(
-                          foregroundColor: CueColors.tertiary,
-                          padding: EdgeInsets.zero,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 4,
+                            horizontal: 4,
+                          ),
+                          child: Text(
+                            task.note.isEmpty
+                                ? context.l10n.defaultTaskNote
+                                : task.note,
+                            style: TextStyle(
+                              color: task.note.isEmpty
+                                  ? CueColors.secondary
+                                  : CueColors.primary,
+                              fontSize: 15,
+                              height: 21 / 15,
+                            ),
+                          ),
                         ),
-                        child: Text(context.l10n.notes),
                       ),
                     ],
                   ],

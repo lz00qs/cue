@@ -212,13 +212,13 @@ void main() {
       find.byKey(const Key('desktop-task-details-popover')),
       findsOneWidget,
     );
-    await tester.tap(find.text('Notes'));
+    await tester.tap(find.byKey(const Key('desktop-task-note-text')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('desktop-task-note-field')),
       'Check connector labels',
     );
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.byKey(const Key('desktop-task-details-popover')));
     await tester.pumpAndSettle();
 
     expect(find.text('Check connector labels'), findsOneWidget);
@@ -258,7 +258,7 @@ void main() {
 
     expect(find.byType(Dialog), findsOneWidget);
     expect(find.byKey(const Key('task-details-dialog')), findsOneWidget);
-    expect(find.text('+  Add notes or a checklist…'), findsOneWidget);
+    expect(find.byKey(const Key('mobile-task-note-text')), findsOneWidget);
     expect(find.text('Aa'), findsNothing);
     expect(find.text('Doing'), findsOneWidget);
     expect(find.byTooltip('Close task details'), findsOneWidget);
