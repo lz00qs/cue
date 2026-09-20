@@ -55,21 +55,23 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     final today = _store.today;
     final weekStart = today.subtract(Duration(days: today.weekday - 1));
     final weekEnd = weekStart.add(const Duration(days: 7));
-    final scheduled = _store.tasks.where(
-      (task) =>
-          task.deletedAt == null &&
-          task.dueAt != null &&
-          task.dueAt!.year == focusedMonth.year &&
-          task.dueAt!.month == focusedMonth.month,
-    );
-    final dueThisWeek = scheduled
-        .where(
-          (task) =>
-              !task.isCompleted &&
-              !task.dueAt!.isBefore(weekStart) &&
-              task.dueAt!.isBefore(weekEnd),
-        )
-        .length;
+    final monthStart = DateTime(focusedMonth.year, focusedMonth.month, 1);
+    final monthEnd = DateTime(focusedMonth.year, focusedMonth.month + 1, 0);
+    final scheduled = _store.tasks.where((task) {
+      if (task.deletedAt == null && task.dueAt != null) {
+        for (var day = monthStart; !day.isAfter(monthEnd); day = day.add(const Duration(days: 1))) {
+          if (TaskStore.isTaskOnDay(task, day)) return true;
+        }
+      }
+      return false;
+    });
+    final dueThisWeek = _store.tasks.where((task) {
+      if (task.deletedAt != null || task.dueAt == null || task.isCompleted) return false;
+      for (var day = weekStart; day.isBefore(weekEnd); day = day.add(const Duration(days: 1))) {
+        if (TaskStore.isTaskOnDay(task, day)) return true;
+      }
+      return false;
+    }).length;
     final month = DateTime(focusedMonth.year, focusedMonth.month);
     final leadingDays = month.weekday - 1;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;

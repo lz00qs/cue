@@ -161,12 +161,35 @@ class TaskStore extends ChangeNotifier {
   Iterable<CueTask> get completedTasks =>
       _tasks.where((task) => task.deletedAt == null && task.isCompleted);
 
+  static bool isTaskOnDay(CueTask task, DateTime day) {
+    if (task.deletedAt != null || task.dueAt == null) return false;
+    final due = dateOnly(task.dueAt!);
+    final target = dateOnly(day);
+
+    if (target.isBefore(due)) return false;
+    if (isSameDay(due, target)) return true;
+
+    final r = task.recurrence;
+    if (r == null || r == 'none') return false;
+
+    return switch (r) {
+      'daily' => true,
+      'weekly' => target.weekday == due.weekday,
+      'monthly' => target.day == due.day,
+      'yearly' => target.month == due.month && target.day == due.day,
+      'workday' => target.weekday >= DateTime.monday &&
+          target.weekday <= DateTime.friday,
+      _ => false,
+    };
+  }
+
   List<CueTask> get todayTasks {
     final result = _tasks.where((task) {
-      final dueToday = task.dueAt != null && isSameDay(task.dueAt!, today);
+      if (task.deletedAt != null) return false;
+      final dueToday = isTaskOnDay(task, today);
       final completedToday =
           task.completedAt != null && isSameDay(task.completedAt!, today);
-      return task.deletedAt == null && (dueToday || completedToday);
+      return dueToday || completedToday;
     }).toList();
     result.sort(_taskSort);
     return result;
@@ -175,7 +198,10 @@ class TaskStore extends ChangeNotifier {
   List<CueTask> get upcomingTasks {
     final result = activeTasks
         .where(
-          (task) => task.dueAt != null && task.dueAt!.isAfter(endOfDay(today)),
+          (task) =>
+              task.dueAt != null &&
+              (task.dueAt!.isAfter(endOfDay(today)) ||
+                  (task.recurrence != null && task.recurrence != 'none')),
         )
         .toList();
     result.sort(_taskSort);
@@ -192,8 +218,7 @@ class TaskStore extends ChangeNotifier {
 
   List<CueTask> tasksForDay(DateTime day) {
     final result = _tasks
-        .where((task) => task.deletedAt == null && task.dueAt != null)
-        .where((task) => isSameDay(task.dueAt!, day))
+        .where((task) => isTaskOnDay(task, day))
         .toList();
     result.sort(_taskSort);
     return result;
@@ -209,6 +234,11 @@ class TaskStore extends ChangeNotifier {
 
   bool isUrgent(CueTask task) {
     if (task.dueAt == null) return false;
+    if (task.recurrence != null && task.recurrence != 'none') {
+      for (var i = 0; i <= 2; i++) {
+        if (isTaskOnDay(task, today.add(Duration(days: i)))) return true;
+      }
+    }
     final deadline = endOfDay(today.add(const Duration(days: 2)));
     return !task.dueAt!.isAfter(deadline);
   }

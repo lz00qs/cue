@@ -95,6 +95,32 @@ void main() {
     expect(store.tasks.single.reminder, 'min_30');
     expect(store.tasks.single.recurrence, 'daily');
   });
+
+  test('recurring task appears on subsequent matching days', () async {
+    final start = DateTime(2026, 9, 20);
+    final task = _task(revision: 1).copyWith(
+      dueAt: start,
+      recurrence: 'daily',
+    );
+    final store = TaskStore([task], today: start);
+
+    // Initial day 9/20
+    expect(store.tasksForDay(DateTime(2026, 9, 20)).length, 1);
+    // Subsequent days 9/21, 9/22, 9/23
+    expect(store.tasksForDay(DateTime(2026, 9, 21)).length, 1);
+    expect(store.tasksForDay(DateTime(2026, 9, 22)).length, 1);
+    expect(store.tasksForDay(DateTime(2026, 9, 23)).length, 1);
+    // Day before start 9/19 -> 0
+    expect(store.tasksForDay(DateTime(2026, 9, 19)).length, 0);
+
+    // Weekly recurrence
+    final weeklyTask = task.copyWith(recurrence: 'weekly');
+    final weeklyStore = TaskStore([weeklyTask], today: start);
+    // 9/20 is Sunday
+    expect(weeklyStore.tasksForDay(DateTime(2026, 9, 20)).length, 1);
+    expect(weeklyStore.tasksForDay(DateTime(2026, 9, 21)).length, 0); // Monday
+    expect(weeklyStore.tasksForDay(DateTime(2026, 9, 27)).length, 1); // Next Sunday
+  });
 }
 
 class _FakeApiClient extends ApiClient {
