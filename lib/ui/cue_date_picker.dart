@@ -340,160 +340,175 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
               const Divider(height: 1, thickness: 1),
               const SizedBox(height: 8),
 
-              // 1. Time (截止时间) row
-              PopupMenuButton<TimeOfDay?>(
-                tooltip: '选择时间',
-                offset: const Offset(0, 36),
-                color: CueColors.card,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: CueColors.border),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                onSelected: (time) {
-                  setState(() => _selectedTime = time);
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem<TimeOfDay?>(
-                    value: null,
-                    child: Text('全天 (无具体时间)'),
-                  ),
-                  for (final t in [
-                    const TimeOfDay(hour: 9, minute: 0),
-                    const TimeOfDay(hour: 9, minute: 30),
-                    const TimeOfDay(hour: 10, minute: 0),
-                    const TimeOfDay(hour: 10, minute: 30),
-                    const TimeOfDay(hour: 11, minute: 0),
-                    const TimeOfDay(hour: 11, minute: 30),
-                    const TimeOfDay(hour: 12, minute: 0),
-                    const TimeOfDay(hour: 13, minute: 0),
-                    const TimeOfDay(hour: 14, minute: 0),
-                    const TimeOfDay(hour: 15, minute: 0),
-                    const TimeOfDay(hour: 16, minute: 0),
-                    const TimeOfDay(hour: 17, minute: 0),
-                    const TimeOfDay(hour: 18, minute: 0),
-                    const TimeOfDay(hour: 19, minute: 0),
-                    const TimeOfDay(hour: 20, minute: 0),
-                  ])
-                    PopupMenuItem<TimeOfDay?>(
-                      value: t,
-                      child: Text(
-                        '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
-                      ),
-                    ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.access_time, size: 18, color: CueColors.secondary),
-                      const SizedBox(width: 10),
-                      Text('时间', style: TextStyle(color: CueColors.primary, fontSize: 14)),
-                      const Spacer(),
-                      Text(
-                        _selectedTime != null
-                            ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
-                            : '全天',
-                        style: TextStyle(
-                          color: _selectedTime != null ? CueColors.accent : CueColors.secondary,
-                          fontSize: 13,
+              // 1. Time (截止时间) row -> Native TimePicker dialog
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, size: 18, color: CueColors.secondary),
+                    const SizedBox(width: 10),
+                    Text('时间', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    const Spacer(),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: _selectedTime ?? const TimeOfDay(hour: 18, minute: 0),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.dark(
+                                  primary: CueColors.accent,
+                                  surface: CueColors.popover,
+                                  onSurface: CueColors.primary,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() => _selectedTime = picked);
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _selectedTime != null ? CueColors.selected : CueColors.subtle,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _selectedTime != null
+                                  ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
+                                  : '全天',
+                              style: TextStyle(
+                                color: _selectedTime != null ? CueColors.accent : CueColors.secondary,
+                                fontSize: 13,
+                                fontWeight: _selectedTime != null ? FontWeight.w600 : FontWeight.normal,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.edit_calendar, size: 14, color: CueColors.tertiary),
+                          ],
                         ),
                       ),
+                    ),
+                    if (_selectedTime != null) ...[
                       const SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() => _selectedTime = null);
+                        },
+                        child: Icon(Icons.cancel, size: 16, color: CueColors.tertiary),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
 
-              // 2. Reminder (提醒时间) row
-              PopupMenuButton<String>(
-                tooltip: '提醒时间',
-                offset: const Offset(0, 36),
-                color: CueColors.card,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: CueColors.border),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                onSelected: (key) {
-                  setState(() => _selectedReminder = key);
-                },
-                itemBuilder: (context) => [
-                  for (final key in ['none', 'on_time', 'min_5', 'min_30', 'hour_1', 'day_1'])
-                    PopupMenuItem<String>(
-                      value: key,
-                      child: Text(
-                        _reminderLabel(key),
-                        style: TextStyle(
-                          color: key == _selectedReminder ? CueColors.accent : CueColors.primary,
-                        ),
+              // 2. Reminder (提醒时间) row -> Right-aligned PopupMenu
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_none, size: 18, color: CueColors.secondary),
+                    const SizedBox(width: 10),
+                    Text('提醒', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      tooltip: '提醒时间',
+                      position: PopupMenuPosition.under,
+                      color: CueColors.card,
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: CueColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      onSelected: (key) {
+                        setState(() => _selectedReminder = key);
+                      },
+                      itemBuilder: (context) => [
+                        for (final key in ['none', 'on_time', 'min_5', 'min_30', 'hour_1', 'day_1'])
+                          PopupMenuItem<String>(
+                            value: key,
+                            child: Text(
+                              _reminderLabel(key),
+                              style: TextStyle(
+                                color: key == _selectedReminder ? CueColors.accent : CueColors.primary,
+                              ),
+                            ),
+                          ),
+                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _reminderLabel(_selectedReminder),
+                            style: TextStyle(
+                              color: _selectedReminder != 'none' ? CueColors.accent : CueColors.secondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
+                        ],
                       ),
                     ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.notifications_none, size: 18, color: CueColors.secondary),
-                      const SizedBox(width: 10),
-                      Text('提醒', style: TextStyle(color: CueColors.primary, fontSize: 14)),
-                      const Spacer(),
-                      Text(
-                        _reminderLabel(_selectedReminder),
-                        style: TextStyle(
-                          color: _selectedReminder != 'none' ? CueColors.accent : CueColors.secondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
-                    ],
-                  ),
+                  ],
                 ),
               ),
 
-              // 3. Recurrence (重复) row
-              PopupMenuButton<String>(
-                tooltip: '重复规则',
-                offset: const Offset(0, 36),
-                color: CueColors.card,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: CueColors.border),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                onSelected: (key) {
-                  setState(() => _selectedRecurrence = key);
-                },
-                itemBuilder: (context) => [
-                  for (final key in ['none', 'daily', 'weekly', 'monthly', 'yearly', 'workday'])
-                    PopupMenuItem<String>(
-                      value: key,
-                      child: Text(
-                        _recurrenceLabel(key),
-                        style: TextStyle(
-                          color: key == _selectedRecurrence ? CueColors.accent : CueColors.primary,
-                        ),
+              // 3. Recurrence (重复) row -> Right-aligned PopupMenu
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.repeat, size: 18, color: CueColors.secondary),
+                    const SizedBox(width: 10),
+                    Text('重复', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    const Spacer(),
+                    PopupMenuButton<String>(
+                      tooltip: '重复规则',
+                      position: PopupMenuPosition.under,
+                      color: CueColors.card,
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: CueColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      onSelected: (key) {
+                        setState(() => _selectedRecurrence = key);
+                      },
+                      itemBuilder: (context) => [
+                        for (final key in ['none', 'daily', 'weekly', 'monthly', 'yearly', 'workday'])
+                          PopupMenuItem<String>(
+                            value: key,
+                            child: Text(
+                              _recurrenceLabel(key),
+                              style: TextStyle(
+                                color: key == _selectedRecurrence ? CueColors.accent : CueColors.primary,
+                              ),
+                            ),
+                          ),
+                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _recurrenceLabel(_selectedRecurrence),
+                            style: TextStyle(
+                              color: _selectedRecurrence != 'none' ? CueColors.accent : CueColors.secondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
+                        ],
                       ),
                     ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.repeat, size: 18, color: CueColors.secondary),
-                      const SizedBox(width: 10),
-                      Text('重复', style: TextStyle(color: CueColors.primary, fontSize: 14)),
-                      const Spacer(),
-                      Text(
-                        _recurrenceLabel(_selectedRecurrence),
-                        style: TextStyle(
-                          color: _selectedRecurrence != 'none' ? CueColors.accent : CueColors.secondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
-                    ],
-                  ),
+                  ],
                 ),
               ),
 
