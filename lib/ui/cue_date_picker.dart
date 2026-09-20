@@ -143,64 +143,6 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
               ),
               const SizedBox(height: 12),
 
-              // Quick preset bar: Sun (Today), Sunrise (Tomorrow), +7 (Next week), Moon (Later)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                decoration: BoxDecoration(
-                  color: CueColors.subtle,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    IconButton(
-                      tooltip: context.l10n.today,
-                      icon: Icon(Icons.wb_sunny_outlined, size: 20, color: CueColors.accent),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = widget.today;
-                          _displayedMonth = DateTime(widget.today.year, widget.today.month);
-                        });
-                      },
-                    ),
-                    IconButton(
-                      tooltip: context.l10n.tomorrow,
-                      icon: const Icon(Icons.wb_twilight, size: 20, color: CueColors.orange),
-                      onPressed: () {
-                        final tom = widget.today.add(const Duration(days: 1));
-                        setState(() {
-                          _selectedDate = tom;
-                          _displayedMonth = DateTime(tom.year, tom.month);
-                        });
-                      },
-                    ),
-                    IconButton(
-                      tooltip: '下周',
-                      icon: Icon(Icons.add_alert_outlined, size: 20, color: CueColors.primary),
-                      onPressed: () {
-                        final nextW = widget.today.add(const Duration(days: 7));
-                        setState(() {
-                          _selectedDate = nextW;
-                          _displayedMonth = DateTime(nextW.year, nextW.month);
-                        });
-                      },
-                    ),
-                    IconButton(
-                      tooltip: '稍后 (20:00)',
-                      icon: const Icon(Icons.nightlight_round, size: 20, color: CueColors.tertiary),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = widget.today;
-                          _selectedTime = const TimeOfDay(hour: 20, minute: 0);
-                          _displayedMonth = DateTime(widget.today.year, widget.today.month);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
               // Month navigation
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

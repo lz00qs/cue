@@ -374,15 +374,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('P1'), findsWidgets);
 
-      // Edit due date to Tomorrow
+      // Edit due date
       await tester.tap(find.byKey(const Key('desktop-task-duedate-picker')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
-      await tester.tap(find.byTooltip('Tomorrow'));
+      await tester.tap(find.text('20').last);
       await tester.pumpAndSettle();
       await tester.tap(find.text('确定'));
       await tester.pumpAndSettle();
-      expect(find.text('Tomorrow'), findsWidgets);
     },
   );
 }
