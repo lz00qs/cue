@@ -12,6 +12,8 @@ class CueTask {
     required this.createdAt,
     required this.updatedAt,
     this.dueAt,
+    this.reminder,
+    this.recurrence,
     this.completedAt,
     this.deletedAt,
     this.version = 1,
@@ -26,6 +28,8 @@ class CueTask {
   final bool important;
   final double sortOrder;
   final DateTime? dueAt;
+  final String? reminder;
+  final String? recurrence;
   final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -44,6 +48,10 @@ class CueTask {
     double? sortOrder,
     DateTime? dueAt,
     bool clearDueAt = false,
+    String? reminder,
+    bool clearReminder = false,
+    String? recurrence,
+    bool clearRecurrence = false,
     DateTime? completedAt,
     bool clearCompletedAt = false,
     DateTime? deletedAt,
@@ -61,6 +69,8 @@ class CueTask {
       important: important ?? this.important,
       sortOrder: sortOrder ?? this.sortOrder,
       dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
+      reminder: clearReminder ? null : reminder ?? this.reminder,
+      recurrence: clearRecurrence ? null : recurrence ?? this.recurrence,
       completedAt: clearCompletedAt ? null : completedAt ?? this.completedAt,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -85,6 +95,8 @@ class CueTask {
       important: json['important'] as bool,
       sortOrder: (json['sortOrder'] as num).toDouble(),
       dueAt: optionalDate('dueAt'),
+      reminder: json['reminder'] as String?,
+      recurrence: json['recurrence'] as String?,
       completedAt: optionalDate('completedAt'),
       createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       updatedAt: DateTime.parse(json['updatedAt'] as String).toLocal(),
@@ -102,5 +114,7 @@ class CueTask {
     'important': important,
     'sortOrder': sortOrder,
     'dueAt': dueAt?.toUtc().toIso8601String(),
+    'reminder': reminder,
+    'recurrence': recurrence,
   };
 }

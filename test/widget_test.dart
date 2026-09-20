@@ -377,7 +377,10 @@ void main() {
       // Edit due date to Tomorrow
       await tester.tap(find.byKey(const Key('desktop-task-duedate-picker')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Tomorrow'));
+      expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
+      await tester.tap(find.byTooltip('Tomorrow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确定'));
       await tester.pumpAndSettle();
       expect(find.text('Tomorrow'), findsWidgets);
     },

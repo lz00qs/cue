@@ -79,6 +79,22 @@ void main() {
     await store.updateDueAt(store.tasks.single, null);
     expect(store.tasks.single.dueAt, isNull);
   });
+
+  test('updates task reminder and recurrence in store', () async {
+    final store = TaskStore([_task(revision: 1)]);
+    final task = store.tasks.single;
+
+    final due = DateTime(2026, 9, 20, 10);
+    await store.updateDueAt(
+      task,
+      due,
+      reminder: 'min_30',
+      recurrence: 'daily',
+    );
+    expect(store.tasks.single.dueAt, due);
+    expect(store.tasks.single.reminder, 'min_30');
+    expect(store.tasks.single.recurrence, 'daily');
+  });
 }
 
 class _FakeApiClient extends ApiClient {

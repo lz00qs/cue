@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../state/page_state.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
+import '../cue_date_picker.dart';
 import '../cue_theme.dart';
 import '../appearance_menu.dart';
 import '../language_menu.dart';
@@ -1820,136 +1821,38 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: PopupMenuButton<String>(
+                      child: InkWell(
                         key: const Key('mobile-task-duedate-picker'),
-                        tooltip: context.l10n.dueDate,
-                        offset: const Offset(0, 28),
-                        color: _MobileColors.card,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: _MobileColors.border),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        onSelected: (value) async {
-                          if (value == 'today') {
-                            final t = store.today;
-                            widget.onRun(
-                              () => store.updateDueAt(
-                                task,
-                                DateTime(t.year, t.month, t.day, 18),
-                              ),
-                            );
-                          } else if (value == 'tomorrow') {
-                            final t = store.today.add(const Duration(days: 1));
-                            widget.onRun(
-                              () => store.updateDueAt(
-                                task,
-                                DateTime(t.year, t.month, t.day, 18),
-                              ),
-                            );
-                          } else if (value == 'pick') {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: task.dueAt ?? store.today,
-                              firstDate: DateTime(store.today.year - 1),
-                              lastDate: DateTime(store.today.year + 5),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: Theme.of(context).copyWith(
-                                    colorScheme: ColorScheme.dark(
-                                      primary: CueColors.accent,
-                                      surface: CueColors.popover,
-                                      onSurface: CueColors.primary,
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
-                              final newDue = DateTime(
-                                picked.year,
-                                picked.month,
-                                picked.day,
-                                task.dueAt?.hour ?? 18,
-                                task.dueAt?.minute ?? 0,
+                        onTap: () async {
+                          final result = await showCueDatePickerPopover(
+                            context: context,
+                            today: store.today,
+                            initialDueAt: task.dueAt,
+                            initialReminder: task.reminder,
+                            initialRecurrence: task.recurrence,
+                          );
+                          if (result != null) {
+                            if (result.cleared) {
+                              widget.onRun(
+                                () => store.updateDueAt(
+                                  task,
+                                  null,
+                                  clearReminder: true,
+                                  clearRecurrence: true,
+                                ),
                               );
-                              widget.onRun(() => store.updateDueAt(task, newDue));
+                            } else {
+                              widget.onRun(
+                                () => store.updateDueAt(
+                                  task,
+                                  result.dueAt,
+                                  reminder: result.reminder,
+                                  recurrence: result.recurrence,
+                                ),
+                              );
                             }
-                          } else if (value == 'clear') {
-                            widget.onRun(() => store.updateDueAt(task, null));
                           }
                         },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'today',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.today,
-                                  size: 16,
-                                  color: CueColors.accent,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  context.l10n.today,
-                                  style: TextStyle(color: _MobileColors.primary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'tomorrow',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.event,
-                                  size: 16,
-                                  color: CueColors.orange,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  context.l10n.tomorrow,
-                                  style: TextStyle(color: _MobileColors.primary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            value: 'pick',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_month,
-                                  size: 16,
-                                  color: CueColors.secondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${context.l10n.dueDate}…',
-                                  style: TextStyle(color: _MobileColors.primary),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (task.dueAt != null)
-                            PopupMenuItem(
-                              value: 'clear',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.event_busy,
-                                    size: 16,
-                                    color: CueColors.tertiary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    context.l10n.noDueDate,
-                                    style: TextStyle(color: _MobileColors.primary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
                         child: Text(
                           _mobileCompactMeta(context, task, store.today),
                           style: TextStyle(

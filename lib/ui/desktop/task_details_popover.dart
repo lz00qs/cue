@@ -7,6 +7,7 @@ import '../../state/app_state.dart';
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
+import '../cue_date_picker.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
@@ -145,171 +146,81 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: PopupMenuButton<String>(
+                      child: InkWell(
                         key: const Key('desktop-task-duedate-picker'),
-                        tooltip: context.l10n.dueDate,
-                        offset: const Offset(0, 32),
-                        color: CueColors.card,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(color: CueColors.border),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        onSelected: (value) async {
-                          if (value == 'today') {
-                            final t = _store.today;
-                            widget.onRun(
-                              () => _store.updateDueAt(
-                                task,
-                                DateTime(t.year, t.month, t.day, 18),
-                              ),
-                            );
-                          } else if (value == 'tomorrow') {
-                            final t = _store.today.add(const Duration(days: 1));
-                            widget.onRun(
-                              () => _store.updateDueAt(
-                                task,
-                                DateTime(t.year, t.month, t.day, 18),
-                              ),
-                            );
-                          } else if (value == 'pick') {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: task.dueAt ?? _store.today,
-                              firstDate: DateTime(_store.today.year - 1),
-                              lastDate: DateTime(_store.today.year + 5),
-                              builder: (context, child) {
-                                return Theme(
-                                  data: Theme.of(context).copyWith(
-                                    colorScheme: ColorScheme.dark(
-                                      primary: CueColors.accent,
-                                      surface: CueColors.popover,
-                                      onSurface: CueColors.primary,
-                                    ),
-                                  ),
-                                  child: child!,
-                                );
-                              },
-                            );
-                            if (picked != null) {
-                              final newDue = DateTime(
-                                picked.year,
-                                picked.month,
-                                picked.day,
-                                task.dueAt?.hour ?? 18,
-                                task.dueAt?.minute ?? 0,
-                              );
+                        onTap: () async {
+                          final result = await showCueDatePickerPopover(
+                            context: context,
+                            today: _store.today,
+                            initialDueAt: task.dueAt,
+                            initialReminder: task.reminder,
+                            initialRecurrence: task.recurrence,
+                          );
+                          if (result != null) {
+                            if (result.cleared) {
                               widget.onRun(
-                                () => _store.updateDueAt(task, newDue),
+                                () => _store.updateDueAt(
+                                  task,
+                                  null,
+                                  clearReminder: true,
+                                  clearRecurrence: true,
+                                ),
+                              );
+                            } else {
+                              widget.onRun(
+                                () => _store.updateDueAt(
+                                  task,
+                                  result.dueAt,
+                                  reminder: result.reminder,
+                                  recurrence: result.recurrence,
+                                ),
                               );
                             }
-                          } else if (value == 'clear') {
-                            widget.onRun(() => _store.updateDueAt(task, null));
                           }
                         },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'today',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.today,
-                                  size: 16,
-                                  color: CueColors.accent,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(context.l10n.today),
-                              ],
-                            ),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          PopupMenuItem(
-                            value: 'tomorrow',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.event,
-                                  size: 16,
-                                  color: CueColors.orange,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(context.l10n.tomorrow),
-                              ],
-                            ),
+                          decoration: BoxDecoration(
+                            color: CueColors.subtle,
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          PopupMenuItem(
-                            value: 'pick',
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_month,
-                                  size: 16,
-                                  color: CueColors.secondary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text('${context.l10n.dueDate}…'),
-                              ],
-                            ),
-                          ),
-                          if (task.dueAt != null)
-                            PopupMenuItem(
-                              value: 'clear',
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.event_busy,
-                                    size: 16,
-                                    color: CueColors.tertiary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(context.l10n.noDueDate),
-                                ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 13,
+                                color: task.dueAt != null
+                                    ? CueColors.accent
+                                    : CueColors.secondary,
                               ),
-                            ),
-                        ],
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: CueColors.subtle,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 13,
-                                  color: task.dueAt != null
-                                      ? CueColors.accent
-                                      : CueColors.secondary,
+                              const SizedBox(width: 6),
+                              Text(
+                                cueCompactTaskMeta(
+                                  context,
+                                  task,
+                                  today: _store.today,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  cueCompactTaskMeta(
-                                    context,
-                                    task,
-                                    today: _store.today,
-                                  ),
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: task.dueAt != null
-                                            ? CueColors.primary
-                                            : CueColors.secondary,
-                                      ),
-                                ),
-                                const SizedBox(width: 2),
-                                Icon(
-                                  Icons.arrow_drop_down,
-                                  size: 14,
-                                  color: CueColors.secondary,
-                                ),
-                              ],
-                            ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: task.dueAt != null
+                                          ? CueColors.primary
+                                          : CueColors.secondary,
+                                    ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                size: 14,
+                                color: CueColors.secondary,
+                              ),
+                            ],
                           ),
                         ),
                       ),

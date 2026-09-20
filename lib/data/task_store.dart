@@ -393,9 +393,18 @@ class TaskStore extends ChangeNotifier {
     );
   }
 
-  Future<void> updateDueAt(CueTask task, DateTime? dueAt) {
+  Future<void> updateDueAt(
+    CueTask task,
+    DateTime? dueAt, {
+    String? reminder,
+    bool clearReminder = false,
+    String? recurrence,
+    bool clearRecurrence = false,
+  }) {
     if (dueAt?.millisecondsSinceEpoch == task.dueAt?.millisecondsSinceEpoch &&
-        (dueAt == null) == (task.dueAt == null)) {
+        (dueAt == null) == (task.dueAt == null) &&
+        reminder == task.reminder &&
+        recurrence == task.recurrence) {
       return Future.value();
     }
     return _update(
@@ -403,8 +412,16 @@ class TaskStore extends ChangeNotifier {
       task.copyWith(
         dueAt: dueAt,
         clearDueAt: dueAt == null,
+        reminder: reminder,
+        clearReminder: clearReminder || reminder == null,
+        recurrence: recurrence,
+        clearRecurrence: clearRecurrence || recurrence == null,
       ),
-      {'dueAt': dueAt?.toUtc().toIso8601String()},
+      {
+        'dueAt': dueAt?.toUtc().toIso8601String(),
+        'reminder': reminder,
+        'recurrence': recurrence,
+      },
     );
   }
 
