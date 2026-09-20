@@ -50,6 +50,16 @@ export class CreateTaskDto {
   @IsOptional()
   @IsDateString()
   dueAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  reminder?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  recurrence?: string | null;
 }
 
 export class UpdateTaskDto {
@@ -95,6 +105,16 @@ export class UpdateTaskDto {
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   dueAt?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  reminder?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  recurrence?: string | null;
 }
 
 export class DeleteTaskDto {

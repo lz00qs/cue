@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS tasks (
   important BOOLEAN NOT NULL DEFAULT FALSE,
   sort_order DOUBLE PRECISION NOT NULL,
   due_at TIMESTAMPTZ,
+  reminder VARCHAR(64),
+  recurrence VARCHAR(64),
   completed_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
