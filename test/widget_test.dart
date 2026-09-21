@@ -122,6 +122,35 @@ void main() {
     );
   });
 
+  testWidgets('quadrant tasks can be dragged to another quadrant', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quadrants'));
+    await tester.pumpAndSettle();
+
+    const taskKey = ValueKey('quadrant-task-design-handoff');
+    final task = find.byKey(taskKey);
+    final sourcePanel = find.byKey(const ValueKey('quadrant-panel-2'));
+    final targetPanel = find.byKey(const ValueKey('quadrant-panel-0'));
+
+    expect(find.descendant(of: sourcePanel, matching: task), findsOneWidget);
+    expect(find.descendant(of: targetPanel, matching: task), findsNothing);
+
+    await tester.dragFrom(
+      tester.getCenter(task),
+      tester.getCenter(targetPanel) - tester.getCenter(task),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(of: sourcePanel, matching: task), findsNothing);
+    expect(find.descendant(of: targetPanel, matching: task), findsOneWidget);
+  });
+
   testWidgets('appearance can be changed on desktop and mobile', (
     tester,
   ) async {

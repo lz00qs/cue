@@ -108,6 +108,13 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
           // The store rolls the optimistic change back on failure.
         }
       },
+      onMoveTask: (task) async {
+        try {
+          await _store.updatePriority(task, priority);
+        } catch (_) {
+          // The store rolls the optimistic change back on failure.
+        }
+      },
     );
   }
 }
@@ -121,6 +128,7 @@ class _QuadrantPanel extends StatelessWidget {
     required this.tasks,
     required this.onOpenTask,
     required this.onToggleTask,
+    required this.onMoveTask,
   });
 
   final String title;
@@ -129,68 +137,77 @@ class _QuadrantPanel extends StatelessWidget {
   final List<CueTask> tasks;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<CueTask> onToggleTask;
+  final ValueChanged<CueTask> onMoveTask;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 336,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: CueColors.quadrantSurface,
-        border: Border.all(color: CueColors.border),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return DragTarget<CueTask>(
+      onWillAcceptWithDetails: (details) => details.data.priority != priority,
+      onAcceptWithDetails: (details) => onMoveTask(details.data),
+      builder: (context, candidateData, rejectedData) {
+        final isDropTarget = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          height: 336,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: CueColors.quadrantSurface,
+            border: Border.all(color: isDropTarget ? color : CueColors.border),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(color: color),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(color: color),
+                    ),
+                  ),
+                  Text(
+                    'P$priority',
+                    key: ValueKey('quadrant-priority-$priority'),
+                    style: const TextStyle(
+                      color: CueColors.tertiary,
+                      fontSize: 12,
+                      height: 16 / 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                'P$priority',
-                key: ValueKey('quadrant-priority-$priority'),
-                style: const TextStyle(
-                  color: CueColors.tertiary,
-                  fontSize: 12,
-                  height: 16 / 12,
-                  fontWeight: FontWeight.w500,
-                ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: tasks.isEmpty
+                    ? const _EmptyQuadrant()
+                    : ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context)
+                            .copyWith(scrollbars: false),
+                        child: ListView.separated(
+                          padding: EdgeInsets.zero,
+                          primary: false,
+                          itemCount: tasks.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
+                            return _QuadrantTaskTile(
+                              key: ValueKey('quadrant-task-${task.id}'),
+                              task: task,
+                              accentColor: color,
+                              onOpen: () => onOpenTask(task),
+                              onToggle: () => onToggleTask(task),
+                            );
+                          },
+                        ),
+                      ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: tasks.isEmpty
-                ? const _EmptyQuadrant()
-                : ScrollConfiguration(
-                    behavior: ScrollConfiguration.of(context)
-                        .copyWith(scrollbars: false),
-                    child: ListView.separated(
-                      padding: EdgeInsets.zero,
-                      primary: false,
-                      itemCount: tasks.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final task = tasks[index];
-                        return _QuadrantTaskTile(
-                          key: ValueKey('quadrant-task-${task.id}'),
-                          task: task,
-                          accentColor: color,
-                          onOpen: () => onOpenTask(task),
-                          onToggle: () => onToggleTask(task),
-                        );
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -218,7 +235,7 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
+    final cardContent = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -271,6 +288,20 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
           ),
         ),
       ),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Draggable<CueTask>(
+          data: widget.task,
+          feedback: Material(
+            color: Colors.transparent,
+            child: SizedBox(width: constraints.maxWidth, child: cardContent),
+          ),
+          childWhenDragging: Opacity(opacity: 0.35, child: cardContent),
+          child: cardContent,
+        );
+      },
     );
   }
 }
