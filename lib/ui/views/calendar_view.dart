@@ -8,7 +8,6 @@ import '../../models/cue_task.dart';
 import '../../state/app_state.dart';
 import '../../state/page_state.dart';
 import '../cue_theme.dart';
-import '../cue_widgets.dart';
 
 class CalendarView extends ConsumerStatefulWidget {
   const CalendarView({
@@ -52,26 +51,6 @@ class _CalendarViewState extends ConsumerState<CalendarView> {
     ref.watch(taskRevisionProvider);
     ref.watch(calendarDueOnlyProvider);
     final focusedMonth = ref.watch(calendarFocusedMonthProvider);
-    final today = _store.today;
-    final weekStart = today.subtract(Duration(days: today.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 7));
-    final monthStart = DateTime(focusedMonth.year, focusedMonth.month, 1);
-    final monthEnd = DateTime(focusedMonth.year, focusedMonth.month + 1, 0);
-    final scheduled = _store.tasks.where((task) {
-      if (task.deletedAt == null && task.dueAt != null) {
-        for (var day = monthStart; !day.isAfter(monthEnd); day = day.add(const Duration(days: 1))) {
-          if (TaskStore.isTaskOnDay(task, day)) return true;
-        }
-      }
-      return false;
-    });
-    final dueThisWeek = _store.tasks.where((task) {
-      if (task.deletedAt != null || task.dueAt == null || task.isCompleted) return false;
-      for (var day = weekStart; day.isBefore(weekEnd); day = day.add(const Duration(days: 1))) {
-        if (TaskStore.isTaskOnDay(task, day)) return true;
-      }
-      return false;
-    }).length;
     final month = DateTime(focusedMonth.year, focusedMonth.month);
     final leadingDays = month.weekday - 1;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
