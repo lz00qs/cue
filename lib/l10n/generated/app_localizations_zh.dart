@@ -341,25 +341,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get urgentDefinition => '仅 P0 为重要任务';
 
   @override
-  String get doNow => '立即处理';
+  String get doNow => '重要且紧急';
 
   @override
   String get doNowRule => 'P0 · 重要';
 
   @override
-  String get schedule => '安排时间';
+  String get schedule => '重要不紧急';
 
   @override
   String get scheduleRule => 'P1';
 
   @override
-  String get batch => '批量处理';
+  String get batch => '不重要不紧急';
 
   @override
   String get batchRule => 'P2';
 
   @override
-  String get reconsider => '重新考虑';
+  String get reconsider => '紧急不重要';
 
   @override
   String get reconsiderRule => 'P3';

@@ -360,25 +360,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get urgentDefinition => 'Only P0 is important';
 
   @override
-  String get doNow => 'Do now';
+  String get doNow => 'Important and urgent';
 
   @override
   String get doNowRule => 'P0 · Important';
 
   @override
-  String get schedule => 'Schedule';
+  String get schedule => 'Important, not urgent';
 
   @override
   String get scheduleRule => 'P1';
 
   @override
-  String get batch => 'Batch';
+  String get batch => 'Not important or urgent';
 
   @override
   String get batchRule => 'P2';
 
   @override
-  String get reconsider => 'Reconsider';
+  String get reconsider => 'Urgent, not important';
 
   @override
   String get reconsiderRule => 'P3';

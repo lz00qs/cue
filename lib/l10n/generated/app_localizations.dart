@@ -719,7 +719,7 @@ abstract class AppLocalizations {
   /// No description provided for @doNow.
   ///
   /// In en, this message translates to:
-  /// **'Do now'**
+  /// **'Important and urgent'**
   String get doNow;
 
   /// No description provided for @doNowRule.
@@ -731,7 +731,7 @@ abstract class AppLocalizations {
   /// No description provided for @schedule.
   ///
   /// In en, this message translates to:
-  /// **'Schedule'**
+  /// **'Important, not urgent'**
   String get schedule;
 
   /// No description provided for @scheduleRule.
@@ -743,7 +743,7 @@ abstract class AppLocalizations {
   /// No description provided for @batch.
   ///
   /// In en, this message translates to:
-  /// **'Batch'**
+  /// **'Not important or urgent'**
   String get batch;
 
   /// No description provided for @batchRule.
@@ -755,7 +755,7 @@ abstract class AppLocalizations {
   /// No description provided for @reconsider.
   ///
   /// In en, this message translates to:
-  /// **'Reconsider'**
+  /// **'Urgent, not important'**
   String get reconsider;
 
   /// No description provided for @reconsiderRule.
