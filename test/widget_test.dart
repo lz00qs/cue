@@ -180,6 +180,13 @@ void main() {
     expect(find.text('研发事项'), findsOneWidget);
     expect(find.text('工作'), findsOneWidget);
     expect(find.text('未分组'), findsOneWidget);
+    expect(find.byKey(const Key('calendar-add-task-button')), findsNothing);
+    expect(find.text('Drag cards between groups'), findsNothing);
+    final ungroupedListScrollConfiguration = find.descendant(
+      of: find.byKey(const Key('group-col-未分组')),
+      matching: find.byType(ScrollConfiguration),
+    );
+    expect(ungroupedListScrollConfiguration, findsOneWidget);
 
     expect(find.text('Status'), findsNothing);
     expect(find.textContaining('TODO ·'), findsNothing);

@@ -60,15 +60,6 @@ class _BoardViewState extends ConsumerState<BoardView> {
                     .read(boardGroupProvider.notifier)
                     .select(BoardGroup.dueDate),
               ),
-              const Spacer(),
-              if (MediaQuery.sizeOf(context).width >= 720)
-                Text(
-                  _group == BoardGroup.group
-                      ? context.l10n.dragCards
-                      : context.l10n.groupingPreview,
-                  style: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(color: CueColors.tertiary),
-                ),
             ],
           ),
         ),
@@ -809,17 +800,19 @@ class _GroupColumnState extends State<_GroupColumn> {
                 const SizedBox(height: 12),
                 // Body list
                 Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      // Active priority sections
-                      ..._buildPrioritySections(activeTasks),
-                      // Completed tasks section
-                      if (completedTasks.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        _buildCompletedSection(completedTasks),
+                  child: _HiddenScrollbar(
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        // Active priority sections
+                        ..._buildPrioritySections(activeTasks),
+                        // Completed tasks section
+                        if (completedTasks.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildCompletedSection(completedTasks),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ],
@@ -827,6 +820,20 @@ class _GroupColumnState extends State<_GroupColumn> {
           ),
         );
       },
+    );
+  }
+}
+
+class _HiddenScrollbar extends StatelessWidget {
+  const _HiddenScrollbar({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: child,
     );
   }
 }
@@ -1263,18 +1270,20 @@ class _GroupedPreview extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Expanded(
-                          child: ListView.separated(
-                            itemCount: groups[index].$2.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, taskIndex) {
-                              final task = groups[index].$2[taskIndex];
-                              return CueTaskCard(
-                                task: task,
-                                referenceDate: store.today,
-                                onOpen: () => onOpenTask(task),
-                              );
-                            },
+                          child: _HiddenScrollbar(
+                            child: ListView.separated(
+                              itemCount: groups[index].$2.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, taskIndex) {
+                                final task = groups[index].$2[taskIndex];
+                                return CueTaskCard(
+                                  task: task,
+                                  referenceDate: store.today,
+                                  onOpen: () => onOpenTask(task),
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],

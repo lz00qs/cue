@@ -178,6 +178,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                   actionLabel: context.l10n.addTask,
                   onAction: () => _showAddTaskDialog(),
                   useIconButton: true,
+                  showAction: _view == CueView.calendar,
                 ),
                 const SizedBox(height: 16),
                 Expanded(
@@ -684,6 +685,7 @@ class _PageHeader extends StatelessWidget {
     this.extraActions,
     this.onTitleTap,
     this.useIconButton = false,
+    this.showAction = true,
   });
 
   final String title;
@@ -693,6 +695,7 @@ class _PageHeader extends StatelessWidget {
   final Widget? extraActions;
   final VoidCallback? onTitleTap;
   final bool useIconButton;
+  final bool showAction;
 
   @override
   Widget build(BuildContext context) {
@@ -751,7 +754,7 @@ class _PageHeader extends StatelessWidget {
             extraActions!,
             const SizedBox(width: 12),
           ],
-          if (useIconButton)
+          if (showAction && useIconButton)
             SizedBox(
               width: 36,
               height: 36,
@@ -768,7 +771,7 @@ class _PageHeader extends StatelessWidget {
                 tooltip: actionLabel,
               ),
             )
-          else
+          else if (showAction)
             CueActionButton(
               label: actionLabel,
               primary: actionLabel != context.l10n.today,
