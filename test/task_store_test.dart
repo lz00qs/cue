@@ -171,6 +171,18 @@ void main() {
       expect(store.groups, isNot(contains('Work')));
       expect(store.tasks.firstWhere((t) => t.id == 't1').group, 'Career');
 
+      // Reorder groups in either direction, including the ungrouped column.
+      store.moveGroup(TaskStore.defaultUngrouped, 'Career');
+      expect(
+        store.groups.indexOf(TaskStore.defaultUngrouped),
+        lessThan(store.groups.indexOf('Career')),
+      );
+      store.moveGroup('Career', 'Personal');
+      expect(
+        store.groups.indexOf('Career'),
+        greaterThan(store.groups.indexOf('Personal')),
+      );
+
       // Update task group directly
       final task2 = store.tasks.firstWhere((t) => t.id == 't2');
       await store.updateGroup(task2, 'Finance');

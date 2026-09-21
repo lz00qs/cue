@@ -261,6 +261,58 @@ void main() {
     expect(find.text('Delete Section'), findsOneWidget);
   });
 
+  testWidgets('desktop inbox reorders columns from the header drag handle', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inbox'));
+    await tester.pumpAndSettle();
+
+    final socialColumn = find.byKey(const Key('group-col-社会事项'));
+    final developmentColumn = find.byKey(const Key('group-col-研发事项'));
+    final developmentHandle = find.byKey(
+      const Key('group-drag-handle-研发事项'),
+    );
+    expect(
+      tester.getTopLeft(socialColumn).dx,
+      lessThan(tester.getTopLeft(developmentColumn).dx),
+    );
+
+    final dragStart = tester.getCenter(developmentHandle);
+    final dragEnd = tester.getCenter(socialColumn);
+    final columnSize = tester.getSize(developmentColumn);
+    final gesture = await tester.startGesture(dragStart);
+    await gesture.moveBy(const Offset(-48, 0));
+    await tester.pump();
+
+    final dragFeedback = find.byKey(
+      const Key('group-drag-feedback-研发事项'),
+    );
+    expect(tester.getSize(dragFeedback), columnSize);
+    final feedbackTopLeft = tester.getTopLeft(dragFeedback);
+    final originalTopLeft = tester.getTopLeft(developmentColumn);
+    expect(feedbackTopLeft.dx, closeTo(originalTopLeft.dx - 48, 0.1));
+    expect(feedbackTopLeft.dy, closeTo(originalTopLeft.dy, 0.1));
+    final draggedColumnOpacity = find.descendant(
+      of: developmentColumn,
+      matching: find.byType(AnimatedOpacity),
+    );
+    expect(tester.widget<AnimatedOpacity>(draggedColumnOpacity).opacity, 0.25);
+
+    await gesture.moveTo(dragEnd);
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(developmentColumn).dx,
+      lessThan(tester.getTopLeft(socialColumn).dx),
+    );
+  });
+
   testWidgets('quick capture adds a task to Today', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));

@@ -259,7 +259,7 @@ class TaskStore extends ChangeNotifier {
   List<String> get groups {
     final set = <String>{};
     for (final g in _customGroups) {
-      if (g.isNotEmpty && g != defaultUngrouped) set.add(g);
+      if (g.isNotEmpty) set.add(g);
     }
     for (final task in _tasks) {
       if (task.deletedAt == null &&
@@ -277,9 +277,28 @@ class TaskStore extends ChangeNotifier {
     final trimmed = name.trim();
     if (trimmed.isEmpty || trimmed == defaultUngrouped) return;
     if (!_customGroups.contains(trimmed)) {
-      _customGroups.add(trimmed);
+      final ungroupedIndex = _customGroups.indexOf(defaultUngrouped);
+      if (ungroupedIndex == -1) {
+        _customGroups.add(trimmed);
+      } else {
+        _customGroups.insert(ungroupedIndex, trimmed);
+      }
       notifyListeners();
     }
+  }
+
+  void moveGroup(String group, String targetGroup) {
+    final orderedGroups = groups;
+    final oldIndex = orderedGroups.indexOf(group);
+    final targetIndex = orderedGroups.indexOf(targetGroup);
+    if (oldIndex == -1 || targetIndex == -1 || oldIndex == targetIndex) return;
+
+    final movedGroup = orderedGroups.removeAt(oldIndex);
+    orderedGroups.insert(targetIndex, movedGroup);
+    _customGroups
+      ..clear()
+      ..addAll(orderedGroups);
+    notifyListeners();
   }
 
   void renameGroup(String oldName, String newName) {

@@ -120,12 +120,23 @@ class _GroupSectionBoard extends StatelessWidget {
               children: [
                 for (var i = 0; i < groups.length; i++) ...[
                   if (i > 0) const SizedBox(width: 16),
-                  _GroupColumn(
-                    key: ValueKey('group-col-${groups[i]}'),
-                    group: groups[i],
-                    store: store,
-                    onOpenTask: onOpenTask,
-                    onAddTask: onAddTask,
+                  DragTarget<_GroupColumnDragData>(
+                    onWillAcceptWithDetails: (details) =>
+                        details.data.group != groups[i],
+                    onAcceptWithDetails: (details) {
+                      store.moveGroup(details.data.group, groups[i]);
+                    },
+                    builder: (context, candidateData, rejectedData) {
+                      return _GroupColumn(
+                        key: ValueKey('group-col-${groups[i]}'),
+                        group: groups[i],
+                        store: store,
+                        onOpenTask: onOpenTask,
+                        onAddTask: onAddTask,
+                        height: constraints.maxHeight,
+                        isColumnDropTarget: candidateData.isNotEmpty,
+                      );
+                    },
                   ),
                 ],
                 const SizedBox(width: 16),
@@ -139,19 +150,29 @@ class _GroupSectionBoard extends StatelessWidget {
   }
 }
 
+class _GroupColumnDragData {
+  const _GroupColumnDragData(this.group);
+
+  final String group;
+}
+
 class _GroupColumn extends StatefulWidget {
   const _GroupColumn({
     super.key,
     required this.group,
     required this.store,
     required this.onOpenTask,
+    required this.height,
     this.onAddTask,
+    this.isColumnDropTarget = false,
   });
 
   final String group;
   final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
+  final double height;
   final void Function({String? group, int? priority})? onAddTask;
+  final bool isColumnDropTarget;
 
   @override
   State<_GroupColumn> createState() => _GroupColumnState();
@@ -159,11 +180,13 @@ class _GroupColumn extends StatefulWidget {
 
 class _GroupColumnState extends State<_GroupColumn> {
   bool _hovering = false;
+  bool _draggingColumn = false;
   bool _editingName = false;
   final Set<int> _collapsedPriorities = {};
   bool _completedCollapsed = false;
   late final TextEditingController _nameController;
   late final FocusNode _nameFocusNode;
+  final GlobalKey _columnKey = GlobalKey();
 
   @override
   void initState() {
@@ -274,6 +297,135 @@ class _GroupColumnState extends State<_GroupColumn> {
             child: Text(context.l10n.addTask),
           ),
         ],
+      ),
+    );
+  }
+
+  Offset _columnDragAnchorStrategy(
+    Draggable<Object> draggable,
+    BuildContext handleContext,
+    Offset globalPosition,
+  ) {
+    final renderObject = _columnKey.currentContext?.findRenderObject();
+    if (renderObject is RenderBox) {
+      return renderObject.globalToLocal(globalPosition);
+    }
+    return childDragAnchorStrategy(draggable, handleContext, globalPosition);
+  }
+
+  Widget _buildColumnDragFeedback(
+    List<CueTask> activeTasks,
+    List<CueTask> completedTasks,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        key: Key('group-drag-feedback-${widget.group}'),
+        width: 300,
+        height: widget.height,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: CueColors.subtle,
+          border: Border.all(color: CueColors.accent),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.group,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: CueColors.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${activeTasks.length}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: CueColors.tertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.add_rounded, size: 18, color: CueColors.secondary),
+                  const SizedBox(width: 10),
+                  if (widget.group != TaskStore.defaultUngrouped)
+                    Icon(
+                      Icons.more_horiz_rounded,
+                      size: 18,
+                      color: CueColors.secondary,
+                    )
+                  else
+                    const SizedBox(width: 18),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView(
+                primary: false,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  ..._buildPrioritySections(activeTasks),
+                  if (completedTasks.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildCompletedSection(completedTasks),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColumnDragHandle(
+    List<CueTask> activeTasks,
+    List<CueTask> completedTasks,
+  ) {
+    return Draggable<_GroupColumnDragData>(
+      key: Key('group-drag-handle-${widget.group}'),
+      data: _GroupColumnDragData(widget.group),
+      axis: Axis.horizontal,
+      rootOverlay: true,
+      dragAnchorStrategy: _columnDragAnchorStrategy,
+      feedback: _buildColumnDragFeedback(activeTasks, completedTasks),
+      onDragStarted: () => setState(() => _draggingColumn = true),
+      onDragEnd: (_) {
+        if (mounted) setState(() => _draggingColumn = false);
+      },
+      childWhenDragging: MouseRegion(
+        cursor: SystemMouseCursors.grabbing,
+        child: SizedBox.expand(child: ColoredBox(color: CueColors.selected)),
+      ),
+      child: const MouseRegion(
+        cursor: SystemMouseCursors.grab,
+        child: SizedBox.expand(),
       ),
     );
   }
@@ -460,180 +612,200 @@ class _GroupColumnState extends State<_GroupColumn> {
         unawaited(widget.store.updateGroup(details.data, widget.group));
       },
       builder: (context, candidateData, rejectedData) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: 300,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _hovering ? CueColors.selected : CueColors.subtle,
-            border: Border.all(
-              color: _hovering ? CueColors.accent : Colors.transparent,
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 100),
+          opacity: _draggingColumn ? 0.25 : 1,
+          child: AnimatedContainer(
+            key: _columnKey,
+            duration: const Duration(milliseconds: 140),
+            width: 300,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _hovering || widget.isColumnDropTarget
+                  ? CueColors.selected
+                  : CueColors.subtle,
+              border: Border.all(
+                color: _hovering || widget.isColumnDropTarget
+                    ? CueColors.accent
+                    : Colors.transparent,
+              ),
+              borderRadius: BorderRadius.circular(12),
             ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Column Header
-              SizedBox(
-                key: Key('group-header-${widget.group}'),
-                height: 36,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: _editingName
-                                ? TapRegion(
-                                    onTapOutside: (_) => _saveName(),
-                                    child: TextField(
-                                      key: Key(
-                                        'group-name-field-${widget.group}',
-                                      ),
-                                      controller: _nameController,
-                                      focusNode: _nameFocusNode,
-                                      autofocus: true,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: CueColors.primary,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText: context.l10n.enterGroupName,
-                                        isDense: true,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 6,
-                                            ),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: CueColors.accent,
-                                          ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Column Header
+                SizedBox(
+                  key: Key('group-header-${widget.group}'),
+                  height: 36,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: _editingName
+                                  ? TapRegion(
+                                      onTapOutside: (_) => _saveName(),
+                                      child: TextField(
+                                        key: Key(
+                                          'group-name-field-${widget.group}',
                                         ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          borderSide: BorderSide(
-                                            color: CueColors.accent,
-                                            width: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                      onSubmitted: (_) => _saveName(),
-                                    ),
-                                  )
-                                : InkWell(
-                                    key: Key('group-name-text-${widget.group}'),
-                                    onTap:
-                                        widget.group ==
-                                            TaskStore.defaultUngrouped
-                                        ? null
-                                        : _startEditingName,
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 4,
-                                        horizontal: 4,
-                                      ),
-                                      child: Text(
-                                        widget.group,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        controller: _nameController,
+                                        focusNode: _nameFocusNode,
+                                        autofocus: true,
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                           color: CueColors.primary,
                                         ),
+                                        decoration: InputDecoration(
+                                          hintText: context.l10n.enterGroupName,
+                                          isDense: true,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 6,
+                                              ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            borderSide: BorderSide(
+                                              color: CueColors.accent,
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            borderSide: BorderSide(
+                                              color: CueColors.accent,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                        onSubmitted: (_) => _saveName(),
+                                      ),
+                                    )
+                                  : InkWell(
+                                      key: Key(
+                                        'group-name-text-${widget.group}',
+                                      ),
+                                      onTap:
+                                          widget.group ==
+                                              TaskStore.defaultUngrouped
+                                          ? null
+                                          : _startEditingName,
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                          horizontal: 4,
+                                        ),
+                                        child: Text(
+                                          widget.group,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: CueColors.primary,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${activeTasks.length}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: CueColors.tertiary,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        iconSize: 18,
-                        icon: Icon(
-                          Icons.add_rounded,
-                          color: CueColors.secondary,
-                        ),
-                        onPressed: () {
-                          if (widget.onAddTask != null) {
-                            widget.onAddTask!(group: widget.group);
-                          } else {
-                            _showQuickAddDialog();
-                          }
-                        },
-                        tooltip: context.l10n.addTask,
-                      ),
-                    ),
-                    if (widget.group != TaskStore.defaultUngrouped)
-                      SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: PopupMenuButton<String>(
-                          key: Key('group-menu-${widget.group}'),
-                          padding: EdgeInsets.zero,
-                          iconSize: 18,
-                          icon: Icon(
-                            Icons.more_horiz_rounded,
-                            color: CueColors.secondary,
-                          ),
-                          onSelected: (value) {
-                            if (value == 'delete') _showDeleteDialog();
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text(
-                                context.l10n.deleteGroup,
-                                style: TextStyle(color: CueColors.danger),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${activeTasks.length}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: CueColors.tertiary,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 64,
+                              height: 36,
+                              child: _buildColumnDragHandle(
+                                activeTasks,
+                                completedTasks,
                               ),
                             ),
                           ],
                         ),
-                      )
-                    else
-                      const SizedBox(width: 28),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              // Body list
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    // Active priority sections
-                    ..._buildPrioritySections(activeTasks),
-                    // Completed tasks section
-                    if (completedTasks.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      _buildCompletedSection(completedTasks),
+                      ),
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 18,
+                          icon: Icon(
+                            Icons.add_rounded,
+                            color: CueColors.secondary,
+                          ),
+                          onPressed: () {
+                            if (widget.onAddTask != null) {
+                              widget.onAddTask!(group: widget.group);
+                            } else {
+                              _showQuickAddDialog();
+                            }
+                          },
+                          tooltip: context.l10n.addTask,
+                        ),
+                      ),
+                      if (widget.group != TaskStore.defaultUngrouped)
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: PopupMenuButton<String>(
+                            key: Key('group-menu-${widget.group}'),
+                            padding: EdgeInsets.zero,
+                            iconSize: 18,
+                            icon: Icon(
+                              Icons.more_horiz_rounded,
+                              color: CueColors.secondary,
+                            ),
+                            onSelected: (value) {
+                              if (value == 'delete') _showDeleteDialog();
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text(
+                                  context.l10n.deleteGroup,
+                                  style: TextStyle(color: CueColors.danger),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 28),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                // Body list
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      // Active priority sections
+                      ..._buildPrioritySections(activeTasks),
+                      // Completed tasks section
+                      if (completedTasks.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _buildCompletedSection(completedTasks),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
