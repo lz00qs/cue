@@ -27,6 +27,10 @@ String formatMonthDay(BuildContext context, DateTime date) =>
 String formatShortMonthDay(BuildContext context, DateTime date) =>
     DateFormat.MMMd(localeNameOf(context)).format(date);
 
+String formatFullDateTime(BuildContext context, DateTime date) =>
+    '${DateFormat.yMMMd(localeNameOf(context)).format(date)} '
+    '${DateFormat.Hm(localeNameOf(context)).format(date)}';
+
 String formatWeekday(BuildContext context, DateTime date) =>
     DateFormat.EEEE(localeNameOf(context)).format(date);
 

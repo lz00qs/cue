@@ -57,6 +57,22 @@ Future<CueDatePickerResult?> showCueDatePickerPopover({
   );
 }
 
+Future<DateTime?> showCueCompletionDatePickerPopover({
+  required BuildContext context,
+  required DateTime initialCompletedAt,
+}) async {
+  final result = await showDialog<CueDatePickerResult>(
+    context: context,
+    barrierColor: CueColors.modalBarrier,
+    builder: (context) => CueDatePickerPopover(
+      today: DateTime.now(),
+      initialDueAt: initialCompletedAt,
+      completionMode: true,
+    ),
+  );
+  return result?.dueAt;
+}
+
 class CueDatePickerPopover extends StatefulWidget {
   const CueDatePickerPopover({
     super.key,
@@ -64,12 +80,14 @@ class CueDatePickerPopover extends StatefulWidget {
     this.initialDueAt,
     this.initialReminder,
     this.initialRecurrence,
+    this.completionMode = false,
   });
 
   final DateTime today;
   final DateTime? initialDueAt;
   final String? initialReminder;
   final String? initialRecurrence;
+  final bool completionMode;
 
   @override
   State<CueDatePickerPopover> createState() => _CueDatePickerPopoverState();
@@ -138,7 +156,11 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 for Sunday
 
     return Dialog(
-      key: const Key('cue-date-picker-popover'),
+      key: Key(
+        widget.completionMode
+            ? 'cue-completion-date-picker-popover'
+            : 'cue-date-picker-popover',
+      ),
       backgroundColor: CueColors.popover,
       surfaceTintColor: Colors.transparent,
       elevation: 20,
@@ -160,7 +182,7 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                   Icon(Icons.event, size: 18, color: CueColors.accent),
                   const SizedBox(width: 8),
                   Text(
-                    '设置日期',
+                    widget.completionMode ? '更正完成时间' : '设置日期',
                     style: TextStyle(
                       color: CueColors.primary,
                       fontSize: 16,
@@ -415,171 +437,187 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
               ),
 
               // 2. Reminder (提醒时间) row -> Right-aligned PopupMenu
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 18,
-                      color: CueColors.secondary,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '提醒',
-                      style: TextStyle(color: CueColors.primary, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    PopupMenuButton<String>(
-                      tooltip: '提醒时间',
-                      position: PopupMenuPosition.under,
-                      color: CueColors.card,
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(color: CueColors.border),
-                        borderRadius: BorderRadius.circular(10),
+              if (!widget.completionMode)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_none,
+                        size: 18,
+                        color: CueColors.secondary,
                       ),
-                      onSelected: (key) {
-                        setState(() => _selectedReminder = key);
-                      },
-                      itemBuilder: (context) => [
-                        for (final key in [
-                          'none',
-                          'on_time',
-                          'min_5',
-                          'min_30',
-                          'hour_1',
-                          'day_1',
-                        ])
-                          PopupMenuItem<String>(
-                            value: key,
-                            child: Text(
-                              _reminderLabel(key),
-                              style: TextStyle(
-                                color: key == _selectedReminder
-                                    ? CueColors.accent
-                                    : CueColors.primary,
+                      const SizedBox(width: 10),
+                      Text(
+                        '提醒',
+                        style: TextStyle(
+                          color: CueColors.primary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      PopupMenuButton<String>(
+                        tooltip: '提醒时间',
+                        position: PopupMenuPosition.under,
+                        color: CueColors.card,
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(color: CueColors.border),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        onSelected: (key) {
+                          setState(() => _selectedReminder = key);
+                        },
+                        itemBuilder: (context) => [
+                          for (final key in [
+                            'none',
+                            'on_time',
+                            'min_5',
+                            'min_30',
+                            'hour_1',
+                            'day_1',
+                          ])
+                            PopupMenuItem<String>(
+                              value: key,
+                              child: Text(
+                                _reminderLabel(key),
+                                style: TextStyle(
+                                  color: key == _selectedReminder
+                                      ? CueColors.accent
+                                      : CueColors.primary,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _reminderLabel(_selectedReminder),
-                            style: TextStyle(
-                              color: _selectedReminder != 'none'
-                                  ? CueColors.accent
-                                  : CueColors.secondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: CueColors.tertiary,
-                          ),
                         ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _reminderLabel(_selectedReminder),
+                              style: TextStyle(
+                                color: _selectedReminder != 'none'
+                                    ? CueColors.accent
+                                    : CueColors.secondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: CueColors.tertiary,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
               // 3. Recurrence (重复) row -> Right-aligned PopupMenu
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                child: Row(
-                  children: [
-                    Icon(Icons.repeat, size: 18, color: CueColors.secondary),
-                    const SizedBox(width: 10),
-                    Text(
-                      '重复',
-                      style: TextStyle(color: CueColors.primary, fontSize: 14),
-                    ),
-                    const Spacer(),
-                    PopupMenuButton<String>(
-                      tooltip: '重复规则',
-                      position: PopupMenuPosition.under,
-                      color: CueColors.card,
-                      shape: RoundedRectangleBorder(
-                        side: BorderSide(color: CueColors.border),
-                        borderRadius: BorderRadius.circular(10),
+              if (!widget.completionMode)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.repeat, size: 18, color: CueColors.secondary),
+                      const SizedBox(width: 10),
+                      Text(
+                        '重复',
+                        style: TextStyle(
+                          color: CueColors.primary,
+                          fontSize: 14,
+                        ),
                       ),
-                      onSelected: (key) {
-                        setState(() => _selectedRecurrence = key);
-                      },
-                      itemBuilder: (context) => [
-                        for (final key in [
-                          'none',
-                          'daily',
-                          'weekly',
-                          'monthly',
-                          'yearly',
-                          'workday',
-                        ])
-                          PopupMenuItem<String>(
-                            value: key,
-                            child: Text(
-                              _recurrenceLabel(key),
-                              style: TextStyle(
-                                color: key == _selectedRecurrence
-                                    ? CueColors.accent
-                                    : CueColors.primary,
+                      const Spacer(),
+                      PopupMenuButton<String>(
+                        tooltip: '重复规则',
+                        position: PopupMenuPosition.under,
+                        color: CueColors.card,
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(color: CueColors.border),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        onSelected: (key) {
+                          setState(() => _selectedRecurrence = key);
+                        },
+                        itemBuilder: (context) => [
+                          for (final key in [
+                            'none',
+                            'daily',
+                            'weekly',
+                            'monthly',
+                            'yearly',
+                            'workday',
+                          ])
+                            PopupMenuItem<String>(
+                              value: key,
+                              child: Text(
+                                _recurrenceLabel(key),
+                                style: TextStyle(
+                                  color: key == _selectedRecurrence
+                                      ? CueColors.accent
+                                      : CueColors.primary,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _recurrenceLabel(_selectedRecurrence),
-                            style: TextStyle(
-                              color: _selectedRecurrence != 'none'
-                                  ? CueColors.accent
-                                  : CueColors.secondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: CueColors.tertiary,
-                          ),
                         ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _recurrenceLabel(_selectedRecurrence),
+                              style: TextStyle(
+                                color: _selectedRecurrence != 'none'
+                                    ? CueColors.accent
+                                    : CueColors.secondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.chevron_right,
+                              size: 18,
+                              color: CueColors.tertiary,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 12),
 
               // Bottom action buttons: Clear (清除) & Confirm (确定)
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: CueColors.secondary,
-                        side: BorderSide(color: CueColors.border),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  if (!widget.completionMode) ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: CueColors.secondary,
+                          side: BorderSide(color: CueColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        onPressed: () {
+                          Navigator.pop(
+                            context,
+                            const CueDatePickerResult(cleared: true),
+                          );
+                        },
+                        child: const Text('清除'),
                       ),
-                      onPressed: () {
-                        Navigator.pop(
-                          context,
-                          const CueDatePickerResult(cleared: true),
-                        );
-                      },
-                      child: const Text('清除'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: FilledButton(
                       style: FilledButton.styleFrom(

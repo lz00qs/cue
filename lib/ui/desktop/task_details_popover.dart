@@ -88,6 +88,47 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
     }
   }
 
+  Future<void> _editDate(CueTask task) async {
+    if (task.completedAt != null) {
+      final completedAt = await showCueCompletionDatePickerPopover(
+        context: context,
+        initialCompletedAt: task.completedAt!,
+      );
+      if (completedAt != null) {
+        await widget.onRun(() => _store.updateCompletedAt(task, completedAt));
+      }
+      return;
+    }
+
+    final result = await showCueDatePickerPopover(
+      context: context,
+      today: _store.today,
+      initialDueAt: task.dueAt,
+      initialReminder: task.reminder,
+      initialRecurrence: task.recurrence,
+    );
+    if (result == null) return;
+    if (result.cleared) {
+      await widget.onRun(
+        () => _store.updateDueAt(
+          task,
+          null,
+          clearReminder: true,
+          clearRecurrence: true,
+        ),
+      );
+    } else {
+      await widget.onRun(
+        () => _store.updateDueAt(
+          task,
+          result.dueAt,
+          reminder: result.reminder,
+          recurrence: result.recurrence,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _titleFocusNode.removeListener(_onTitleFocusChange);
@@ -147,37 +188,12 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: InkWell(
-                        key: const Key('desktop-task-duedate-picker'),
-                        onTap: () async {
-                          final result = await showCueDatePickerPopover(
-                            context: context,
-                            today: _store.today,
-                            initialDueAt: task.dueAt,
-                            initialReminder: task.reminder,
-                            initialRecurrence: task.recurrence,
-                          );
-                          if (result != null) {
-                            if (result.cleared) {
-                              widget.onRun(
-                                () => _store.updateDueAt(
-                                  task,
-                                  null,
-                                  clearReminder: true,
-                                  clearRecurrence: true,
-                                ),
-                              );
-                            } else {
-                              widget.onRun(
-                                () => _store.updateDueAt(
-                                  task,
-                                  result.dueAt,
-                                  reminder: result.reminder,
-                                  recurrence: result.recurrence,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                        key: Key(
+                          task.isCompleted
+                              ? 'desktop-task-completed-at-picker'
+                              : 'desktop-task-duedate-picker',
+                        ),
+                        onTap: () => _editDate(task),
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -194,23 +210,36 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                               Icon(
                                 Icons.calendar_today,
                                 size: 13,
-                                color: task.dueAt != null
+                                color: task.isCompleted || task.dueAt != null
                                     ? CueColors.accent
                                     : CueColors.secondary,
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                cueCompactTaskMeta(
-                                  context,
-                                  task,
-                                  today: _store.today,
+                              Flexible(
+                                child: Text(
+                                  task.completedAt != null
+                                      ? context.l10n.completedAt(
+                                          formatFullDateTime(
+                                            context,
+                                            task.completedAt!,
+                                          ),
+                                        )
+                                      : cueCompactTaskMeta(
+                                          context,
+                                          task,
+                                          today: _store.today,
+                                        ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color:
+                                            task.isCompleted ||
+                                                task.dueAt != null
+                                            ? CueColors.primary
+                                            : CueColors.secondary,
+                                      ),
                                 ),
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(
-                                      color: task.dueAt != null
-                                          ? CueColors.primary
-                                          : CueColors.secondary,
-                                    ),
                               ),
                               const SizedBox(width: 2),
                               Icon(
@@ -421,66 +450,70 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    if (_editingNote) ...[
-                      TextField(
-                        key: const Key('desktop-task-note-field'),
-                        controller: _noteController,
-                        focusNode: _noteFocusNode,
-                        autofocus: true,
-                        maxLines: 4,
-                        style: TextStyle(
-                          color: CueColors.primary,
-                          fontSize: 15,
-                          height: 21 / 15,
+                    if (_editingNote ||
+                        task.note.isNotEmpty ||
+                        !task.isCompleted) ...[
+                      const SizedBox(height: 12),
+                      if (_editingNote) ...[
+                        TextField(
+                          key: const Key('desktop-task-note-field'),
+                          controller: _noteController,
+                          focusNode: _noteFocusNode,
+                          autofocus: true,
+                          maxLines: 4,
+                          style: TextStyle(
+                            color: CueColors.primary,
+                            fontSize: 15,
+                            height: 21 / 15,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: context.l10n.note,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: CueColors.accent),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: CueColors.accent,
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                          onTapOutside: (_) => _saveNote(),
                         ),
-                        decoration: InputDecoration(
-                          hintText: context.l10n.note,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: CueColors.accent),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(
-                              color: CueColors.accent,
-                              width: 1.5,
+                      ] else ...[
+                        InkWell(
+                          key: const Key('desktop-task-note-text'),
+                          onTap: () {
+                            _noteController.text = task.note;
+                            setState(() => _editingNote = true);
+                          },
+                          borderRadius: BorderRadius.circular(6),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 4,
+                            ),
+                            child: Text(
+                              task.note.isEmpty
+                                  ? context.l10n.defaultTaskNote
+                                  : task.note,
+                              style: TextStyle(
+                                color: task.note.isEmpty
+                                    ? CueColors.secondary
+                                    : CueColors.primary,
+                                fontSize: 15,
+                                height: 21 / 15,
+                              ),
                             ),
                           ),
                         ),
-                        onTapOutside: (_) => _saveNote(),
-                      ),
-                    ] else ...[
-                      InkWell(
-                        key: const Key('desktop-task-note-text'),
-                        onTap: () {
-                          _noteController.text = task.note;
-                          setState(() => _editingNote = true);
-                        },
-                        borderRadius: BorderRadius.circular(6),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 4,
-                          ),
-                          child: Text(
-                            task.note.isEmpty
-                                ? context.l10n.defaultTaskNote
-                                : task.note,
-                            style: TextStyle(
-                              color: task.note.isEmpty
-                                  ? CueColors.secondary
-                                  : CueColors.primary,
-                              fontSize: 15,
-                              height: 21 / 15,
-                            ),
-                          ),
-                        ),
-                      ),
+                      ],
                     ],
                   ],
                 ),

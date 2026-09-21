@@ -1728,6 +1728,47 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
     }
   }
 
+  Future<void> _editDate(TaskStore store, CueTask task) async {
+    if (task.completedAt != null) {
+      final completedAt = await showCueCompletionDatePickerPopover(
+        context: context,
+        initialCompletedAt: task.completedAt!,
+      );
+      if (completedAt != null) {
+        await widget.onRun(() => store.updateCompletedAt(task, completedAt));
+      }
+      return;
+    }
+
+    final result = await showCueDatePickerPopover(
+      context: context,
+      today: store.today,
+      initialDueAt: task.dueAt,
+      initialReminder: task.reminder,
+      initialRecurrence: task.recurrence,
+    );
+    if (result == null) return;
+    if (result.cleared) {
+      await widget.onRun(
+        () => store.updateDueAt(
+          task,
+          null,
+          clearReminder: true,
+          clearRecurrence: true,
+        ),
+      );
+    } else {
+      await widget.onRun(
+        () => store.updateDueAt(
+          task,
+          result.dueAt,
+          reminder: result.reminder,
+          recurrence: result.recurrence,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _titleFocusNode.removeListener(_onTitleFocusChange);
@@ -1782,41 +1823,25 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: InkWell(
-                        key: const Key('mobile-task-duedate-picker'),
-                        onTap: () async {
-                          final result = await showCueDatePickerPopover(
-                            context: context,
-                            today: store.today,
-                            initialDueAt: task.dueAt,
-                            initialReminder: task.reminder,
-                            initialRecurrence: task.recurrence,
-                          );
-                          if (result != null) {
-                            if (result.cleared) {
-                              widget.onRun(
-                                () => store.updateDueAt(
-                                  task,
-                                  null,
-                                  clearReminder: true,
-                                  clearRecurrence: true,
-                                ),
-                              );
-                            } else {
-                              widget.onRun(
-                                () => store.updateDueAt(
-                                  task,
-                                  result.dueAt,
-                                  reminder: result.reminder,
-                                  recurrence: result.recurrence,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                        key: Key(
+                          task.isCompleted
+                              ? 'mobile-task-completed-at-picker'
+                              : 'mobile-task-duedate-picker',
+                        ),
+                        onTap: () => _editDate(store, task),
                         child: Text(
-                          _mobileCompactMeta(context, task, store.today),
+                          task.completedAt != null
+                              ? context.l10n.completedAt(
+                                  formatFullDateTime(
+                                    context,
+                                    task.completedAt!,
+                                  ),
+                                )
+                              : _mobileCompactMeta(context, task, store.today),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: task.dueAt != null
+                            color: task.isCompleted || task.dueAt != null
                                 ? CueColors.accent
                                 : _MobileColors.secondary,
                             fontSize: 13,
@@ -1934,65 +1959,66 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                 style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-              child: _editingNote
-                  ? TextField(
-                      key: const Key('mobile-task-note-field'),
-                      controller: _noteController,
-                      focusNode: _noteFocusNode,
-                      autofocus: true,
-                      maxLines: 4,
-                      style: TextStyle(
-                        color: _MobileColors.primary,
-                        fontSize: 15,
-                        height: 21 / 15,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: context.l10n.note,
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: CueColors.accent),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(
-                            color: CueColors.accent,
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                      onTapOutside: (_) => _saveNote(),
-                      onSubmitted: (_) => _saveNote(),
-                    )
-                  : InkWell(
-                      key: const Key('mobile-task-note-text'),
-                      onTap: () {
-                        _noteController.text = task.note;
-                        setState(() => _editingNote = true);
-                      },
-                      borderRadius: BorderRadius.circular(6),
-                      child: Text(
-                        task.note.isEmpty
-                            ? context.l10n.defaultTaskNote
-                            : task.note,
+            if (_editingNote || task.note.isNotEmpty || !task.isCompleted)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                child: _editingNote
+                    ? TextField(
+                        key: const Key('mobile-task-note-field'),
+                        controller: _noteController,
+                        focusNode: _noteFocusNode,
+                        autofocus: true,
                         maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: task.note.isEmpty
-                              ? _MobileColors.secondary
-                              : _MobileColors.primary,
+                          color: _MobileColors.primary,
                           fontSize: 15,
                           height: 21 / 15,
                         ),
+                        decoration: InputDecoration(
+                          hintText: context.l10n.note,
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: CueColors.accent),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(
+                              color: CueColors.accent,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onTapOutside: (_) => _saveNote(),
+                        onSubmitted: (_) => _saveNote(),
+                      )
+                    : InkWell(
+                        key: const Key('mobile-task-note-text'),
+                        onTap: () {
+                          _noteController.text = task.note;
+                          setState(() => _editingNote = true);
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Text(
+                          task.note.isEmpty
+                              ? context.l10n.defaultTaskNote
+                              : task.note,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: task.note.isEmpty
+                                ? _MobileColors.secondary
+                                : _MobileColors.primary,
+                            fontSize: 15,
+                            height: 21 / 15,
+                          ),
+                        ),
                       ),
-                    ),
-            ),
+              ),
             const Spacer(),
             Container(
               height: 56,

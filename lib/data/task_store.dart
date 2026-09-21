@@ -594,6 +594,16 @@ class TaskStore extends ChangeNotifier {
     );
   }
 
+  Future<void> updateCompletedAt(CueTask task, DateTime completedAt) {
+    if (task.completedAt?.millisecondsSinceEpoch ==
+        completedAt.millisecondsSinceEpoch) {
+      return Future.value();
+    }
+    return _update(task, task.copyWith(completedAt: completedAt), {
+      'completedAt': completedAt.toUtc().toIso8601String(),
+    });
+  }
+
   Future<void> updateGroup(CueTask task, String? group) {
     final normalized =
         (group == null ||

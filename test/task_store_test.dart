@@ -125,6 +125,28 @@ void main() {
     expect(store.tasks.single.completedAt, isNull);
   });
 
+  test('corrects and syncs a task completion time', () async {
+    final api = _FakeApiClient();
+    final completed = _task(revision: 1)
+        .copyWith(completedAt: DateTime(2026, 9, 15, 11));
+    final store = TaskStore([completed], api: api);
+    final corrected = DateTime(2026, 9, 14, 18, 30);
+
+    final mutation = store.updateCompletedAt(completed, corrected);
+
+    expect(store.tasks.single.completedAt, corrected);
+    expect(
+      api.lastChanges?['completedAt'],
+      corrected.toUtc().toIso8601String(),
+    );
+
+    api.updateCompleter.complete(
+      store.tasks.single.copyWith(version: 2, revision: 2),
+    );
+    await mutation;
+    expect(store.tasks.single.completedAt, corrected);
+  });
+
   test('updates task reminder and recurrence in store', () async {
     final store = TaskStore([_task(revision: 1)]);
     final task = store.tasks.single;

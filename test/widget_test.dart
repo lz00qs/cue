@@ -391,6 +391,49 @@ void main() {
     expect(find.text('Check connector labels'), findsOneWidget);
   });
 
+  testWidgets(
+    'completed task details hides an empty note and edits completion date',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Inbox'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('组装模拟器'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('desktop-task-details-popover')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('A focused next action in your Cue workspace.'),
+        findsNothing,
+      );
+      expect(find.textContaining('Sep 12, 2026 00:00'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const Key('desktop-task-completed-at-picker')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('cue-completion-date-picker-popover')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
+      expect(find.text('清除'), findsNothing);
+
+      await tester.tap(find.text('15'));
+      await tester.tap(find.text('确定'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Sep 15, 2026 00:00'), findsOneWidget);
+    },
+  );
+
   testWidgets('renders the Figma V2 mobile shell and Settings', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
