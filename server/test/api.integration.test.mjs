@@ -41,21 +41,35 @@ test('login, task CRUD and tombstone sync', { skip: !baseUrl }, async () => {
   assert.equal(createdResponse.status, 201);
   const created = await createdResponse.json();
   assert.equal(created.version, 1);
+  assert.equal(created.completedAt, null);
+  assert.equal('status' in created, false);
 
+  const completedAt = new Date().toISOString();
   const updatedResponse = await fetch(`${baseUrl}/api/tasks/${created.id}`, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ version: created.version, status: 'doing' }),
+    body: JSON.stringify({ version: created.version, completedAt }),
   });
   assert.equal(updatedResponse.status, 200);
   const updated = await updatedResponse.json();
-  assert.equal(updated.status, 'doing');
+  assert.equal(updated.completedAt, completedAt);
+  assert.equal('status' in updated, false);
   assert.equal(updated.version, 2);
+
+  const reopenedResponse = await fetch(`${baseUrl}/api/tasks/${created.id}`, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ version: updated.version, completedAt: null }),
+  });
+  assert.equal(reopenedResponse.status, 200);
+  const reopened = await reopenedResponse.json();
+  assert.equal(reopened.completedAt, null);
+  assert.equal(reopened.version, 3);
 
   const deletedResponse = await fetch(`${baseUrl}/api/tasks/${created.id}`, {
     method: 'DELETE',
     headers,
-    body: JSON.stringify({ version: updated.version }),
+    body: JSON.stringify({ version: reopened.version }),
   });
   assert.equal(deletedResponse.status, 200);
   const deleted = await deletedResponse.json();

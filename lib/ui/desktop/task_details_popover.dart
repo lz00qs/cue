@@ -205,9 +205,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                                   task,
                                   today: _store.today,
                                 ),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(
                                       color: task.dueAt != null
                                           ? CueColors.primary
@@ -307,7 +305,10 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: CueColors.accent, width: 1.5),
+                            borderSide: BorderSide(
+                              color: CueColors.accent,
+                              width: 1.5,
+                            ),
                           ),
                         ),
                         onTapOutside: (_) => _saveTitle(),
@@ -350,8 +351,9 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           onSelected: (g) {
-                            final newGroup =
-                                g == TaskStore.defaultUngrouped ? null : g;
+                            final newGroup = g == TaskStore.defaultUngrouped
+                                ? null
+                                : g;
                             widget.onRun(
                               () => _store.updateGroup(task, newGroup),
                             );
@@ -399,9 +401,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                                 const SizedBox(width: 4),
                                 Text(
                                   task.group ?? TaskStore.defaultUngrouped,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(color: CueColors.primary),
                                 ),
                                 const SizedBox(width: 2),
@@ -494,19 +494,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
               ),
               child: Row(
                 children: [
-                  TextButton(
-                    onPressed: () => widget.onRun(
-                      () => _store.moveToStatus(task, CueTaskStatus.todo),
-                    ),
-                    child: Text(context.l10n.inbox),
-                  ),
                   const Spacer(),
-                  TextButton(
-                    onPressed: () => widget.onRun(
-                      () => _store.moveToStatus(task, CueTaskStatus.doing),
-                    ),
-                    child: Text(context.l10n.doing),
-                  ),
                   PopupMenuButton<String>(
                     tooltip: context.l10n.moreOptions,
                     icon: const Icon(Icons.more_horiz, size: 20),

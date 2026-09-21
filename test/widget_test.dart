@@ -39,38 +39,37 @@ void main() {
     expectTheme();
   });
 
-  testWidgets(
-    'resizing between desktop and mobile preserves selected page',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1200, 900));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('resizing between desktop and mobile preserves selected page', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(const CueApp.demo());
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
 
-      // Switch to Calendar on desktop
-      await tester.tap(find.text('Calendar'));
-      await tester.pumpAndSettle();
-      expect(find.text('September 2026'), findsOneWidget);
+    // Switch to Calendar on desktop
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+    expect(find.text('September 2026'), findsOneWidget);
 
-      // Resize to mobile
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      await tester.pumpAndSettle();
-      // Should remain on Calendar page
-      expect(find.text('September'), findsWidgets);
+    // Resize to mobile
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    // Should remain on Calendar page
+    expect(find.text('September'), findsWidgets);
 
-      // Switch to Quadrants on mobile
-      await tester.tap(find.text('Quadrants'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Importance × urgency'), findsWidgets);
+    // Switch to Quadrants on mobile
+    await tester.tap(find.text('Quadrants'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Importance × urgency'), findsWidgets);
 
-      // Resize back to desktop
-      await tester.binding.setSurfaceSize(const Size(1200, 900));
-      await tester.pumpAndSettle();
-      // Should remain on Quadrants view
-      expect(find.textContaining('Importance × urgency'), findsWidgets);
-    },
-  );
+    // Resize back to desktop
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    await tester.pumpAndSettle();
+    // Should remain on Quadrants view
+    expect(find.textContaining('Importance × urgency'), findsWidgets);
+  });
 
   testWidgets('appearance can be changed on desktop and mobile', (
     tester,
@@ -137,7 +136,9 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-      addTearDown(() => tester.platformDispatcher.clearPlatformBrightnessTestValue());
+      addTearDown(
+        () => tester.platformDispatcher.clearPlatformBrightnessTestValue(),
+      );
 
       await tester.pumpWidget(const CueApp.demo());
       await tester.pumpAndSettle();
@@ -180,12 +181,29 @@ void main() {
     expect(find.text('工作'), findsOneWidget);
     expect(find.text('未分组'), findsOneWidget);
 
-    await tester.tap(find.text('Status'));
+    expect(find.text('Status'), findsNothing);
+    expect(find.textContaining('TODO ·'), findsNothing);
+    expect(find.textContaining('DOING ·'), findsNothing);
+    expect(find.textContaining('DONE ·'), findsNothing);
+  });
+
+  testWidgets('desktop new task dialog omits task status selection', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add task'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('TODO ·'), findsOneWidget);
-    expect(find.textContaining('DOING ·'), findsOneWidget);
-    expect(find.textContaining('DONE ·'), findsOneWidget);
+    expect(find.text('New task'), findsOneWidget);
+    expect(find.text('Priority'), findsOneWidget);
+    expect(find.text('Status'), findsNothing);
+    expect(find.text('To do'), findsNothing);
+    expect(find.text('Doing'), findsNothing);
+    expect(find.text('Done'), findsNothing);
   });
 
   testWidgets('desktop inbox renames a group inline', (tester) async {
@@ -197,9 +215,7 @@ void main() {
     await tester.tap(find.text('Inbox'));
     await tester.pumpAndSettle();
 
-    final prioritySection = find.byKey(
-      const Key('group-priority-研发事项-3'),
-    );
+    final prioritySection = find.byKey(const Key('group-priority-研发事项-3'));
     final priorityTopBeforeEditing = tester.getTopLeft(prioritySection).dy;
     expect(
       tester.getSize(find.byKey(const Key('group-header-研发事项'))).height,
@@ -216,9 +232,7 @@ void main() {
     );
     expect(
       tester
-          .widget<TextField>(
-            find.byKey(const Key('group-name-field-研发事项')),
-          )
+          .widget<TextField>(find.byKey(const Key('group-name-field-研发事项')))
           .focusNode
           ?.hasFocus,
       isTrue,
@@ -313,6 +327,25 @@ void main() {
     expect(find.text('Local demo'), findsOneWidget);
   });
 
+  testWidgets('mobile board groups tasks without workflow status tabs', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Board'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('社会事项 · 7'), findsOneWidget);
+    expect(find.text('To do'), findsNothing);
+    expect(find.text('Doing'), findsNothing);
+    expect(find.text('Done'), findsNothing);
+  });
+
   testWidgets('opens the V2 mobile task details dialog', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -326,7 +359,7 @@ void main() {
     expect(find.byKey(const Key('task-details-dialog')), findsOneWidget);
     expect(find.byKey(const Key('mobile-task-note-text')), findsOneWidget);
     expect(find.text('Aa'), findsNothing);
-    expect(find.text('Doing'), findsOneWidget);
+    expect(find.text('Doing'), findsNothing);
     expect(find.byTooltip('Close task details'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Close task details'));
@@ -346,10 +379,12 @@ void main() {
     await tester.tap(find.text('Review PCB layout'));
     await tester.pumpAndSettle();
 
-    final dialogMenu = find.descendant(
-      of: find.byKey(const Key('task-details-dialog')),
-      matching: find.byType(PopupMenuButton<String>),
-    ).last;
+    final dialogMenu = find
+        .descendant(
+          of: find.byKey(const Key('task-details-dialog')),
+          matching: find.byType(PopupMenuButton<String>),
+        )
+        .last;
     await tester.tap(dialogMenu);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));

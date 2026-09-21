@@ -149,10 +149,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get planWhatComesNext => '规划接下来的事项';
 
   @override
-  String get oneTaskModel => '一个任务模型，汇集所有进行中事项';
-
-  @override
-  String get threeStages => '三个清晰阶段，同一个任务模型';
+  String get oneTaskModel => '一个任务模型，汇集所有未完成事项';
 
   @override
   String get monthViewDueOnly => '月视图 · 仅显示截止日期';
@@ -185,15 +182,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get status => '状态';
 
   @override
-  String get toDo => '待办';
-
-  @override
-  String get doing => '进行中';
-
-  @override
-  String get done => '已完成';
-
-  @override
   String get due => '截止';
 
   @override
@@ -219,15 +207,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get defaultTaskNote => 'Cue 工作区中的一个明确的下一步行动。';
-
-  @override
-  String get moveToDoing => '移至进行中';
-
-  @override
-  String get reopen => '重新打开';
-
-  @override
-  String get complete => '完成';
 
   @override
   String get deleteTask => '删除任务';
@@ -330,28 +309,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get emptyList => '这里空空如也，享受片刻清闲吧。';
 
   @override
-  String get groupStatus => '状态';
-
-  @override
   String get groupPriority => '优先级';
 
   @override
   String get groupDueDate => '截止日期';
 
   @override
-  String get dragCards => '拖动卡片可更新状态';
+  String get dragCards => '拖动卡片可调整分组';
 
   @override
   String get groupingPreview => '任务分组';
-
-  @override
-  String get todoColumn => '待办';
-
-  @override
-  String get doingColumn => '进行中';
-
-  @override
-  String get doneColumn => '已完成';
 
   @override
   String get month => '月';
@@ -420,11 +387,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get allClear => '全部完成';
-
-  @override
-  String swipeStages(String count) {
-    return '滑动查看阶段 · $count';
-  }
 
   @override
   String monthOverview(int year) {
@@ -595,9 +557,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get groupPriorityLow => '低优先级';
-
-  @override
-  String get completedAndAbandoned => '已完成 & 已放弃';
 
   @override
   String get enterGroupName => '输入分组名称';

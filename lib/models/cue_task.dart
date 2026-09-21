@@ -1,11 +1,8 @@
-enum CueTaskStatus { todo, doing, done }
-
 class CueTask {
   const CueTask({
     required this.id,
     required this.title,
     required this.note,
-    required this.status,
     required this.priority,
     required this.important,
     required this.sortOrder,
@@ -24,7 +21,6 @@ class CueTask {
   final String id;
   final String title;
   final String note;
-  final CueTaskStatus status;
   final int priority;
   final bool important;
   final double sortOrder;
@@ -39,12 +35,11 @@ class CueTask {
   final int revision;
   final String? group;
 
-  bool get isCompleted => status == CueTaskStatus.done;
+  bool get isCompleted => completedAt != null;
 
   CueTask copyWith({
     String? title,
     String? note,
-    CueTaskStatus? status,
     int? priority,
     bool? important,
     double? sortOrder,
@@ -68,7 +63,6 @@ class CueTask {
       id: id,
       title: title ?? this.title,
       note: note ?? this.note,
-      status: status ?? this.status,
       priority: priority ?? this.priority,
       important: important ?? this.important,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -95,7 +89,6 @@ class CueTask {
       id: json['id'] as String,
       title: json['title'] as String,
       note: json['note'] as String? ?? '',
-      status: CueTaskStatus.values.byName(json['status'] as String),
       priority: json['priority'] as int,
       important: json['important'] as bool,
       sortOrder: (json['sortOrder'] as num).toDouble(),
@@ -115,7 +108,6 @@ class CueTask {
   Map<String, dynamic> toCreateJson() => {
     'title': title,
     'note': note,
-    'status': status.name,
     'priority': priority,
     'important': important,
     'sortOrder': sortOrder,

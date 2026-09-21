@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
-  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -23,11 +22,6 @@ export class CreateTaskDto {
   @IsString()
   @Length(0, 5000)
   note?: string;
-
-  @ApiPropertyOptional({ enum: ['todo', 'doing', 'done'] })
-  @IsOptional()
-  @IsIn(['todo', 'doing', 'done'])
-  status?: 'todo' | 'doing' | 'done';
 
   @ApiPropertyOptional({ minimum: 0, maximum: 3 })
   @IsOptional()
@@ -86,11 +80,6 @@ export class UpdateTaskDto {
   @Length(0, 5000)
   note?: string;
 
-  @ApiPropertyOptional({ enum: ['todo', 'doing', 'done'] })
-  @IsOptional()
-  @IsIn(['todo', 'doing', 'done'])
-  status?: 'todo' | 'doing' | 'done';
-
   @ApiPropertyOptional({ minimum: 0, maximum: 3 })
   @IsOptional()
   @IsInt()
@@ -127,6 +116,11 @@ export class UpdateTaskDto {
   @IsString()
   @Length(0, 100)
   group?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsDateString()
+  completedAt?: string | null;
 }
 
 export class DeleteTaskDto {

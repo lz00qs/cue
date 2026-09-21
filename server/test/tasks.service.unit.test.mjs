@@ -13,7 +13,6 @@ function row(revision, overrides = {}) {
     id: 'task-1',
     title: 'Task',
     note: '',
-    status: 'todo',
     priority: 2,
     important: false,
     sort_order: '1000',
@@ -41,6 +40,8 @@ test('sync cursor advances only through changes in the response', async () => {
   const first = await service.sync(5);
   assert.equal(first.latestRevision, 7);
   assert.equal(first.changes[0].revision, 7);
+  assert.equal('status' in first.changes[0], false);
+  assert.equal(first.changes[0].completedAt, null);
 
   rows = [];
   const second = await service.sync(7);

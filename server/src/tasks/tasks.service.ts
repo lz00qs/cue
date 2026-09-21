@@ -14,7 +14,6 @@ interface TaskRow extends QueryResultRow {
   id: string;
   title: string;
   note: string;
-  status: 'todo' | 'doing' | 'done';
   priority: number;
   important: boolean;
   sort_order: string;
@@ -30,7 +29,7 @@ interface TaskRow extends QueryResultRow {
   revision: string;
 }
 
-const columns = `id, title, note, status, priority, important, sort_order,
+const columns = `id, title, note, priority, important, sort_order,
   due_at, reminder, recurrence, "group", completed_at, created_at, updated_at, deleted_at, version, revision`;
 
 @Injectable()
@@ -69,8 +68,6 @@ export class TasksService {
     return this.database.transaction(async (client) => {
       await this.lockTaskWrites(client);
       const now = new Date();
-      const status = input.status ?? 'todo';
-      const completedAt = status === 'done' ? now : null;
       const order =
         input.sortOrder ??
         Number(
@@ -83,16 +80,15 @@ export class TasksService {
         );
       const result = await client.query<TaskRow>(
         `INSERT INTO tasks (
-           id, title, note, status, priority, important, sort_order, due_at,
-           reminder, recurrence, "group", completed_at, created_at, updated_at, version, revision
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, 1,
+           id, title, note, priority, important, sort_order, due_at,
+           reminder, recurrence, "group", created_at, updated_at, version, revision
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, 1,
            nextval('task_revision_seq'))
          RETURNING ${columns}`,
         [
           randomUUID(),
           input.title.trim(),
           input.note?.trim() ?? '',
-          status,
           input.priority ?? 2,
           input.important ?? false,
           order,
@@ -100,7 +96,6 @@ export class TasksService {
           input.reminder ?? null,
           input.recurrence ?? null,
           input.group ?? null,
-          completedAt,
           now,
         ],
       );
@@ -120,27 +115,23 @@ export class TasksService {
         });
       }
 
-      const nextStatus = input.status ?? existing.status;
       const completedAt =
-        nextStatus === 'done'
-          ? existing.completed_at ?? new Date()
-          : input.status
-            ? null
-            : existing.completed_at;
+        input.completedAt === undefined
+          ? existing.completed_at
+          : input.completedAt;
       const result = await client.query<TaskRow>(
         `UPDATE tasks SET
-           title = $2, note = $3, status = $4, priority = $5,
-           important = $6, sort_order = $7, due_at = $8,
-           reminder = $9, recurrence = $10, "group" = $11, completed_at = $12,
+           title = $2, note = $3, priority = $4,
+           important = $5, sort_order = $6, due_at = $7,
+           reminder = $8, recurrence = $9, "group" = $10, completed_at = $11,
            updated_at = NOW(), version = version + 1,
            revision = nextval('task_revision_seq')
-         WHERE id = $1 AND deleted_at IS NULL AND version = $13
+         WHERE id = $1 AND deleted_at IS NULL AND version = $12
          RETURNING ${columns}`,
         [
           id,
           input.title?.trim() ?? existing.title,
           input.note?.trim() ?? existing.note,
-          nextStatus,
           input.priority ?? existing.priority,
           input.important ?? existing.important,
           input.sortOrder ?? Number(existing.sort_order),
@@ -204,7 +195,6 @@ function toTask(row: TaskRow) {
     id: row.id,
     title: row.title,
     note: row.note,
-    status: row.status,
     priority: row.priority,
     important: row.important,
     sortOrder: Number(row.sort_order),

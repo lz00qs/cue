@@ -46,14 +46,6 @@ class _BoardViewState extends ConsumerState<BoardView> {
               ),
               const SizedBox(width: 8),
               CueViewTab(
-                label: context.l10n.groupStatus,
-                selected: _group == BoardGroup.status,
-                onTap: () => ref
-                    .read(boardGroupProvider.notifier)
-                    .select(BoardGroup.status),
-              ),
-              const SizedBox(width: 8),
-              CueViewTab(
                 label: context.l10n.groupPriority,
                 selected: _group == BoardGroup.priority,
                 onTap: () => ref
@@ -71,7 +63,7 @@ class _BoardViewState extends ConsumerState<BoardView> {
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  _group == BoardGroup.group || _group == BoardGroup.status
+                  _group == BoardGroup.group
                       ? context.l10n.dragCards
                       : context.l10n.groupingPreview,
                   style: Theme.of(context).textTheme.labelSmall
@@ -87,10 +79,6 @@ class _BoardViewState extends ConsumerState<BoardView> {
               store: _store,
               onOpenTask: widget.onOpenTask,
               onAddTask: widget.onAddTask,
-            ),
-            BoardGroup.status => _StatusBoard(
-              store: _store,
-              onOpenTask: widget.onOpenTask,
             ),
             _ => _GroupedPreview(
               store: _store,
@@ -420,7 +408,7 @@ class _GroupColumnState extends State<_GroupColumn> {
                 const SizedBox(width: 4),
                 Flexible(
                   child: Text(
-                    '${context.l10n.completedAndAbandoned} ${completedTasks.length}',
+                    '${context.l10n.completed} ${completedTasks.length}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -933,191 +921,6 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StatusBoard extends StatelessWidget {
-  const _StatusBoard({required this.store, required this.onOpenTask});
-
-  final TaskStore store;
-  final ValueChanged<CueTask> onOpenTask;
-
-  List<CueTask> _tasks(CueTaskStatus status) {
-    return store.tasksForStatus(status);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 820;
-        final columnWidth = compact ? 300.0 : (constraints.maxWidth - 32) / 3;
-        final board = ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: constraints.maxHeight,
-            maxHeight: constraints.maxHeight,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _BoardColumn(
-                width: columnWidth,
-                today: store.today,
-                title: context.l10n.todoColumn,
-                status: CueTaskStatus.todo,
-                tasks: _tasks(CueTaskStatus.todo),
-                onAccept: (task) => unawaited(
-                  store
-                      .moveToStatus(task, CueTaskStatus.todo)
-                      .catchError((_) {}),
-                ),
-                onOpenTask: onOpenTask,
-              ),
-              const SizedBox(width: 16),
-              _BoardColumn(
-                width: columnWidth,
-                today: store.today,
-                title: context.l10n.doingColumn,
-                status: CueTaskStatus.doing,
-                tasks: _tasks(CueTaskStatus.doing),
-                onAccept: (task) => unawaited(
-                  store
-                      .moveToStatus(task, CueTaskStatus.doing)
-                      .catchError((_) {}),
-                ),
-                onOpenTask: onOpenTask,
-              ),
-              const SizedBox(width: 16),
-              _BoardColumn(
-                width: columnWidth,
-                today: store.today,
-                title: context.l10n.doneColumn,
-                status: CueTaskStatus.done,
-                tasks: _tasks(CueTaskStatus.done),
-                onAccept: (task) => unawaited(
-                  store
-                      .moveToStatus(task, CueTaskStatus.done)
-                      .catchError((_) {}),
-                ),
-                onOpenTask: onOpenTask,
-              ),
-            ],
-          ),
-        );
-        if (!compact) return board;
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: board,
-        );
-      },
-    );
-  }
-}
-
-class _BoardColumn extends StatefulWidget {
-  const _BoardColumn({
-    required this.width,
-    required this.today,
-    required this.title,
-    required this.status,
-    required this.tasks,
-    required this.onAccept,
-    required this.onOpenTask,
-  });
-
-  final double width;
-  final DateTime today;
-  final String title;
-  final CueTaskStatus status;
-  final List<CueTask> tasks;
-  final ValueChanged<CueTask> onAccept;
-  final ValueChanged<CueTask> onOpenTask;
-
-  @override
-  State<_BoardColumn> createState() => _BoardColumnState();
-}
-
-class _BoardColumnState extends State<_BoardColumn> {
-  bool _hovering = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return DragTarget<CueTask>(
-      onWillAcceptWithDetails: (details) {
-        setState(() => _hovering = details.data.status != widget.status);
-        return true;
-      },
-      onLeave: (_) => setState(() => _hovering = false),
-      onAcceptWithDetails: (details) {
-        setState(() => _hovering = false);
-        widget.onAccept(details.data);
-      },
-      builder: (context, candidateData, rejectedData) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: widget.width,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _hovering ? CueColors.selected : CueColors.subtle,
-            border: Border.all(
-              color: _hovering ? CueColors.accent : Colors.transparent,
-            ),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '${widget.title} · ${widget.tasks.length}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  letterSpacing: 0.48,
-                  color: CueColors.secondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  itemCount: widget.tasks.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final task = widget.tasks[index];
-                    return Draggable<CueTask>(
-                      data: task,
-                      feedback: Material(
-                        color: Colors.transparent,
-                        child: SizedBox(
-                          width: widget.width - 24,
-                          child: CueTaskCard(
-                            task: task,
-                            referenceDate: widget.today,
-                            onOpen: () {},
-                          ),
-                        ),
-                      ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.35,
-                        child: CueTaskCard(
-                          task: task,
-                          referenceDate: widget.today,
-                          onOpen: () => widget.onOpenTask(task),
-                        ),
-                      ),
-                      child: CueTaskCard(
-                        task: task,
-                        referenceDate: widget.today,
-                        onOpen: () => widget.onOpenTask(task),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

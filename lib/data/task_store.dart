@@ -18,7 +18,6 @@ class TaskStore extends ChangeNotifier {
       String id,
       String title, {
       String note = '',
-      CueTaskStatus status = CueTaskStatus.todo,
       int priority = 2,
       bool important = false,
       DateTime? dueAt,
@@ -30,7 +29,6 @@ class TaskStore extends ChangeNotifier {
         id: id,
         title: title,
         note: note,
-        status: status,
         priority: priority,
         important: important,
         sortOrder: order,
@@ -47,17 +45,75 @@ class TaskStore extends ChangeNotifier {
       task('org-rack', '整理机架', priority: 3, group: '社会事项', order: 100),
       task('clean-room', '收拾房间 + 搞卫生', priority: 3, group: '社会事项', order: 200),
       task('okinawa-trip', '冲绳攻略', priority: 3, group: '社会事项', order: 300),
-      task('sim-assembly', '组装模拟器', status: CueTaskStatus.done, priority: 3, group: '社会事项', completedAt: DateTime(2026, 9, 12), order: 400),
-      task('fix-bed', '修床', status: CueTaskStatus.done, priority: 3, group: '社会事项', completedAt: DateTime(2026, 9, 10), order: 500),
-      task('exercise-1', '运动', status: CueTaskStatus.done, priority: 3, group: '社会事项', dueAt: DateTime(2026, 1, 5), completedAt: DateTime(2026, 1, 5), order: 600),
-      task('duolingo-1', '多邻国', status: CueTaskStatus.done, priority: 3, group: '社会事项', dueAt: DateTime(2026, 1, 5), completedAt: DateTime(2026, 1, 5), order: 700),
+      task(
+        'sim-assembly',
+        '组装模拟器',
+        priority: 3,
+        group: '社会事项',
+        completedAt: DateTime(2026, 9, 12),
+        order: 400,
+      ),
+      task(
+        'fix-bed',
+        '修床',
+        priority: 3,
+        group: '社会事项',
+        completedAt: DateTime(2026, 9, 10),
+        order: 500,
+      ),
+      task(
+        'exercise-1',
+        '运动',
+        priority: 3,
+        group: '社会事项',
+        dueAt: DateTime(2026, 1, 5),
+        completedAt: DateTime(2026, 1, 5),
+        order: 600,
+      ),
+      task(
+        'duolingo-1',
+        '多邻国',
+        priority: 3,
+        group: '社会事项',
+        dueAt: DateTime(2026, 1, 5),
+        completedAt: DateTime(2026, 1, 5),
+        order: 700,
+      ),
 
       // 研发事项
       task('desk-lamp', '桌面灯设计', priority: 3, group: '研发事项', order: 1000),
-      task('phone-rc-ui', '手机遥控 UI 设计', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 11), order: 1100),
-      task('xji-overflow', 'xji_footage_toolbox 窗口放大缩小后左侧边栏溢出问题解决', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 9), order: 1200),
-      task('xji-scroll', 'xji_footage_toolbox list 滚动逻辑', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 8), order: 1300),
-      task('feishu-docs', '优化飞书 docs (预计转 electron)', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 7), order: 1400),
+      task(
+        'phone-rc-ui',
+        '手机遥控 UI 设计',
+        priority: 3,
+        group: '研发事项',
+        completedAt: DateTime(2026, 9, 11),
+        order: 1100,
+      ),
+      task(
+        'xji-overflow',
+        'xji_footage_toolbox 窗口放大缩小后左侧边栏溢出问题解决',
+        priority: 3,
+        group: '研发事项',
+        completedAt: DateTime(2026, 9, 9),
+        order: 1200,
+      ),
+      task(
+        'xji-scroll',
+        'xji_footage_toolbox list 滚动逻辑',
+        priority: 3,
+        group: '研发事项',
+        completedAt: DateTime(2026, 9, 8),
+        order: 1300,
+      ),
+      task(
+        'feishu-docs',
+        '优化飞书 docs (预计转 electron)',
+        priority: 3,
+        group: '研发事项',
+        completedAt: DateTime(2026, 9, 7),
+        order: 1400,
+      ),
       task(
         'pcb-review',
         'Review PCB layout',
@@ -72,7 +128,6 @@ class TaskStore extends ChangeNotifier {
         'thermal-simulation',
         'Run thermal simulation',
         note: 'Compare the revised enclosure against the baseline model.',
-        status: CueTaskStatus.doing,
         priority: 1,
         important: true,
         dueAt: DateTime(2026, 9, 13, 14),
@@ -82,7 +137,6 @@ class TaskStore extends ChangeNotifier {
       task(
         'signal-drift',
         'Analyze signal drift',
-        status: CueTaskStatus.doing,
         priority: 2,
         important: true,
         dueAt: DateTime(2026, 9, 15),
@@ -93,7 +147,6 @@ class TaskStore extends ChangeNotifier {
         'requirements',
         'Finalize requirements',
         note: 'Approved for the September build.',
-        status: CueTaskStatus.done,
         priority: 2,
         important: true,
         completedAt: DateTime(2026, 9, 13, 9, 15),
@@ -104,10 +157,28 @@ class TaskStore extends ChangeNotifier {
 
       // 工作
       task('c2c-learning', 'C2C 学习', priority: 1, group: '工作', order: 2000),
-      task('parallel-compute', '并行计算技术了解', priority: 3, group: '工作', order: 2100),
+      task(
+        'parallel-compute',
+        '并行计算技术了解',
+        priority: 3,
+        group: '工作',
+        order: 2100,
+      ),
       task('ddr5-odt', 'DDR5 odt 技术了解', priority: 3, group: '工作', order: 2200),
-      task('rdimm-datasheet', '研究一份 RDIMM 的 datasheet', priority: 3, group: '工作', order: 2300),
-      task('ddr5-training', 'DDR5 training 流程', priority: 3, group: '工作', order: 2400),
+      task(
+        'rdimm-datasheet',
+        '研究一份 RDIMM 的 datasheet',
+        priority: 3,
+        group: '工作',
+        order: 2300,
+      ),
+      task(
+        'ddr5-training',
+        'DDR5 training 流程',
+        priority: 3,
+        group: '工作',
+        order: 2400,
+      ),
       task(
         'sprint-report',
         'Draft sprint report',
@@ -131,7 +202,6 @@ class TaskStore extends ChangeNotifier {
       task(
         'firmware-sync',
         'Sync firmware branch',
-        status: CueTaskStatus.done,
         priority: 3,
         completedAt: DateTime(2026, 9, 11),
         dueAt: DateTime(2026, 9, 8),
@@ -164,7 +234,13 @@ class TaskStore extends ChangeNotifier {
         order: 10000,
         group: '工作',
       ),
-      task('archive-notes', 'Archive old notes', priority: 3, order: 11000, group: '未分组'),
+      task(
+        'archive-notes',
+        'Archive old notes',
+        priority: 3,
+        order: 11000,
+        group: '未分组',
+      ),
       task(
         'report-templates',
         'Browse report templates',
@@ -308,8 +384,8 @@ class TaskStore extends ChangeNotifier {
       'weekly' => target.weekday == due.weekday,
       'monthly' => target.day == due.day,
       'yearly' => target.month == due.month && target.day == due.day,
-      'workday' => target.weekday >= DateTime.monday &&
-          target.weekday <= DateTime.friday,
+      'workday' =>
+        target.weekday >= DateTime.monday && target.weekday <= DateTime.friday,
       _ => false,
     };
   }
@@ -339,18 +415,8 @@ class TaskStore extends ChangeNotifier {
     return result;
   }
 
-  List<CueTask> tasksForStatus(CueTaskStatus status) {
-    final result = _tasks
-        .where((task) => task.deletedAt == null && task.status == status)
-        .toList();
-    result.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return result;
-  }
-
   List<CueTask> tasksForDay(DateTime day) {
-    final result = _tasks
-        .where((task) => isTaskOnDay(task, day))
-        .toList();
+    final result = _tasks.where((task) => isTaskOnDay(task, day)).toList();
     result.sort(_taskSort);
     return result;
   }
@@ -450,7 +516,6 @@ class TaskStore extends ChangeNotifier {
     String note = '',
     int priority = 2,
     bool important = false,
-    CueTaskStatus status = CueTaskStatus.todo,
     DateTime? dueAt,
     String? group,
   }) async {
@@ -458,19 +523,19 @@ class TaskStore extends ChangeNotifier {
     if (trimmed.isEmpty) return;
     final now = DateTime.now();
     final normalizedGroup =
-        (group == null || group.trim().isEmpty || group.trim() == defaultUngrouped)
-            ? null
-            : group.trim();
+        (group == null ||
+            group.trim().isEmpty ||
+            group.trim() == defaultUngrouped)
+        ? null
+        : group.trim();
     final task = CueTask(
       id: 'task-local-${now.microsecondsSinceEpoch}',
       title: trimmed,
       note: note.trim(),
-      status: status,
       priority: priority,
       important: important,
       sortOrder: _tasks.length * 1000 + 1000,
       dueAt: dueAt,
-      completedAt: status == CueTaskStatus.done ? now : null,
       createdAt: now,
       updatedAt: now,
       group: normalizedGroup,
@@ -505,38 +570,24 @@ class TaskStore extends ChangeNotifier {
   }
 
   Future<void> toggleComplete(CueTask task) {
-    final status = task.isCompleted ? CueTaskStatus.todo : CueTaskStatus.done;
+    final completedAt = task.isCompleted ? null : DateTime.now();
     return _update(
       task,
       task.copyWith(
-        status: status,
-        completedAt: status == CueTaskStatus.done ? DateTime.now() : null,
-        clearCompletedAt: status != CueTaskStatus.done,
+        completedAt: completedAt,
+        clearCompletedAt: completedAt == null,
       ),
-      {'status': status.name},
-    );
-  }
-
-  Future<void> moveToStatus(CueTask task, CueTaskStatus status) {
-    if (task.status == status) return Future.value();
-    final sortOrder = (tasksForStatus(status).length * 1000 + 1000).toDouble();
-    return _update(
-      task,
-      task.copyWith(
-        status: status,
-        completedAt: status == CueTaskStatus.done ? DateTime.now() : null,
-        clearCompletedAt: status != CueTaskStatus.done,
-        sortOrder: sortOrder,
-      ),
-      {'status': status.name, 'sortOrder': sortOrder},
+      {'completedAt': completedAt?.toUtc().toIso8601String()},
     );
   }
 
   Future<void> updateGroup(CueTask task, String? group) {
     final normalized =
-        (group == null || group.trim().isEmpty || group.trim() == defaultUngrouped)
-            ? null
-            : group.trim();
+        (group == null ||
+            group.trim().isEmpty ||
+            group.trim() == defaultUngrouped)
+        ? null
+        : group.trim();
     if (task.group == normalized) return Future.value();
     return _update(
       task,
@@ -557,20 +608,14 @@ class TaskStore extends ChangeNotifier {
   Future<void> updateTitle(CueTask task, String title) {
     final trimmed = title.trim();
     if (trimmed.isEmpty || trimmed == task.title) return Future.value();
-    return _update(
-      task,
-      task.copyWith(title: trimmed),
-      {'title': trimmed},
-    );
+    return _update(task, task.copyWith(title: trimmed), {'title': trimmed});
   }
 
   Future<void> updatePriority(CueTask task, int priority) {
     if (priority == task.priority) return Future.value();
-    return _update(
-      task,
-      task.copyWith(priority: priority),
-      {'priority': priority},
-    );
+    return _update(task, task.copyWith(priority: priority), {
+      'priority': priority,
+    });
   }
 
   Future<void> updateDueAt(

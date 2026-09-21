@@ -659,7 +659,9 @@ class _SidebarItemState extends State<_SidebarItem> {
                   widget.label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: widget.selected ? CueColors.accent : CueColors.primary,
+                    color: widget.selected
+                        ? CueColors.accent
+                        : CueColors.primary,
                     fontSize: 15,
                     height: 21 / 15,
                   ),
@@ -831,7 +833,10 @@ class _CalendarMonthHeaderNavigation extends ConsumerWidget {
                 iconSize: 18,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-                icon: Icon(Icons.chevron_left_rounded, color: CueColors.primary),
+                icon: Icon(
+                  Icons.chevron_left_rounded,
+                  color: CueColors.primary,
+                ),
                 onPressed: () => ref
                     .read(calendarFocusedMonthProvider.notifier)
                     .previousMonth(),
@@ -862,10 +867,12 @@ class _CalendarMonthHeaderNavigation extends ConsumerWidget {
                 iconSize: 18,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
-                icon: Icon(Icons.chevron_right_rounded, color: CueColors.primary),
-                onPressed: () => ref
-                    .read(calendarFocusedMonthProvider.notifier)
-                    .nextMonth(),
+                icon: Icon(
+                  Icons.chevron_right_rounded,
+                  color: CueColors.primary,
+                ),
+                onPressed: () =>
+                    ref.read(calendarFocusedMonthProvider.notifier).nextMonth(),
                 tooltip: context.l10n.month,
               ),
             ],
@@ -1091,8 +1098,7 @@ class MonthPickerPopover extends ConsumerStatefulWidget {
   const MonthPickerPopover({super.key});
 
   @override
-  ConsumerState<MonthPickerPopover> createState() =>
-      _MonthPickerPopoverState();
+  ConsumerState<MonthPickerPopover> createState() => _MonthPickerPopoverState();
 }
 
 class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
@@ -1139,8 +1145,14 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
                   key: const Key('month-picker-prev-year'),
                   iconSize: 18,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: Icon(Icons.chevron_left_rounded, color: CueColors.secondary),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  icon: Icon(
+                    Icons.chevron_left_rounded,
+                    color: CueColors.secondary,
+                  ),
                   onPressed: () => setState(() => _displayedYear--),
                   tooltip: '上一年',
                 ),
@@ -1148,8 +1160,14 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
                   key: const Key('month-picker-today-year'),
                   iconSize: 16,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: Icon(Icons.panorama_fish_eye_rounded, color: CueColors.secondary),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  icon: Icon(
+                    Icons.panorama_fish_eye_rounded,
+                    color: CueColors.secondary,
+                  ),
                   onPressed: () {
                     ref
                         .read(calendarFocusedMonthProvider.notifier)
@@ -1162,8 +1180,14 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
                   key: const Key('month-picker-next-year'),
                   iconSize: 18,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  icon: Icon(Icons.chevron_right_rounded, color: CueColors.secondary),
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  icon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: CueColors.secondary,
+                  ),
                   onPressed: () => setState(() => _displayedYear++),
                   tooltip: '下一年',
                 ),
@@ -1201,8 +1225,9 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
                         '$month月',
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                           color: isSelected
                               ? CueColors.onAccent
                               : CueColors.primary,
@@ -1247,7 +1272,6 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   late int _priority;
   late String _group;
   late bool _important;
-  late CueTaskStatus _status;
   DateTime? _dueAt;
 
   @override
@@ -1258,7 +1282,6 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     _priority = widget.prefilledPriority ?? 2;
     _group = widget.prefilledGroup ?? TaskStore.defaultUngrouped;
     _important = false;
-    _status = CueTaskStatus.todo;
     final today = widget.store.today;
     _dueAt = widget.prefilledDate == null
         ? DateTime(today.year, today.month, today.day, 18)
@@ -1310,71 +1333,27 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
               TextField(
                 controller: _noteController,
                 maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: context.l10n.note,
-                ),
+                decoration: InputDecoration(labelText: context.l10n.note),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: _priority,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.priority,
-                      ),
-                      items: List.generate(
-                        4,
-                        (index) => DropdownMenuItem(
-                          value: index,
-                          child: Text('P$index'),
-                        ),
-                      ),
-                      onChanged: (value) =>
-                          setState(() => _priority = value ?? 2),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<CueTaskStatus>(
-                      initialValue: _status,
-                      decoration: InputDecoration(
-                        labelText: context.l10n.status,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: CueTaskStatus.todo,
-                          child: Text(context.l10n.toDo),
-                        ),
-                        DropdownMenuItem(
-                          value: CueTaskStatus.doing,
-                          child: Text(context.l10n.doing),
-                        ),
-                        DropdownMenuItem(
-                          value: CueTaskStatus.done,
-                          child: Text(context.l10n.done),
-                        ),
-                      ],
-                      onChanged: (value) => setState(
-                        () => _status = value ?? CueTaskStatus.todo,
-                      ),
-                    ),
-                  ),
-                ],
+              DropdownButtonFormField<int>(
+                initialValue: _priority,
+                decoration: InputDecoration(labelText: context.l10n.priority),
+                items: List.generate(
+                  4,
+                  (index) =>
+                      DropdownMenuItem(value: index, child: Text('P$index')),
+                ),
+                onChanged: (value) => setState(() => _priority = value ?? 2),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: widget.store.groups.contains(_group)
                     ? _group
                     : TaskStore.defaultUngrouped,
-                decoration: InputDecoration(
-                  labelText: context.l10n.group,
-                ),
+                decoration: InputDecoration(labelText: context.l10n.group),
                 items: widget.store.groups.map((g) {
-                  return DropdownMenuItem<String>(
-                    value: g,
-                    child: Text(g),
-                  );
+                  return DropdownMenuItem<String>(value: g, child: Text(g));
                 }).toList(),
                 onChanged: (value) => setState(
                   () => _group = value ?? TaskStore.defaultUngrouped,
@@ -1383,9 +1362,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<DateTime?>(
                 initialValue: _dueAt,
-                decoration: InputDecoration(
-                  labelText: context.l10n.dueDate,
-                ),
+                decoration: InputDecoration(labelText: context.l10n.dueDate),
                 items: widget.dueDateChoices(_dueAt),
                 onChanged: (value) => setState(() => _dueAt = value),
               ),
@@ -1417,7 +1394,6 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 note: _noteController.text,
                 priority: _priority,
                 important: _important,
-                status: _status,
                 dueAt: _dueAt,
                 group: _group == TaskStore.defaultUngrouped ? null : _group,
               ),

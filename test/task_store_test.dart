@@ -80,17 +80,40 @@ void main() {
     expect(store.tasks.single.dueAt, isNull);
   });
 
+  test('completion syncs completedAt without a task status field', () async {
+    final api = _FakeApiClient();
+    final store = TaskStore([_task(revision: 1)], api: api);
+
+    final mutation = store.toggleComplete(store.tasks.single);
+    final completed = store.tasks.single;
+
+    expect(completed.completedAt, isNotNull);
+    expect(api.lastChanges, contains('completedAt'));
+    expect(api.lastChanges, isNot(contains('status')));
+
+    api.updateCompleter.complete(completed.copyWith(version: 2, revision: 2));
+    await mutation;
+    expect(store.tasks.single.isCompleted, isTrue);
+  });
+
+  test('toggling a completed task returns it to unfinished', () async {
+    final completed = _task(
+      revision: 1,
+    ).copyWith(completedAt: DateTime(2026, 9, 15, 11));
+    final store = TaskStore([completed]);
+
+    await store.toggleComplete(completed);
+
+    expect(store.tasks.single.isCompleted, isFalse);
+    expect(store.tasks.single.completedAt, isNull);
+  });
+
   test('updates task reminder and recurrence in store', () async {
     final store = TaskStore([_task(revision: 1)]);
     final task = store.tasks.single;
 
     final due = DateTime(2026, 9, 20, 10);
-    await store.updateDueAt(
-      task,
-      due,
-      reminder: 'min_30',
-      recurrence: 'daily',
-    );
+    await store.updateDueAt(task, due, reminder: 'min_30', recurrence: 'daily');
     expect(store.tasks.single.dueAt, due);
     expect(store.tasks.single.reminder, 'min_30');
     expect(store.tasks.single.recurrence, 'daily');
@@ -98,10 +121,7 @@ void main() {
 
   test('recurring task appears on subsequent matching days', () async {
     final start = DateTime(2026, 9, 20);
-    final task = _task(revision: 1).copyWith(
-      dueAt: start,
-      recurrence: 'daily',
-    );
+    final task = _task(revision: 1).copyWith(dueAt: start, recurrence: 'daily');
     final store = TaskStore([task], today: start);
 
     // Initial day 9/20
@@ -119,42 +139,51 @@ void main() {
     // 9/20 is Sunday
     expect(weeklyStore.tasksForDay(DateTime(2026, 9, 20)).length, 1);
     expect(weeklyStore.tasksForDay(DateTime(2026, 9, 21)).length, 0); // Monday
-    expect(weeklyStore.tasksForDay(DateTime(2026, 9, 27)).length, 1); // Next Sunday
+    expect(
+      weeklyStore.tasksForDay(DateTime(2026, 9, 27)).length,
+      1,
+    ); // Next Sunday
   });
 
-  test('supports task groups, renaming, deleting, and updating task group', () async {
-    final store = TaskStore([
-      _task(revision: 1, id: 't1').copyWith(group: 'Work'),
-      _task(revision: 2, id: 't2').copyWith(group: 'Personal'),
-    ]);
+  test(
+    'supports task groups, renaming, deleting, and updating task group',
+    () async {
+      final store = TaskStore([
+        _task(revision: 1, id: 't1').copyWith(group: 'Work'),
+        _task(revision: 2, id: 't2').copyWith(group: 'Personal'),
+      ]);
 
-    expect(store.groups, containsAll(['Work', 'Personal', TaskStore.defaultUngrouped]));
-    expect(store.activeTasksForGroup('Work').length, 1);
-    expect(store.activeTasksForGroup('Personal').length, 1);
-    expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 0);
+      expect(
+        store.groups,
+        containsAll(['Work', 'Personal', TaskStore.defaultUngrouped]),
+      );
+      expect(store.activeTasksForGroup('Work').length, 1);
+      expect(store.activeTasksForGroup('Personal').length, 1);
+      expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 0);
 
-    // Add group
-    store.addGroup('Finance');
-    expect(store.groups, contains('Finance'));
+      // Add group
+      store.addGroup('Finance');
+      expect(store.groups, contains('Finance'));
 
-    // Rename group
-    store.renameGroup('Work', 'Career');
-    expect(store.groups, contains('Career'));
-    expect(store.groups, isNot(contains('Work')));
-    expect(store.tasks.firstWhere((t) => t.id == 't1').group, 'Career');
+      // Rename group
+      store.renameGroup('Work', 'Career');
+      expect(store.groups, contains('Career'));
+      expect(store.groups, isNot(contains('Work')));
+      expect(store.tasks.firstWhere((t) => t.id == 't1').group, 'Career');
 
-    // Update task group directly
-    final task2 = store.tasks.firstWhere((t) => t.id == 't2');
-    await store.updateGroup(task2, 'Finance');
-    expect(store.tasks.firstWhere((t) => t.id == 't2').group, 'Finance');
+      // Update task group directly
+      final task2 = store.tasks.firstWhere((t) => t.id == 't2');
+      await store.updateGroup(task2, 'Finance');
+      expect(store.tasks.firstWhere((t) => t.id == 't2').group, 'Finance');
 
-    // Delete group
-    store.deleteGroup('Finance');
-    expect(store.groups, isNot(contains('Finance')));
-    // Task previously in deleted group now has null group (falls back to ungrouped)
-    expect(store.tasks.firstWhere((t) => t.id == 't2').group, isNull);
-    expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 1);
-  });
+      // Delete group
+      store.deleteGroup('Finance');
+      expect(store.groups, isNot(contains('Finance')));
+      // Task previously in deleted group now has null group (falls back to ungrouped)
+      expect(store.tasks.firstWhere((t) => t.id == 't2').group, isNull);
+      expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 1);
+    },
+  );
 }
 
 class _FakeApiClient extends ApiClient {
@@ -163,6 +192,7 @@ class _FakeApiClient extends ApiClient {
   final syncCompleter = Completer<SyncResult>();
   final updateCompleter = Completer<CueTask>();
   int syncCalls = 0;
+  Map<String, dynamic>? lastChanges;
 
   @override
   Future<SyncResult> sync(int since) {
@@ -172,6 +202,7 @@ class _FakeApiClient extends ApiClient {
 
   @override
   Future<CueTask> updateTask(CueTask task, Map<String, dynamic> changes) {
+    lastChanges = Map.of(changes);
     return updateCompleter.future;
   }
 }
@@ -182,7 +213,6 @@ CueTask _task({required int revision, String id = 'synced-task'}) {
     id: id,
     title: 'Synced task',
     note: '',
-    status: CueTaskStatus.todo,
     priority: 2,
     important: false,
     sortOrder: 1000,

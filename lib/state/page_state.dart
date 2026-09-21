@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_state.dart';
-import '../models/cue_task.dart';
 
 enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
 
@@ -13,8 +12,9 @@ class CueHomeUiState {
   final CueListFilter filter;
 }
 
-final cueHomeUiProvider =
-    NotifierProvider<CueHomeUi, CueHomeUiState>(CueHomeUi.new);
+final cueHomeUiProvider = NotifierProvider<CueHomeUi, CueHomeUiState>(
+  CueHomeUi.new,
+);
 
 class CueHomeUi extends Notifier<CueHomeUiState> {
   @override
@@ -62,10 +62,9 @@ MobileDestination? _mapViewToDestination(CueView view) {
 enum MobileDestination { today, board, calendar, quadrants, settings }
 
 class MobileUiState {
-  const MobileUiState(this.destination, this.showLater, this.boardStatus);
+  const MobileUiState(this.destination, this.showLater);
   final MobileDestination destination;
   final bool showLater;
-  final CueTaskStatus boardStatus;
 }
 
 final mobileUiProvider = NotifierProvider<MobileUi, MobileUiState>(
@@ -74,11 +73,13 @@ final mobileUiProvider = NotifierProvider<MobileUi, MobileUiState>(
 
 class MobileUi extends Notifier<MobileUiState> {
   @override
-  MobileUiState build() =>
-      const MobileUiState(MobileDestination.today, false, CueTaskStatus.doing);
+  MobileUiState build() => const MobileUiState(MobileDestination.today, false);
 
-  void selectDestination(MobileDestination destination, {bool syncDesktop = true}) {
-    state = MobileUiState(destination, state.showLater, state.boardStatus);
+  void selectDestination(
+    MobileDestination destination, {
+    bool syncDesktop = true,
+  }) {
+    state = MobileUiState(destination, state.showLater);
     if (syncDesktop) {
       final view = _mapDestinationToView(destination);
       if (view != null) {
@@ -90,11 +91,7 @@ class MobileUi extends Notifier<MobileUiState> {
   }
 
   void showLater(bool value) {
-    state = MobileUiState(state.destination, value, state.boardStatus);
-  }
-
-  void selectBoardStatus(CueTaskStatus status) {
-    state = MobileUiState(state.destination, state.showLater, status);
+    state = MobileUiState(state.destination, value);
   }
 }
 
@@ -108,7 +105,7 @@ CueView? _mapDestinationToView(MobileDestination destination) {
   };
 }
 
-enum BoardGroup { group, status, priority, dueDate }
+enum BoardGroup { group, priority, dueDate }
 
 final boardGroupProvider =
     NotifierProvider.autoDispose<BoardGroupSelection, BoardGroup>(

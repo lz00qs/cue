@@ -170,9 +170,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get oneTaskModel => 'One task model, every active item';
 
   @override
-  String get threeStages => 'Three focused stages, one task model';
-
-  @override
   String get monthViewDueOnly => 'Month view · Due dates only';
 
   @override
@@ -204,15 +201,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get status => 'Status';
 
   @override
-  String get toDo => 'To do';
-
-  @override
-  String get doing => 'Doing';
-
-  @override
-  String get done => 'Done';
-
-  @override
   String get due => 'Due';
 
   @override
@@ -238,15 +226,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultTaskNote => 'A focused next action in your Cue workspace.';
-
-  @override
-  String get moveToDoing => 'Move to Doing';
-
-  @override
-  String get reopen => 'Reopen';
-
-  @override
-  String get complete => 'Complete';
 
   @override
   String get deleteTask => 'Delete task';
@@ -349,28 +328,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get emptyList => 'Nothing here — enjoy the space.';
 
   @override
-  String get groupStatus => 'Status';
-
-  @override
   String get groupPriority => 'Priority';
 
   @override
   String get groupDueDate => 'Due date';
 
   @override
-  String get dragCards => 'Drag cards to update status';
+  String get dragCards => 'Drag cards between groups';
 
   @override
   String get groupingPreview => 'Grouped tasks';
-
-  @override
-  String get todoColumn => 'TODO';
-
-  @override
-  String get doingColumn => 'DOING';
-
-  @override
-  String get doneColumn => 'DONE';
 
   @override
   String get month => 'Month';
@@ -439,11 +406,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allClear => 'All clear';
-
-  @override
-  String swipeStages(String count) {
-    return 'Swipe stages · $count';
-  }
 
   @override
   String monthOverview(int year) {
@@ -614,9 +576,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupPriorityLow => 'Low Priority';
-
-  @override
-  String get completedAndAbandoned => 'Completed & Abandoned';
 
   @override
   String get enterGroupName => 'Enter section name';

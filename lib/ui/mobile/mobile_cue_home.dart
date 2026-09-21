@@ -51,7 +51,6 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
   TaskStore get _store => ref.read(taskStoreProvider)!;
   MobileDestination get _destination => ref.read(mobileUiProvider).destination;
   bool get _showLater => ref.read(mobileUiProvider).showLater;
-  CueTaskStatus get _boardStatus => ref.read(mobileUiProvider).boardStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -100,10 +99,9 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
         onSync: _syncNow,
       ),
       MobileDestination.board => _MobileBoardPage(
-        status: _boardStatus,
-        onStatusChanged: (status) =>
-            ref.read(mobileUiProvider.notifier).selectBoardStatus(status),
         onOpenTask: _openTask,
+        onToggleTask: (task) =>
+            _runOperation(() => _store.toggleComplete(task)),
         onBackToToday: _openToday,
         onSync: _syncNow,
       ),
@@ -506,120 +504,73 @@ class _TaskGroup extends StatelessWidget {
   }
 }
 
-class _MobileBoardPage extends ConsumerStatefulWidget {
+class _MobileBoardPage extends ConsumerWidget {
   const _MobileBoardPage({
-    required this.status,
-    required this.onStatusChanged,
     required this.onOpenTask,
+    required this.onToggleTask,
     required this.onBackToToday,
     required this.onSync,
   });
 
-  final CueTaskStatus status;
-  final ValueChanged<CueTaskStatus> onStatusChanged;
   final ValueChanged<CueTask> onOpenTask;
+  final ValueChanged<CueTask> onToggleTask;
   final VoidCallback onBackToToday;
   final Future<void> Function() onSync;
 
   @override
-  ConsumerState<_MobileBoardPage> createState() => _MobileBoardPageState();
-}
-
-class _MobileBoardPageState extends ConsumerState<_MobileBoardPage> {
-  TaskStore get _store => ref.read(taskStoreProvider)!;
-  late final PageController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(initialPage: widget.status.index);
-  }
-
-  @override
-  void didUpdateWidget(covariant _MobileBoardPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.status != widget.status && _controller.hasClients) {
-      _controller.animateToPage(
-        widget.status.index,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(taskRevisionProvider);
+    final store = ref.watch(taskStoreProvider)!;
     return RefreshIndicator(
       color: _MobileColors.accent,
       backgroundColor: _MobileColors.card,
-      onRefresh: widget.onSync,
+      onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
         children: [
           _MobileHeader(
             title: context.l10n.board,
-            subtitle: context.l10n.swipeStages(
-              context.l10n.openTaskCount(_store.activeTasks.length),
-            ),
+            subtitle: context.l10n.openTaskCount(store.activeTasks.length),
             boardIsOpen: true,
-            onOpenBoard: widget.onBackToToday,
-            onSync: widget.onSync,
+            onOpenBoard: onBackToToday,
+            onSync: onSync,
           ),
           const SizedBox(height: 20),
-          Row(
-            children: CueTaskStatus.values.map((status) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: status == CueTaskStatus.done ? 0 : 8,
-                ),
-                child: _MobilePill(
-                  label: _statusLabel(context, status, uppercase: true),
-                  selected: widget.status == status,
-                  onTap: () => widget.onStatusChanged(status),
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            '${_statusLabel(context, widget.status, uppercase: true)} · ${_store.tasksForStatus(widget.status).length}',
-            style: TextStyle(
-              color: _MobileColors.secondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 470,
-            child: PageView(
-              controller: _controller,
-              onPageChanged: (index) =>
-                  widget.onStatusChanged(CueTaskStatus.values[index]),
-              children: CueTaskStatus.values.map((status) {
-                final tasks = _store.tasksForStatus(status);
-                return ListView.separated(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: tasks.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) => _MobileTaskCard(
-                    task: tasks[index],
-                    today: _store.today,
-                    onOpen: () => widget.onOpenTask(tasks[index]),
+          for (final group in store.groups) ...[
+            Builder(
+              builder: (context) {
+                final tasks = [
+                  ...store.activeTasksForGroup(group),
+                  ...store.completedTasksForGroup(group),
+                ];
+                if (tasks.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$group · ${tasks.length}',
+                        style: _mobileEyebrowStyle,
+                      ),
+                      const SizedBox(height: 8),
+                      for (var index = 0; index < tasks.length; index++) ...[
+                        _MobileTaskRow(
+                          task: tasks[index],
+                          today: store.today,
+                          onOpen: () => onOpenTask(tasks[index]),
+                          onToggle: () => onToggleTask(tasks[index]),
+                        ),
+                        if (index != tasks.length - 1)
+                          const SizedBox(height: 8),
+                      ],
+                    ],
                   ),
                 );
-              }).toList(),
+              },
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -1338,72 +1289,6 @@ class _MobileTaskRow extends StatelessWidget {
   }
 }
 
-class _MobileTaskCard extends StatelessWidget {
-  const _MobileTaskCard({
-    required this.task,
-    required this.today,
-    required this.onOpen,
-  });
-
-  final CueTask task;
-  final DateTime today;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onOpen,
-      child: Container(
-        height: 100,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: _MobileColors.card,
-          border: Border.all(color: _MobileColors.border),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x121A1C26),
-              blurRadius: 2,
-              offset: Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              task.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: _MobileColors.primary,
-                fontSize: 15,
-                height: 20 / 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    _mobileCompactMeta(context, task, today),
-                    style: TextStyle(
-                      color: _MobileColors.secondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                _MobilePriorityBadge(priority: task.priority),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MobilePriorityBadge extends StatelessWidget {
   const _MobilePriorityBadge({required this.priority});
 
@@ -2042,35 +1927,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
               ),
               child: Row(
                 children: [
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: Size.zero,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => widget.onRun(
-                      () => store.moveToStatus(task, CueTaskStatus.todo),
-                    ),
-                    child: Text(
-                      context.l10n.inbox,
-                      style: TextStyle(color: _MobileColors.primary),
-                    ),
-                  ),
                   const Spacer(),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: Size.zero,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => widget.onRun(
-                      () => store.moveToStatus(task, CueTaskStatus.doing),
-                    ),
-                    child: Text(
-                      context.l10n.doing,
-                      style: TextStyle(color: _MobileColors.secondary),
-                    ),
-                  ),
                   PopupMenuButton<String>(
                     color: _MobileColors.card,
                     iconColor: _MobileColors.secondary,
@@ -2467,21 +2324,6 @@ String _area(BuildContext context, CueTask task) {
   if (title.contains('report')) return l10n.writing;
   if (title.contains('lab')) return l10n.operations;
   return l10n.product;
-}
-
-String _statusLabel(
-  BuildContext context,
-  CueTaskStatus status, {
-  bool uppercase = false,
-}) {
-  final label = switch (status) {
-    CueTaskStatus.todo => context.l10n.toDo,
-    CueTaskStatus.doing => context.l10n.doing,
-    CueTaskStatus.done => context.l10n.done,
-  };
-  return uppercase && Localizations.localeOf(context).languageCode == 'en'
-      ? label.toUpperCase()
-      : label;
 }
 
 bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;

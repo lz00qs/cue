@@ -374,12 +374,6 @@ abstract class AppLocalizations {
   /// **'One task model, every active item'**
   String get oneTaskModel;
 
-  /// No description provided for @threeStages.
-  ///
-  /// In en, this message translates to:
-  /// **'Three focused stages, one task model'**
-  String get threeStages;
-
   /// No description provided for @monthViewDueOnly.
   ///
   /// In en, this message translates to:
@@ -440,24 +434,6 @@ abstract class AppLocalizations {
   /// **'Status'**
   String get status;
 
-  /// No description provided for @toDo.
-  ///
-  /// In en, this message translates to:
-  /// **'To do'**
-  String get toDo;
-
-  /// No description provided for @doing.
-  ///
-  /// In en, this message translates to:
-  /// **'Doing'**
-  String get doing;
-
-  /// No description provided for @done.
-  ///
-  /// In en, this message translates to:
-  /// **'Done'**
-  String get done;
-
   /// No description provided for @due.
   ///
   /// In en, this message translates to:
@@ -511,24 +487,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'A focused next action in your Cue workspace.'**
   String get defaultTaskNote;
-
-  /// No description provided for @moveToDoing.
-  ///
-  /// In en, this message translates to:
-  /// **'Move to Doing'**
-  String get moveToDoing;
-
-  /// No description provided for @reopen.
-  ///
-  /// In en, this message translates to:
-  /// **'Reopen'**
-  String get reopen;
-
-  /// No description provided for @complete.
-  ///
-  /// In en, this message translates to:
-  /// **'Complete'**
-  String get complete;
 
   /// No description provided for @deleteTask.
   ///
@@ -698,12 +656,6 @@ abstract class AppLocalizations {
   /// **'Nothing here — enjoy the space.'**
   String get emptyList;
 
-  /// No description provided for @groupStatus.
-  ///
-  /// In en, this message translates to:
-  /// **'Status'**
-  String get groupStatus;
-
   /// No description provided for @groupPriority.
   ///
   /// In en, this message translates to:
@@ -719,7 +671,7 @@ abstract class AppLocalizations {
   /// No description provided for @dragCards.
   ///
   /// In en, this message translates to:
-  /// **'Drag cards to update status'**
+  /// **'Drag cards between groups'**
   String get dragCards;
 
   /// No description provided for @groupingPreview.
@@ -727,24 +679,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Grouped tasks'**
   String get groupingPreview;
-
-  /// No description provided for @todoColumn.
-  ///
-  /// In en, this message translates to:
-  /// **'TODO'**
-  String get todoColumn;
-
-  /// No description provided for @doingColumn.
-  ///
-  /// In en, this message translates to:
-  /// **'DOING'**
-  String get doingColumn;
-
-  /// No description provided for @doneColumn.
-  ///
-  /// In en, this message translates to:
-  /// **'DONE'**
-  String get doneColumn;
 
   /// No description provided for @month.
   ///
@@ -877,12 +811,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All clear'**
   String get allClear;
-
-  /// No description provided for @swipeStages.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe stages · {count}'**
-  String swipeStages(String count);
 
   /// No description provided for @monthOverview.
   ///
@@ -1213,12 +1141,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Low Priority'**
   String get groupPriorityLow;
-
-  /// No description provided for @completedAndAbandoned.
-  ///
-  /// In en, this message translates to:
-  /// **'Completed & Abandoned'**
-  String get completedAndAbandoned;
 
   /// No description provided for @enterGroupName.
   ///
