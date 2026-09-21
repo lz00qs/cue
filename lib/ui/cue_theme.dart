@@ -14,6 +14,8 @@ abstract final class CueColors {
       isDark ? const Color(0xFF0B0C10) : const Color(0xFFF3F4F7);
   static Color get card =>
       isDark ? const Color(0xFF292B31) : const Color(0xFFFFFFFF);
+  static Color get quadrantSurface =>
+      isDark ? const Color(0xFF202126) : const Color(0xFFF0F1F5);
   static Color get popover =>
       isDark ? const Color(0xFF383A42) : const Color(0xFFFFFFFF);
   static Color get modalBarrier =>

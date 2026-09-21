@@ -788,24 +788,28 @@ class _MobileQuadrantsPage extends ConsumerWidget {
         context.l10n.importantUrgent,
         _MobileColors.dangerBackground,
         store.tasksForPriority(0),
+        0,
       ),
       (
         context.l10n.schedule,
         context.l10n.importantLater,
         _MobileColors.orangeBackground,
         store.tasksForPriority(1),
+        1,
       ),
       (
         context.l10n.batch,
         context.l10n.urgentLowerValue,
         CueColors.prioritySelected,
         store.tasksForPriority(2),
+        2,
       ),
       (
         context.l10n.reconsider,
         context.l10n.neither,
         _MobileColors.subtle,
         store.tasksForPriority(3),
+        3,
       ),
     ];
     return RefreshIndicator(
@@ -840,6 +844,7 @@ class _MobileQuadrantsPage extends ConsumerWidget {
                 rule: panel.$2,
                 color: panel.$3,
                 tasks: panel.$4,
+                priority: panel.$5,
                 onOpenTask: onOpenTask,
               );
             },
@@ -1453,6 +1458,7 @@ class _MobileQuadrant extends StatelessWidget {
     required this.rule,
     required this.color,
     required this.tasks,
+    required this.priority,
     required this.onOpenTask,
   });
 
@@ -1460,6 +1466,7 @@ class _MobileQuadrant extends StatelessWidget {
   final String rule;
   final Color color;
   final List<CueTask> tasks;
+  final int priority;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
@@ -1473,15 +1480,29 @@ class _MobileQuadrant extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _MobileColors.primary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _MobileColors.primary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                'P$priority',
+                style: TextStyle(
+                  color: _MobileColors.secondary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -1501,7 +1522,7 @@ class _MobileQuadrant extends StatelessWidget {
                     onTap: () => onOpenTask(task),
                     child: Container(
                       width: double.infinity,
-                      height: 52,
+                      height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
@@ -1509,7 +1530,7 @@ class _MobileQuadrant extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        'P${task.priority} · ${task.title}',
+                        task.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

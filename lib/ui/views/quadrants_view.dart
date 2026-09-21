@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/app_state.dart';
-import '../../state/page_state.dart';
-
 import '../../data/task_store.dart';
 import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_theme.dart';
-import '../cue_widgets.dart';
 
 class QuadrantsView extends ConsumerStatefulWidget {
   const QuadrantsView({super.key, required this.onOpenTask});
@@ -20,83 +17,35 @@ class QuadrantsView extends ConsumerStatefulWidget {
 }
 
 class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
-  QuadrantFilter get _filter => ref.read(quadrantFilterProvider);
   TaskStore get _store => ref.read(taskStoreProvider)!;
 
   @override
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
-    ref.watch(quadrantFilterProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 40,
-          child: Row(
-            children: [
-              CueViewTab(
-                label: context.l10n.allTasksFilter,
-                selected: _filter == QuadrantFilter.all,
-                onTap: () => ref
-                    .read(quadrantFilterProvider.notifier)
-                    .select(QuadrantFilter.all),
-              ),
-              const SizedBox(width: 8),
-              CueViewTab(
-                label: context.l10n.importantFilter,
-                selected: _filter == QuadrantFilter.important,
-                onTap: () => ref
-                    .read(quadrantFilterProvider.notifier)
-                    .select(QuadrantFilter.important),
-              ),
-              const SizedBox(width: 8),
-              CueViewTab(
-                label: context.l10n.dueSoon,
-                selected: _filter == QuadrantFilter.dueSoon,
-                onTap: () => ref
-                    .read(quadrantFilterProvider.notifier)
-                    .select(QuadrantFilter.dueSoon),
-              ),
-              const Spacer(),
-              if (MediaQuery.sizeOf(context).width >= 720)
-                Text(
-                  context.l10n.urgentDefinition,
-                  style: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(color: CueColors.tertiary),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 820;
             final panels = [
               _panel(
-                context,
                 title: context.l10n.doNow,
-                rule: context.l10n.doNowRule,
                 color: CueColors.danger,
                 priority: 0,
               ),
               _panel(
-                context,
                 title: context.l10n.schedule,
-                rule: context.l10n.scheduleRule,
                 color: CueColors.orange,
                 priority: 1,
               ),
               _panel(
-                context,
                 title: context.l10n.batch,
-                rule: context.l10n.batchRule,
                 color: CueColors.accent,
                 priority: 2,
               ),
               _panel(
-                context,
                 title: context.l10n.reconsider,
-                rule: context.l10n.reconsiderRule,
                 color: CueColors.green,
                 priority: 3,
               ),
@@ -139,45 +88,47 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
     );
   }
 
-  Widget _panel(
-    BuildContext context, {
+  Widget _panel({
     required String title,
-    required String rule,
     required Color color,
     required int priority,
   }) {
-    var tasks = _store.tasksForPriority(priority).toList();
-    if (_filter == QuadrantFilter.important && priority != 0) tasks = [];
-    if (_filter == QuadrantFilter.dueSoon) {
-      tasks = tasks.where(_store.isUrgent).toList();
-    }
+    final tasks = _store.tasksForPriority(priority).toList();
     return _QuadrantPanel(
+      key: ValueKey('quadrant-panel-$priority'),
       title: title,
-      rule: rule,
       color: color,
+      priority: priority,
       tasks: tasks,
-      today: _store.today,
       onOpenTask: widget.onOpenTask,
+      onToggleTask: (task) async {
+        try {
+          await _store.toggleComplete(task);
+        } catch (_) {
+          // The store rolls the optimistic change back on failure.
+        }
+      },
     );
   }
 }
 
 class _QuadrantPanel extends StatelessWidget {
   const _QuadrantPanel({
+    super.key,
     required this.title,
-    required this.rule,
     required this.color,
+    required this.priority,
     required this.tasks,
-    required this.today,
     required this.onOpenTask,
+    required this.onToggleTask,
   });
 
   final String title;
-  final String rule;
   final Color color;
+  final int priority;
   final List<CueTask> tasks;
-  final DateTime today;
   final ValueChanged<CueTask> onOpenTask;
+  final ValueChanged<CueTask> onToggleTask;
 
   @override
   Widget build(BuildContext context) {
@@ -185,26 +136,33 @@ class _QuadrantPanel extends StatelessWidget {
       height: 336,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: CueColors.card,
+        color: CueColors.quadrantSurface,
         border: Border.all(color: CueColors.border),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(color: color),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            rule,
-            style: const TextStyle(
-              color: CueColors.tertiary,
-              fontSize: 11,
-              height: 13 / 11,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(color: color),
+                ),
+              ),
+              Text(
+                'P$priority',
+                key: ValueKey('quadrant-priority-$priority'),
+                style: const TextStyle(
+                  color: CueColors.tertiary,
+                  fontSize: 12,
+                  height: 16 / 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -212,20 +170,102 @@ class _QuadrantPanel extends StatelessWidget {
                 ? const _EmptyQuadrant()
                 : ListView.separated(
                     padding: EdgeInsets.zero,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: tasks.take(2).length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    primary: false,
+                    itemCount: tasks.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
                       final task = tasks[index];
-                      return CueTaskCard(
+                      return _QuadrantTaskTile(
+                        key: ValueKey('quadrant-task-${task.id}'),
                         task: task,
-                        referenceDate: today,
+                        accentColor: color,
                         onOpen: () => onOpenTask(task),
+                        onToggle: () => onToggleTask(task),
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuadrantTaskTile extends StatefulWidget {
+  const _QuadrantTaskTile({
+    super.key,
+    required this.task,
+    required this.accentColor,
+    required this.onOpen,
+    required this.onToggle,
+  });
+
+  final CueTask task;
+  final Color accentColor;
+  final VoidCallback onOpen;
+  final VoidCallback onToggle;
+
+  @override
+  State<_QuadrantTaskTile> createState() => _QuadrantTaskTileState();
+}
+
+class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: _hovered ? CueColors.hover : CueColors.card,
+            border: Border.all(
+              color: _hovered ? CueColors.strongBorder : CueColors.border,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: widget.onToggle,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: widget.accentColor, width: 1.5),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  widget.task.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CueColors.primary,
+                    fontSize: 14,
+                    height: 20 / 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cue/main.dart';
 import 'package:cue/ui/cue_theme.dart';
+import 'package:cue/ui/cue_widgets.dart';
 
 void main() {
   testWidgets('resizing between desktop and mobile preserves the theme', (
@@ -69,6 +70,51 @@ void main() {
     await tester.pumpAndSettle();
     // Should remain on Quadrants view
     expect(find.textContaining('priority per quadrant'), findsWidgets);
+  });
+
+  testWidgets('quadrant panels visually separate from task cards', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quadrants'));
+    await tester.pumpAndSettle();
+
+    final panel = tester.widget<Container>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('quadrant-panel-0')),
+            matching: find.byType(Container),
+          )
+          .first,
+    );
+    final decoration = panel.decoration! as BoxDecoration;
+    expect(decoration.color, CueColors.quadrantSurface);
+    expect(decoration.color, isNot(CueColors.card));
+    expect(find.text('All tasks'), findsNothing);
+    expect(find.text('Important'), findsNothing);
+    expect(find.text('Due soon'), findsNothing);
+    expect(find.text('Only P0 is important'), findsNothing);
+    expect(find.text('P0 · Important'), findsNothing);
+    for (var priority = 0; priority < 4; priority++) {
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('quadrant-panel-$priority')),
+          matching: find.byKey(ValueKey('quadrant-priority-$priority')),
+        ),
+        findsOneWidget,
+      );
+    }
+    expect(find.byType(CueTaskCard), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('quadrant-task-design-handoff')))
+          .height,
+      48,
+    );
   });
 
   testWidgets('appearance can be changed on desktop and mobile', (

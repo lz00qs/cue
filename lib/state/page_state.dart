@@ -159,19 +159,6 @@ class CalendarFocusedMonth extends Notifier<DateTime> {
   }
 }
 
-enum QuadrantFilter { all, important, dueSoon }
-
-final quadrantFilterProvider =
-    NotifierProvider.autoDispose<QuadrantFilterSelection, QuadrantFilter>(
-      QuadrantFilterSelection.new,
-    );
-
-class QuadrantFilterSelection extends Notifier<QuadrantFilter> {
-  @override
-  QuadrantFilter build() => QuadrantFilter.all;
-  void select(QuadrantFilter filter) => state = filter;
-}
-
 class LoginUiState {
   const LoginUiState({
     this.submitting = false,
