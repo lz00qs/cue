@@ -255,8 +255,34 @@ void main() {
     expect(find.text('产品研发'), findsOneWidget);
     expect(find.text('研发事项'), findsNothing);
 
-    await tester.tap(find.byKey(const Key('group-menu-产品研发')));
+    final groupMenuFinder = find.byKey(const Key('group-menu-产品研发'));
+    final groupMenu = tester.widget<PopupMenuButton<String>>(groupMenuFinder);
+    expect(groupMenu.position, PopupMenuPosition.under);
+    expect(groupMenu.offset, const Offset(-132, 6));
+    expect(groupMenu.constraints, const BoxConstraints.tightFor(width: 160));
+    expect(groupMenu.color, CueColors.popover);
+    expect(groupMenu.surfaceTintColor, Colors.transparent);
+
+    final menuButtonRect = tester.getRect(groupMenuFinder);
+    await tester.tap(groupMenuFinder);
     await tester.pumpAndSettle();
+    final deleteMenuItemFinder = find.byKey(
+      const Key('group-menu-delete-产品研发'),
+    );
+    final deleteMenuItem = tester.widget<PopupMenuItem<String>>(
+      deleteMenuItemFinder,
+    );
+    expect(deleteMenuItem.height, 36);
+    expect(
+      find.descendant(
+        of: deleteMenuItemFinder,
+        matching: find.byIcon(Icons.delete_outline_rounded),
+      ),
+      findsOneWidget,
+    );
+    final deleteMenuItemRect = tester.getRect(deleteMenuItemFinder);
+    expect(deleteMenuItemRect.top, greaterThan(menuButtonRect.bottom));
+    expect(deleteMenuItemRect.right, lessThan(menuButtonRect.right));
     expect(find.text('Rename Section'), findsNothing);
     expect(find.text('Delete Section'), findsOneWidget);
   });
@@ -274,9 +300,7 @@ void main() {
 
     final socialColumn = find.byKey(const Key('group-col-社会事项'));
     final developmentColumn = find.byKey(const Key('group-col-研发事项'));
-    final developmentHandle = find.byKey(
-      const Key('group-drag-handle-研发事项'),
-    );
+    final developmentHandle = find.byKey(const Key('group-drag-handle-研发事项'));
     expect(
       tester.getTopLeft(socialColumn).dx,
       lessThan(tester.getTopLeft(developmentColumn).dx),
@@ -289,9 +313,7 @@ void main() {
     await gesture.moveBy(const Offset(-48, 0));
     await tester.pump();
 
-    final dragFeedback = find.byKey(
-      const Key('group-drag-feedback-研发事项'),
-    );
+    final dragFeedback = find.byKey(const Key('group-drag-feedback-研发事项'));
     expect(tester.getSize(dragFeedback), columnSize);
     final feedbackTopLeft = tester.getTopLeft(dragFeedback);
     final originalTopLeft = tester.getTopLeft(developmentColumn);

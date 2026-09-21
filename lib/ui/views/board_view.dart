@@ -763,8 +763,24 @@ class _GroupColumnState extends State<_GroupColumn> {
                           height: 28,
                           child: PopupMenuButton<String>(
                             key: Key('group-menu-${widget.group}'),
+                            tooltip: context.l10n.moreOptions,
                             padding: EdgeInsets.zero,
                             iconSize: 18,
+                            position: PopupMenuPosition.under,
+                            offset: const Offset(-132, 6),
+                            constraints: const BoxConstraints.tightFor(
+                              width: 160,
+                            ),
+                            color: CueColors.popover,
+                            surfaceTintColor: Colors.transparent,
+                            elevation: 12,
+                            shadowColor: Colors.black.withValues(alpha: 0.32),
+                            menuPadding: const EdgeInsets.all(6),
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              side: BorderSide(color: CueColors.border),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             icon: Icon(
                               Icons.more_horiz_rounded,
                               color: CueColors.secondary,
@@ -773,11 +789,13 @@ class _GroupColumnState extends State<_GroupColumn> {
                               if (value == 'delete') _showDeleteDialog();
                             },
                             itemBuilder: (context) => [
-                              PopupMenuItem(
+                              PopupMenuItem<String>(
+                                key: Key('group-menu-delete-${widget.group}'),
                                 value: 'delete',
-                                child: Text(
-                                  context.l10n.deleteGroup,
-                                  style: TextStyle(color: CueColors.danger),
+                                height: 36,
+                                padding: EdgeInsets.zero,
+                                child: _DangerMenuItemContent(
+                                  label: context.l10n.deleteGroup,
                                 ),
                               ),
                             ],
@@ -809,6 +827,60 @@ class _GroupColumnState extends State<_GroupColumn> {
           ),
         );
       },
+    );
+  }
+}
+
+class _DangerMenuItemContent extends StatefulWidget {
+  const _DangerMenuItemContent({required this.label});
+
+  final String label;
+
+  @override
+  State<_DangerMenuItemContent> createState() => _DangerMenuItemContentState();
+}
+
+class _DangerMenuItemContentState extends State<_DangerMenuItemContent> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: _hovered ? CueColors.dangerBackground : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.delete_outline_rounded,
+              size: 17,
+              color: CueColors.danger,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: CueColors.danger,
+                  fontSize: 13,
+                  height: 18 / 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
