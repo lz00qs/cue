@@ -2025,9 +2025,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         },
                         borderRadius: BorderRadius.circular(6),
                         child: Text(
-                          task.note.isEmpty
-                              ? context.l10n.defaultTaskNote
-                              : task.note,
+                          task.note.isEmpty ? context.l10n.note : task.note,
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

@@ -482,12 +482,6 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get close;
 
-  /// No description provided for @defaultTaskNote.
-  ///
-  /// In en, this message translates to:
-  /// **'A focused next action in your Cue workspace.'**
-  String get defaultTaskNote;
-
   /// No description provided for @deleteTask.
   ///
   /// In en, this message translates to:

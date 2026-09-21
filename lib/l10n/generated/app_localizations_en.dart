@@ -225,9 +225,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get close => 'Close';
 
   @override
-  String get defaultTaskNote => 'A focused next action in your Cue workspace.';
-
-  @override
   String get deleteTask => 'Delete task';
 
   @override

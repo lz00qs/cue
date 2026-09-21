@@ -500,9 +500,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                               horizontal: 4,
                             ),
                             child: Text(
-                              task.note.isEmpty
-                                  ? context.l10n.defaultTaskNote
-                                  : task.note,
+                              task.note.isEmpty ? context.l10n.note : task.note,
                               style: TextStyle(
                                 color: task.note.isEmpty
                                     ? CueColors.secondary

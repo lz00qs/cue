@@ -206,9 +206,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get close => '关闭';
 
   @override
-  String get defaultTaskNote => 'Cue 工作区中的一个明确的下一步行动。';
-
-  @override
   String get deleteTask => '删除任务';
 
   @override

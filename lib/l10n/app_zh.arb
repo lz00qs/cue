@@ -64,7 +64,6 @@
   "showInPriorityQuadrants": "显示在优先级四象限中",
   "cancel": "取消",
   "close": "关闭",
-  "defaultTaskNote": "Cue 工作区中的一个明确的下一步行动。",
   "deleteTask": "删除任务",
   "deleteTaskQuestion": "删除任务？",
   "deleteTaskExplanation": "“{title}”将从所有视图中移除。服务器会保留同步删除标记，以便其他会话应用这次删除。",

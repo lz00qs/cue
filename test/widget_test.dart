@@ -463,6 +463,27 @@ void main() {
     expect(find.text('Check connector labels'), findsOneWidget);
   });
 
+  testWidgets('desktop empty task note uses the concise note placeholder', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inbox'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('整理机架'));
+    await tester.pumpAndSettle();
+
+    final note = find.byKey(const Key('desktop-task-note-text'));
+    expect(note, findsOneWidget);
+    expect(
+      find.descendant(of: note, matching: find.text('Note')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'completed task details hides an empty note and edits completion date',
     (tester) async {
@@ -480,10 +501,7 @@ void main() {
         find.byKey(const Key('desktop-task-details-popover')),
         findsOneWidget,
       );
-      expect(
-        find.text('A focused next action in your Cue workspace.'),
-        findsNothing,
-      );
+      expect(find.byKey(const Key('desktop-task-note-text')), findsNothing);
       expect(find.textContaining('Sep 12, 2026 00:00'), findsOneWidget);
 
       await tester.tap(

@@ -66,7 +66,6 @@
   "showInPriorityQuadrants": "Show in priority quadrants",
   "cancel": "Cancel",
   "close": "Close",
-  "defaultTaskNote": "A focused next action in your Cue workspace.",
   "deleteTask": "Delete task",
   "deleteTaskQuestion": "Delete task?",
   "deleteTaskExplanation": "“{title}” will be removed from every view. The server keeps a sync tombstone so other sessions can apply the deletion.",
