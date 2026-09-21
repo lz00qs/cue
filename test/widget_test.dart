@@ -159,7 +159,7 @@ void main() {
     },
   );
 
-  testWidgets('renders the Cue Today view and switches to Board', (
+  testWidgets('renders the Cue Today view and switches to Inbox board', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
@@ -172,13 +172,79 @@ void main() {
     expect(find.text('Focus for today'), findsOneWidget);
     expect(find.text('Review PCB layout'), findsOneWidget);
 
-    await tester.tap(find.text('Board'));
+    await tester.tap(find.text('Inbox'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Three focused stages, one task model'), findsOneWidget);
+    expect(find.text('社会事项'), findsOneWidget);
+    expect(find.text('研发事项'), findsOneWidget);
+    expect(find.text('工作'), findsOneWidget);
+    expect(find.text('未分组'), findsOneWidget);
+
+    await tester.tap(find.text('Status'));
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('TODO ·'), findsOneWidget);
     expect(find.textContaining('DOING ·'), findsOneWidget);
     expect(find.textContaining('DONE ·'), findsOneWidget);
+  });
+
+  testWidgets('desktop inbox renames a group inline', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inbox'));
+    await tester.pumpAndSettle();
+
+    final prioritySection = find.byKey(
+      const Key('group-priority-研发事项-3'),
+    );
+    final priorityTopBeforeEditing = tester.getTopLeft(prioritySection).dy;
+    expect(
+      tester.getSize(find.byKey(const Key('group-header-研发事项'))).height,
+      36,
+    );
+
+    await tester.tap(find.byKey(const Key('group-name-text-研发事项')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('group-name-field-研发事项')), findsOneWidget);
+    expect(tester.getTopLeft(prioritySection).dy, priorityTopBeforeEditing);
+    expect(
+      tester.getSize(find.byKey(const Key('group-header-研发事项'))).height,
+      36,
+    );
+    expect(
+      tester
+          .widget<TextField>(
+            find.byKey(const Key('group-name-field-研发事项')),
+          )
+          .focusNode
+          ?.hasFocus,
+      isTrue,
+    );
+
+    await tester.tapAt(const Offset(1300, 900));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('group-name-field-研发事项')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('group-name-text-研发事项')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('group-name-field-研发事项')),
+      '产品研发',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(find.text('产品研发'), findsOneWidget);
+    expect(find.text('研发事项'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('group-menu-产品研发')));
+    await tester.pumpAndSettle();
+    expect(find.text('Rename Section'), findsNothing);
+    expect(find.text('Delete Section'), findsOneWidget);
   });
 
   testWidgets('quick capture adds a task to Today', (tester) async {

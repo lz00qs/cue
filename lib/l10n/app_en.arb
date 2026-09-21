@@ -189,5 +189,18 @@
   "createdOn": "Created {date}",
   "@createdOn": {"placeholders": {"date": {"type": "String"}}},
   "createdToday": "today",
-  "notYet": "Not yet"
+  "notYet": "Not yet",
+  "group": "Section",
+  "addGroup": "Add Section",
+  "renameGroup": "Rename Section",
+  "deleteGroup": "Delete Section",
+  "ungrouped": "Ungrouped",
+  "groupSection": "By Section",
+  "groupPriorityNone": "No Priority",
+  "groupPriorityHigh": "High Priority",
+  "groupPriorityMedium": "Medium Priority",
+  "groupPriorityLow": "Low Priority",
+  "completedAndAbandoned": "Completed & Abandoned",
+  "enterGroupName": "Enter section name",
+  "seeMore": "See more"
 }

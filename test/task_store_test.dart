@@ -121,6 +121,40 @@ void main() {
     expect(weeklyStore.tasksForDay(DateTime(2026, 9, 21)).length, 0); // Monday
     expect(weeklyStore.tasksForDay(DateTime(2026, 9, 27)).length, 1); // Next Sunday
   });
+
+  test('supports task groups, renaming, deleting, and updating task group', () async {
+    final store = TaskStore([
+      _task(revision: 1, id: 't1').copyWith(group: 'Work'),
+      _task(revision: 2, id: 't2').copyWith(group: 'Personal'),
+    ]);
+
+    expect(store.groups, containsAll(['Work', 'Personal', TaskStore.defaultUngrouped]));
+    expect(store.activeTasksForGroup('Work').length, 1);
+    expect(store.activeTasksForGroup('Personal').length, 1);
+    expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 0);
+
+    // Add group
+    store.addGroup('Finance');
+    expect(store.groups, contains('Finance'));
+
+    // Rename group
+    store.renameGroup('Work', 'Career');
+    expect(store.groups, contains('Career'));
+    expect(store.groups, isNot(contains('Work')));
+    expect(store.tasks.firstWhere((t) => t.id == 't1').group, 'Career');
+
+    // Update task group directly
+    final task2 = store.tasks.firstWhere((t) => t.id == 't2');
+    await store.updateGroup(task2, 'Finance');
+    expect(store.tasks.firstWhere((t) => t.id == 't2').group, 'Finance');
+
+    // Delete group
+    store.deleteGroup('Finance');
+    expect(store.groups, isNot(contains('Finance')));
+    // Task previously in deleted group now has null group (falls back to ungrouped)
+    expect(store.tasks.firstWhere((t) => t.id == 't2').group, isNull);
+    expect(store.activeTasksForGroup(TaskStore.defaultUngrouped).length, 1);
+  });
 }
 
 class _FakeApiClient extends ApiClient {
@@ -142,10 +176,10 @@ class _FakeApiClient extends ApiClient {
   }
 }
 
-CueTask _task({required int revision}) {
+CueTask _task({required int revision, String id = 'synced-task'}) {
   final now = DateTime(2026, 9, 15, 10);
   return CueTask(
-    id: 'synced-task',
+    id: id,
     title: 'Synced task',
     note: '',
     status: CueTaskStatus.todo,

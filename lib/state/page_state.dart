@@ -49,7 +49,7 @@ class CueHomeUi extends Notifier<CueHomeUiState> {
 
 MobileDestination? _mapViewToDestination(CueView view) {
   return switch (view) {
-    CueView.inbox => MobileDestination.today,
+    CueView.inbox => MobileDestination.board,
     CueView.today => MobileDestination.today,
     CueView.upcoming => MobileDestination.today,
     CueView.list => MobileDestination.today,
@@ -101,14 +101,14 @@ class MobileUi extends Notifier<MobileUiState> {
 CueView? _mapDestinationToView(MobileDestination destination) {
   return switch (destination) {
     MobileDestination.today => CueView.today,
-    MobileDestination.board => CueView.board,
+    MobileDestination.board => CueView.inbox,
     MobileDestination.calendar => CueView.calendar,
     MobileDestination.quadrants => CueView.quadrants,
     MobileDestination.settings => null,
   };
 }
 
-enum BoardGroup { status, priority, dueDate }
+enum BoardGroup { group, status, priority, dueDate }
 
 final boardGroupProvider =
     NotifierProvider.autoDispose<BoardGroupSelection, BoardGroup>(
@@ -117,7 +117,7 @@ final boardGroupProvider =
 
 class BoardGroupSelection extends Notifier<BoardGroup> {
   @override
-  BoardGroup build() => BoardGroup.status;
+  BoardGroup build() => BoardGroup.group;
   void select(BoardGroup group) => state = group;
 }
 

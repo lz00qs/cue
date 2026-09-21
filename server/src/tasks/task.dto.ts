@@ -60,6 +60,12 @@ export class CreateTaskDto {
   @IsOptional()
   @IsString()
   recurrence?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  group?: string | null;
 }
 
 export class UpdateTaskDto {
@@ -115,6 +121,12 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsString()
   recurrence?: string | null;
+
+  @ApiPropertyOptional({ nullable: true, maxLength: 100 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 100)
+  group?: string | null;
 }
 
 export class DeleteTaskDto {

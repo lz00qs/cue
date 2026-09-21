@@ -339,9 +339,87 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                       ),
                     ],
                     const SizedBox(height: 12),
-                    Text(
-                      '${cueTaskArea(context, task)} · ${context.l10n.createdOn(formatShortMonthDay(context, task.createdAt))}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Row(
+                      children: [
+                        PopupMenuButton<String>(
+                          tooltip: context.l10n.group,
+                          offset: const Offset(0, 24),
+                          color: CueColors.card,
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: CueColors.border),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          onSelected: (g) {
+                            final newGroup =
+                                g == TaskStore.defaultUngrouped ? null : g;
+                            widget.onRun(
+                              () => _store.updateGroup(task, newGroup),
+                            );
+                          },
+                          itemBuilder: (context) => [
+                            for (final g in _store.groups)
+                              PopupMenuItem<String>(
+                                value: g,
+                                child: Text(
+                                  g,
+                                  style: TextStyle(
+                                    color:
+                                        (task.group ??
+                                                TaskStore.defaultUngrouped) ==
+                                            g
+                                        ? CueColors.accent
+                                        : CueColors.primary,
+                                    fontWeight:
+                                        (task.group ??
+                                                TaskStore.defaultUngrouped) ==
+                                            g
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                          ],
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CueColors.subtle,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.folder_outlined,
+                                  size: 13,
+                                  color: CueColors.secondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  task.group ?? TaskStore.defaultUngrouped,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: CueColors.primary),
+                                ),
+                                const SizedBox(width: 2),
+                                Icon(
+                                  Icons.arrow_drop_down,
+                                  size: 14,
+                                  color: CueColors.secondary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          '· ${context.l10n.createdOn(formatShortMonthDay(context, task.createdAt))}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     if (_editingNote) ...[

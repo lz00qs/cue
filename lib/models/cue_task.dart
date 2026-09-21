@@ -18,6 +18,7 @@ class CueTask {
     this.deletedAt,
     this.version = 1,
     this.revision = 0,
+    this.group,
   });
 
   final String id;
@@ -36,6 +37,7 @@ class CueTask {
   final DateTime? deletedAt;
   final int version;
   final int revision;
+  final String? group;
 
   bool get isCompleted => status == CueTaskStatus.done;
 
@@ -59,6 +61,8 @@ class CueTask {
     DateTime? updatedAt,
     int? version,
     int? revision,
+    String? group,
+    bool clearGroup = false,
   }) {
     return CueTask(
       id: id,
@@ -77,6 +81,7 @@ class CueTask {
       deletedAt: clearDeletedAt ? null : deletedAt ?? this.deletedAt,
       version: version ?? this.version,
       revision: revision ?? this.revision,
+      group: clearGroup ? null : group ?? this.group,
     );
   }
 
@@ -103,6 +108,7 @@ class CueTask {
       deletedAt: optionalDate('deletedAt'),
       version: json['version'] as int,
       revision: json['revision'] as int? ?? 0,
+      group: json['group'] as String?,
     );
   }
 
@@ -116,5 +122,6 @@ class CueTask {
     'dueAt': dueAt?.toUtc().toIso8601String(),
     'reminder': reminder,
     'recurrence': recurrence,
+    'group': group,
   };
 }

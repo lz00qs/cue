@@ -21,6 +21,7 @@ interface TaskRow extends QueryResultRow {
   due_at: Date | null;
   reminder: string | null;
   recurrence: string | null;
+  group: string | null;
   completed_at: Date | null;
   created_at: Date;
   updated_at: Date;
@@ -30,7 +31,7 @@ interface TaskRow extends QueryResultRow {
 }
 
 const columns = `id, title, note, status, priority, important, sort_order,
-  due_at, reminder, recurrence, completed_at, created_at, updated_at, deleted_at, version, revision`;
+  due_at, reminder, recurrence, "group", completed_at, created_at, updated_at, deleted_at, version, revision`;
 
 @Injectable()
 export class TasksService {
@@ -83,8 +84,8 @@ export class TasksService {
       const result = await client.query<TaskRow>(
         `INSERT INTO tasks (
            id, title, note, status, priority, important, sort_order, due_at,
-           reminder, recurrence, completed_at, created_at, updated_at, version, revision
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, 1,
+           reminder, recurrence, "group", completed_at, created_at, updated_at, version, revision
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, 1,
            nextval('task_revision_seq'))
          RETURNING ${columns}`,
         [
@@ -98,6 +99,7 @@ export class TasksService {
           input.dueAt ?? null,
           input.reminder ?? null,
           input.recurrence ?? null,
+          input.group ?? null,
           completedAt,
           now,
         ],
@@ -129,10 +131,10 @@ export class TasksService {
         `UPDATE tasks SET
            title = $2, note = $3, status = $4, priority = $5,
            important = $6, sort_order = $7, due_at = $8,
-           reminder = $9, recurrence = $10, completed_at = $11,
+           reminder = $9, recurrence = $10, "group" = $11, completed_at = $12,
            updated_at = NOW(), version = version + 1,
            revision = nextval('task_revision_seq')
-         WHERE id = $1 AND deleted_at IS NULL AND version = $12
+         WHERE id = $1 AND deleted_at IS NULL AND version = $13
          RETURNING ${columns}`,
         [
           id,
@@ -145,6 +147,7 @@ export class TasksService {
           input.dueAt === undefined ? existing.due_at : input.dueAt,
           input.reminder === undefined ? existing.reminder : input.reminder,
           input.recurrence === undefined ? existing.recurrence : input.recurrence,
+          input.group === undefined ? existing.group : input.group,
           completedAt,
           input.version,
         ],
@@ -208,6 +211,7 @@ function toTask(row: TaskRow) {
     dueAt: row.due_at?.toISOString() ?? null,
     reminder: row.reminder ?? null,
     recurrence: row.recurrence ?? null,
+    group: row.group ?? null,
     completedAt: row.completed_at?.toISOString() ?? null,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

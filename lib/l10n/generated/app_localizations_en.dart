@@ -584,4 +584,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notYet => 'Not yet';
+
+  @override
+  String get group => 'Section';
+
+  @override
+  String get addGroup => 'Add Section';
+
+  @override
+  String get renameGroup => 'Rename Section';
+
+  @override
+  String get deleteGroup => 'Delete Section';
+
+  @override
+  String get ungrouped => 'Ungrouped';
+
+  @override
+  String get groupSection => 'By Section';
+
+  @override
+  String get groupPriorityNone => 'No Priority';
+
+  @override
+  String get groupPriorityHigh => 'High Priority';
+
+  @override
+  String get groupPriorityMedium => 'Medium Priority';
+
+  @override
+  String get groupPriorityLow => 'Low Priority';
+
+  @override
+  String get completedAndAbandoned => 'Completed & Abandoned';
+
+  @override
+  String get enterGroupName => 'Enter section name';
+
+  @override
+  String get seeMore => 'See more';
 }

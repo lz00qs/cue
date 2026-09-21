@@ -24,6 +24,7 @@ class TaskStore extends ChangeNotifier {
       DateTime? dueAt,
       DateTime? completedAt,
       double order = 1000,
+      String? group,
     }) {
       return CueTask(
         id: id,
@@ -37,10 +38,26 @@ class TaskStore extends ChangeNotifier {
         completedAt: completedAt,
         createdAt: created,
         updatedAt: completedAt ?? created,
+        group: group,
       );
     }
 
     return TaskStore([
+      // 社会事项
+      task('org-rack', '整理机架', priority: 3, group: '社会事项', order: 100),
+      task('clean-room', '收拾房间 + 搞卫生', priority: 3, group: '社会事项', order: 200),
+      task('okinawa-trip', '冲绳攻略', priority: 3, group: '社会事项', order: 300),
+      task('sim-assembly', '组装模拟器', status: CueTaskStatus.done, priority: 3, group: '社会事项', completedAt: DateTime(2026, 9, 12), order: 400),
+      task('fix-bed', '修床', status: CueTaskStatus.done, priority: 3, group: '社会事项', completedAt: DateTime(2026, 9, 10), order: 500),
+      task('exercise-1', '运动', status: CueTaskStatus.done, priority: 3, group: '社会事项', dueAt: DateTime(2026, 1, 5), completedAt: DateTime(2026, 1, 5), order: 600),
+      task('duolingo-1', '多邻国', status: CueTaskStatus.done, priority: 3, group: '社会事项', dueAt: DateTime(2026, 1, 5), completedAt: DateTime(2026, 1, 5), order: 700),
+
+      // 研发事项
+      task('desk-lamp', '桌面灯设计', priority: 3, group: '研发事项', order: 1000),
+      task('phone-rc-ui', '手机遥控 UI 设计', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 11), order: 1100),
+      task('xji-overflow', 'xji_footage_toolbox 窗口放大缩小后左侧边栏溢出问题解决', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 9), order: 1200),
+      task('xji-scroll', 'xji_footage_toolbox list 滚动逻辑', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 8), order: 1300),
+      task('feishu-docs', '优化飞书 docs (预计转 electron)', status: CueTaskStatus.done, priority: 3, group: '研发事项', completedAt: DateTime(2026, 9, 7), order: 1400),
       task(
         'pcb-review',
         'Review PCB layout',
@@ -48,7 +65,8 @@ class TaskStore extends ChangeNotifier {
         priority: 0,
         important: true,
         dueAt: DateTime(2026, 9, 13, 10, 30),
-        order: 1000,
+        order: 1500,
+        group: '研发事项',
       ),
       task(
         'thermal-simulation',
@@ -58,23 +76,18 @@ class TaskStore extends ChangeNotifier {
         priority: 1,
         important: true,
         dueAt: DateTime(2026, 9, 13, 14),
-        order: 2000,
+        order: 1600,
+        group: '研发事项',
       ),
       task(
-        'sprint-report',
-        'Draft sprint report',
-        note: 'Summarize decisions, risks, and next actions.',
+        'signal-drift',
+        'Analyze signal drift',
+        status: CueTaskStatus.doing,
         priority: 2,
-        dueAt: DateTime(2026, 9, 13, 17),
-        order: 3000,
-      ),
-      task(
-        'lab-calibration',
-        'Book lab calibration',
-        note: 'Coordinate the chamber slot with operations.',
-        priority: 3,
-        dueAt: DateTime(2026, 9, 16),
-        order: 4000,
+        important: true,
+        dueAt: DateTime(2026, 9, 15),
+        order: 1700,
+        group: '研发事项',
       ),
       task(
         'requirements',
@@ -85,17 +98,36 @@ class TaskStore extends ChangeNotifier {
         important: true,
         completedAt: DateTime(2026, 9, 13, 9, 15),
         dueAt: DateTime(2026, 9, 13, 9),
-        order: 5000,
+        order: 1800,
+        group: '研发事项',
+      ),
+
+      // 工作
+      task('c2c-learning', 'C2C 学习', priority: 1, group: '工作', order: 2000),
+      task('parallel-compute', '并行计算技术了解', priority: 3, group: '工作', order: 2100),
+      task('ddr5-odt', 'DDR5 odt 技术了解', priority: 3, group: '工作', order: 2200),
+      task('rdimm-datasheet', '研究一份 RDIMM 的 datasheet', priority: 3, group: '工作', order: 2300),
+      task('ddr5-training', 'DDR5 training 流程', priority: 3, group: '工作', order: 2400),
+      task(
+        'sprint-report',
+        'Draft sprint report',
+        note: 'Summarize decisions, risks, and next actions.',
+        priority: 2,
+        dueAt: DateTime(2026, 9, 13, 17),
+        order: 2500,
+        group: '工作',
       ),
       task(
-        'signal-drift',
-        'Analyze signal drift',
-        status: CueTaskStatus.doing,
-        priority: 2,
-        important: true,
-        dueAt: DateTime(2026, 9, 15),
-        order: 6000,
+        'lab-calibration',
+        'Book lab calibration',
+        note: 'Coordinate the chamber slot with operations.',
+        priority: 3,
+        dueAt: DateTime(2026, 9, 16),
+        order: 2600,
+        group: '工作',
       ),
+
+      // 未分组 / 其它
       task(
         'firmware-sync',
         'Sync firmware branch',
@@ -104,6 +136,7 @@ class TaskStore extends ChangeNotifier {
         completedAt: DateTime(2026, 9, 11),
         dueAt: DateTime(2026, 9, 8),
         order: 7000,
+        group: '未分组',
       ),
       task(
         'design-handoff',
@@ -112,6 +145,7 @@ class TaskStore extends ChangeNotifier {
         important: true,
         dueAt: DateTime(2026, 9, 24),
         order: 8000,
+        group: '研发事项',
       ),
       task(
         'october-roadmap',
@@ -120,6 +154,7 @@ class TaskStore extends ChangeNotifier {
         important: true,
         dueAt: DateTime(2026, 9, 30),
         order: 9000,
+        group: '工作',
       ),
       task(
         'email-supplier',
@@ -127,18 +162,114 @@ class TaskStore extends ChangeNotifier {
         priority: 3,
         dueAt: DateTime(2026, 9, 14),
         order: 10000,
+        group: '工作',
       ),
-      task('archive-notes', 'Archive old notes', priority: 3, order: 11000),
+      task('archive-notes', 'Archive old notes', priority: 3, order: 11000, group: '未分组'),
       task(
         'report-templates',
         'Browse report templates',
         priority: 3,
         order: 12000,
+        group: '工作',
       ),
     ], today: demoToday);
   }
 
   static final DateTime demoToday = DateTime(2026, 9, 13);
+  static const String defaultUngrouped = '未分组';
+
+  final List<String> _customGroups = ['社会事项', '研发事项', '工作'];
+
+  List<String> get groups {
+    final set = <String>{};
+    for (final g in _customGroups) {
+      if (g.isNotEmpty && g != defaultUngrouped) set.add(g);
+    }
+    for (final task in _tasks) {
+      if (task.deletedAt == null &&
+          task.group != null &&
+          task.group!.trim().isNotEmpty &&
+          task.group != defaultUngrouped) {
+        set.add(task.group!.trim());
+      }
+    }
+    set.add(defaultUngrouped);
+    return set.toList();
+  }
+
+  void addGroup(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == defaultUngrouped) return;
+    if (!_customGroups.contains(trimmed)) {
+      _customGroups.add(trimmed);
+      notifyListeners();
+    }
+  }
+
+  void renameGroup(String oldName, String newName) {
+    final trimmed = newName.trim();
+    if (oldName == defaultUngrouped ||
+        trimmed.isEmpty ||
+        trimmed == defaultUngrouped ||
+        oldName == trimmed) {
+      return;
+    }
+    final index = _customGroups.indexOf(oldName);
+    if (index != -1) {
+      _customGroups[index] = trimmed;
+    } else {
+      _customGroups.add(trimmed);
+    }
+    for (var i = 0; i < _tasks.length; i++) {
+      if (_tasks[i].group == oldName) {
+        _tasks[i] = _tasks[i].copyWith(group: trimmed);
+      }
+    }
+    notifyListeners();
+  }
+
+  void deleteGroup(String name) {
+    if (name == defaultUngrouped) return;
+    _customGroups.remove(name);
+    for (var i = 0; i < _tasks.length; i++) {
+      if (_tasks[i].group == name) {
+        _tasks[i] = _tasks[i].copyWith(clearGroup: true);
+      }
+    }
+    notifyListeners();
+  }
+
+  List<CueTask> activeTasksForGroup(String group) {
+    final isUngrouped = group == defaultUngrouped || group.trim().isEmpty;
+    final result = activeTasks.where((task) {
+      if (isUngrouped) {
+        return task.group == null ||
+            task.group!.trim().isEmpty ||
+            task.group == defaultUngrouped;
+      }
+      return task.group == group;
+    }).toList();
+    result.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return result;
+  }
+
+  List<CueTask> completedTasksForGroup(String group) {
+    final isUngrouped = group == defaultUngrouped || group.trim().isEmpty;
+    final result = completedTasks.where((task) {
+      if (isUngrouped) {
+        return task.group == null ||
+            task.group!.trim().isEmpty ||
+            task.group == defaultUngrouped;
+      }
+      return task.group == group;
+    }).toList();
+    result.sort((a, b) {
+      final dateA = a.completedAt ?? a.updatedAt;
+      final dateB = b.completedAt ?? b.updatedAt;
+      return dateB.compareTo(dateA);
+    });
+    return result;
+  }
 
   final List<CueTask> _tasks;
   final ApiClient? api;
@@ -321,10 +452,15 @@ class TaskStore extends ChangeNotifier {
     bool important = false,
     CueTaskStatus status = CueTaskStatus.todo,
     DateTime? dueAt,
+    String? group,
   }) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) return;
     final now = DateTime.now();
+    final normalizedGroup =
+        (group == null || group.trim().isEmpty || group.trim() == defaultUngrouped)
+            ? null
+            : group.trim();
     final task = CueTask(
       id: 'task-local-${now.microsecondsSinceEpoch}',
       title: trimmed,
@@ -337,6 +473,7 @@ class TaskStore extends ChangeNotifier {
       completedAt: status == CueTaskStatus.done ? now : null,
       createdAt: now,
       updatedAt: now,
+      group: normalizedGroup,
     );
     _tasks.add(task);
     notifyListeners();
@@ -392,6 +529,19 @@ class TaskStore extends ChangeNotifier {
         sortOrder: sortOrder,
       ),
       {'status': status.name, 'sortOrder': sortOrder},
+    );
+  }
+
+  Future<void> updateGroup(CueTask task, String? group) {
+    final normalized =
+        (group == null || group.trim().isEmpty || group.trim() == defaultUngrouped)
+            ? null
+            : group.trim();
+    if (task.group == normalized) return Future.value();
+    return _update(
+      task,
+      task.copyWith(group: normalized, clearGroup: normalized == null),
+      {'group': normalized},
     );
   }
 

@@ -1153,6 +1153,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not yet'**
   String get notYet;
+
+  /// No description provided for @group.
+  ///
+  /// In en, this message translates to:
+  /// **'Section'**
+  String get group;
+
+  /// No description provided for @addGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Section'**
+  String get addGroup;
+
+  /// No description provided for @renameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename Section'**
+  String get renameGroup;
+
+  /// No description provided for @deleteGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Section'**
+  String get deleteGroup;
+
+  /// No description provided for @ungrouped.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get ungrouped;
+
+  /// No description provided for @groupSection.
+  ///
+  /// In en, this message translates to:
+  /// **'By Section'**
+  String get groupSection;
+
+  /// No description provided for @groupPriorityNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No Priority'**
+  String get groupPriorityNone;
+
+  /// No description provided for @groupPriorityHigh.
+  ///
+  /// In en, this message translates to:
+  /// **'High Priority'**
+  String get groupPriorityHigh;
+
+  /// No description provided for @groupPriorityMedium.
+  ///
+  /// In en, this message translates to:
+  /// **'Medium Priority'**
+  String get groupPriorityMedium;
+
+  /// No description provided for @groupPriorityLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Priority'**
+  String get groupPriorityLow;
+
+  /// No description provided for @completedAndAbandoned.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed & Abandoned'**
+  String get completedAndAbandoned;
+
+  /// No description provided for @enterGroupName.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter section name'**
+  String get enterGroupName;
+
+  /// No description provided for @seeMore.
+  ///
+  /// In en, this message translates to:
+  /// **'See more'**
+  String get seeMore;
 }
 
 class _AppLocalizationsDelegate

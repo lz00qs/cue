@@ -13,9 +13,10 @@ import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
 class BoardView extends ConsumerStatefulWidget {
-  const BoardView({super.key, required this.onOpenTask});
+  const BoardView({super.key, required this.onOpenTask, this.onAddTask});
 
   final ValueChanged<CueTask> onOpenTask;
+  final void Function({String? group, int? priority})? onAddTask;
 
   @override
   ConsumerState<BoardView> createState() => _BoardViewState();
@@ -36,6 +37,14 @@ class _BoardViewState extends ConsumerState<BoardView> {
           height: 40,
           child: Row(
             children: [
+              CueViewTab(
+                label: context.l10n.groupSection,
+                selected: _group == BoardGroup.group,
+                onTap: () => ref
+                    .read(boardGroupProvider.notifier)
+                    .select(BoardGroup.group),
+              ),
+              const SizedBox(width: 8),
               CueViewTab(
                 label: context.l10n.groupStatus,
                 selected: _group == BoardGroup.status,
@@ -62,7 +71,7 @@ class _BoardViewState extends ConsumerState<BoardView> {
               const Spacer(),
               if (MediaQuery.sizeOf(context).width >= 720)
                 Text(
-                  _group == BoardGroup.status
+                  _group == BoardGroup.group || _group == BoardGroup.status
                       ? context.l10n.dragCards
                       : context.l10n.groupingPreview,
                   style: Theme.of(context).textTheme.labelSmall
@@ -71,16 +80,859 @@ class _BoardViewState extends ConsumerState<BoardView> {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        if (_group == BoardGroup.status)
-          _StatusBoard(store: _store, onOpenTask: widget.onOpenTask)
-        else
-          _GroupedPreview(
-            store: _store,
-            group: _group,
-            onOpenTask: widget.onOpenTask,
-          ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: switch (_group) {
+            BoardGroup.group => _GroupSectionBoard(
+              store: _store,
+              onOpenTask: widget.onOpenTask,
+              onAddTask: widget.onAddTask,
+            ),
+            BoardGroup.status => _StatusBoard(
+              store: _store,
+              onOpenTask: widget.onOpenTask,
+            ),
+            _ => _GroupedPreview(
+              store: _store,
+              group: _group,
+              onOpenTask: widget.onOpenTask,
+            ),
+          },
+        ),
       ],
+    );
+  }
+}
+
+class _GroupSectionBoard extends StatelessWidget {
+  const _GroupSectionBoard({
+    required this.store,
+    required this.onOpenTask,
+    this.onAddTask,
+  });
+
+  final TaskStore store;
+  final ValueChanged<CueTask> onOpenTask;
+  final void Function({String? group, int? priority})? onAddTask;
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = store.groups;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+              maxHeight: constraints.maxHeight,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < groups.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 16),
+                  _GroupColumn(
+                    key: ValueKey('group-col-${groups[i]}'),
+                    group: groups[i],
+                    store: store,
+                    onOpenTask: onOpenTask,
+                    onAddTask: onAddTask,
+                  ),
+                ],
+                const SizedBox(width: 16),
+                _AddGroupColumn(store: store),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GroupColumn extends StatefulWidget {
+  const _GroupColumn({
+    super.key,
+    required this.group,
+    required this.store,
+    required this.onOpenTask,
+    this.onAddTask,
+  });
+
+  final String group;
+  final TaskStore store;
+  final ValueChanged<CueTask> onOpenTask;
+  final void Function({String? group, int? priority})? onAddTask;
+
+  @override
+  State<_GroupColumn> createState() => _GroupColumnState();
+}
+
+class _GroupColumnState extends State<_GroupColumn> {
+  bool _hovering = false;
+  bool _editingName = false;
+  final Set<int> _collapsedPriorities = {};
+  bool _completedCollapsed = false;
+  late final TextEditingController _nameController;
+  late final FocusNode _nameFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.group);
+    _nameFocusNode = FocusNode()..addListener(_onNameFocusChange);
+  }
+
+  void _onNameFocusChange() {
+    if (!_nameFocusNode.hasFocus && _editingName) {
+      _saveName();
+    }
+  }
+
+  void _startEditingName() {
+    if (widget.group == TaskStore.defaultUngrouped) return;
+    _nameController.text = widget.group;
+    setState(() => _editingName = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_editingName) return;
+      _nameFocusNode.requestFocus();
+      _nameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _nameController.text.length,
+      );
+    });
+  }
+
+  void _saveName() {
+    if (!_editingName) return;
+    final newName = _nameController.text.trim();
+    setState(() => _editingName = false);
+    if (newName.isNotEmpty && newName != widget.group) {
+      widget.store.renameGroup(widget.group, newName);
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameFocusNode.removeListener(_onNameFocusChange);
+    _nameFocusNode.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _showDeleteDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.deleteGroup),
+        content: Text('${context.l10n.deleteGroup} "${widget.group}"？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: CueColors.danger),
+            onPressed: () {
+              widget.store.deleteGroup(widget.group);
+              Navigator.pop(dialogContext);
+            },
+            child: Text(context.l10n.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showQuickAddDialog({int priority = 2}) {
+    final titleController = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.addTask),
+        content: TextField(
+          controller: titleController,
+          autofocus: true,
+          decoration: InputDecoration(hintText: context.l10n.taskTitleHint),
+          onSubmitted: (value) async {
+            if (value.trim().isNotEmpty) {
+              await widget.store.addTask(
+                title: value,
+                priority: priority,
+                group: widget.group,
+              );
+            }
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final value = titleController.text.trim();
+              if (value.isNotEmpty) {
+                await widget.store.addTask(
+                  title: value,
+                  priority: priority,
+                  group: widget.group,
+                );
+              }
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+            },
+            child: Text(context.l10n.addTask),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _priorityLabel(int priority) {
+    return switch (priority) {
+      0 => context.l10n.groupPriorityHigh,
+      1 => context.l10n.groupPriorityMedium,
+      2 => context.l10n.groupPriorityLow,
+      _ => context.l10n.groupPriorityNone,
+    };
+  }
+
+  List<Widget> _buildPrioritySections(List<CueTask> activeTasks) {
+    final widgets = <Widget>[];
+    const priorities = [0, 1, 2, 3];
+    for (final p in priorities) {
+      final pTasks = activeTasks.where((t) => t.priority == p).toList();
+      if (pTasks.isEmpty && !(p == 3 && activeTasks.isEmpty)) {
+        continue;
+      }
+      final isCollapsed = _collapsedPriorities.contains(p);
+      final label = _priorityLabel(p);
+
+      widgets.add(
+        Padding(
+          key: Key('group-priority-${widget.group}-$p'),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () {
+                  setState(() {
+                    if (isCollapsed) {
+                      _collapsedPriorities.remove(p);
+                    } else {
+                      _collapsedPriorities.add(p);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 4,
+                    horizontal: 2,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isCollapsed
+                            ? Icons.keyboard_arrow_right_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: CueColors.secondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$label ${pTasks.length}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: CueColors.secondary,
+                        ),
+                      ),
+                      const Spacer(),
+                      SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 16,
+                          icon: const Icon(
+                            Icons.add_rounded,
+                            color: CueColors.tertiary,
+                          ),
+                          onPressed: () {
+                            if (widget.onAddTask != null) {
+                              widget.onAddTask!(
+                                group: widget.group,
+                                priority: p,
+                              );
+                            } else {
+                              _showQuickAddDialog(priority: p);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (!isCollapsed) ...[
+                const SizedBox(height: 4),
+                for (final task in pTasks) ...[
+                  _TickTickTaskCard(
+                    task: task,
+                    store: widget.store,
+                    onOpen: () => widget.onOpenTask(task),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  Widget _buildCompletedSection(List<CueTask> completedTasks) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(6),
+          onTap: () {
+            setState(() => _completedCollapsed = !_completedCollapsed);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            child: Row(
+              children: [
+                Icon(
+                  _completedCollapsed
+                      ? Icons.keyboard_arrow_right_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 16,
+                  color: CueColors.secondary,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    '${context.l10n.completedAndAbandoned} ${completedTasks.length}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: CueColors.secondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (!_completedCollapsed) ...[
+          const SizedBox(height: 4),
+          for (final task in completedTasks) ...[
+            _TickTickTaskCard(
+              task: task,
+              store: widget.store,
+              onOpen: () => widget.onOpenTask(task),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeTasks = widget.store.activeTasksForGroup(widget.group);
+    final completedTasks = widget.store.completedTasksForGroup(widget.group);
+
+    return DragTarget<CueTask>(
+      onWillAcceptWithDetails: (details) {
+        final currentGroup = details.data.group ?? TaskStore.defaultUngrouped;
+        final targetGroup = widget.group;
+        final willAccept =
+            (currentGroup.isEmpty
+                ? TaskStore.defaultUngrouped
+                : currentGroup) !=
+            (targetGroup.isEmpty ? TaskStore.defaultUngrouped : targetGroup);
+        setState(() => _hovering = willAccept);
+        return willAccept;
+      },
+      onLeave: (_) => setState(() => _hovering = false),
+      onAcceptWithDetails: (details) {
+        setState(() => _hovering = false);
+        unawaited(widget.store.updateGroup(details.data, widget.group));
+      },
+      builder: (context, candidateData, rejectedData) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          width: 300,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _hovering ? CueColors.selected : CueColors.subtle,
+            border: Border.all(
+              color: _hovering ? CueColors.accent : Colors.transparent,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Column Header
+              SizedBox(
+                key: Key('group-header-${widget.group}'),
+                height: 36,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: _editingName
+                                ? TapRegion(
+                                    onTapOutside: (_) => _saveName(),
+                                    child: TextField(
+                                      key: Key(
+                                        'group-name-field-${widget.group}',
+                                      ),
+                                      controller: _nameController,
+                                      focusNode: _nameFocusNode,
+                                      autofocus: true,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: CueColors.primary,
+                                      ),
+                                      decoration: InputDecoration(
+                                        hintText: context.l10n.enterGroupName,
+                                        isDense: true,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 6,
+                                            ),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: CueColors.accent,
+                                          ),
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          borderSide: BorderSide(
+                                            color: CueColors.accent,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                      onSubmitted: (_) => _saveName(),
+                                    ),
+                                  )
+                                : InkWell(
+                                    key: Key('group-name-text-${widget.group}'),
+                                    onTap:
+                                        widget.group ==
+                                            TaskStore.defaultUngrouped
+                                        ? null
+                                        : _startEditingName,
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 4,
+                                        horizontal: 4,
+                                      ),
+                                      child: Text(
+                                        widget.group,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: CueColors.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${activeTasks.length}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: CueColors.tertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 18,
+                        icon: Icon(
+                          Icons.add_rounded,
+                          color: CueColors.secondary,
+                        ),
+                        onPressed: () {
+                          if (widget.onAddTask != null) {
+                            widget.onAddTask!(group: widget.group);
+                          } else {
+                            _showQuickAddDialog();
+                          }
+                        },
+                        tooltip: context.l10n.addTask,
+                      ),
+                    ),
+                    if (widget.group != TaskStore.defaultUngrouped)
+                      SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: PopupMenuButton<String>(
+                          key: Key('group-menu-${widget.group}'),
+                          padding: EdgeInsets.zero,
+                          iconSize: 18,
+                          icon: Icon(
+                            Icons.more_horiz_rounded,
+                            color: CueColors.secondary,
+                          ),
+                          onSelected: (value) {
+                            if (value == 'delete') _showDeleteDialog();
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text(
+                                context.l10n.deleteGroup,
+                                style: TextStyle(color: CueColors.danger),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 28),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Body list
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    // Active priority sections
+                    ..._buildPrioritySections(activeTasks),
+                    // Completed tasks section
+                    if (completedTasks.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      _buildCompletedSection(completedTasks),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TickTickTaskCard extends StatefulWidget {
+  const _TickTickTaskCard({
+    required this.task,
+    required this.store,
+    required this.onOpen,
+  });
+
+  final CueTask task;
+  final TaskStore store;
+  final VoidCallback onOpen;
+
+  @override
+  State<_TickTickTaskCard> createState() => _TickTickTaskCardState();
+}
+
+class _TickTickTaskCardState extends State<_TickTickTaskCard> {
+  bool _hovered = false;
+
+  Color _priorityColor(int priority) {
+    return switch (priority) {
+      0 => CueColors.danger,
+      1 => CueColors.orange,
+      2 => CueColors.accent,
+      _ => CueColors.border,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final task = widget.task;
+    final priorityColor = _priorityColor(task.priority);
+    final cardContent = MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onOpen,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: CueColors.card,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: _hovered
+                  ? CueColors.strongBorder
+                  : CueColors.border.withValues(alpha: 0.6),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 3,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () => unawaited(widget.store.toggleComplete(task)),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: task.isCompleted
+                        ? CueColors.secondary.withValues(alpha: 0.3)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(
+                      color: task.isCompleted
+                          ? Colors.transparent
+                          : priorityColor,
+                      width: 1.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: task.isCompleted
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 13,
+                          color: Colors.white,
+                        )
+                      : null,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      task.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: task.isCompleted
+                            ? CueColors.tertiary
+                            : CueColors.primary,
+                        decoration: task.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    if (task.dueAt != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        formatShortMonthDay(context, task.dueAt!),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: CueColors.tertiary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Draggable<CueTask>(
+      data: task,
+      feedback: Material(
+        color: Colors.transparent,
+        child: SizedBox(width: 276, child: cardContent),
+      ),
+      childWhenDragging: Opacity(opacity: 0.35, child: cardContent),
+      child: cardContent,
+    );
+  }
+}
+
+class _AddGroupColumn extends StatefulWidget {
+  const _AddGroupColumn({required this.store});
+
+  final TaskStore store;
+
+  @override
+  State<_AddGroupColumn> createState() => _AddGroupColumnState();
+}
+
+class _AddGroupColumnState extends State<_AddGroupColumn> {
+  bool _isEditing = false;
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _focusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isNotEmpty) {
+      widget.store.addGroup(name);
+      _controller.clear();
+    }
+    setState(() => _isEditing = false);
+  }
+
+  void _cancel() {
+    _controller.clear();
+    setState(() => _isEditing = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isEditing) {
+      return SizedBox(
+        width: 240,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: InkWell(
+            onTap: () {
+              setState(() => _isEditing = true);
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _focusNode.requestFocus(),
+              );
+            },
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: CueColors.subtle,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: CueColors.border.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.add_rounded, size: 18, color: CueColors.accent),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.l10n.addGroup,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: CueColors.accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Container(
+        width: 260,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: CueColors.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: CueColors.accent),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: true,
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                hintText: context.l10n.enterGroupName,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _cancel,
+                  child: Text(context.l10n.cancel),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CueColors.accent,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                  ),
+                  child: Text(context.l10n.save),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -101,47 +953,57 @@ class _StatusBoard extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 820;
         final columnWidth = compact ? 300.0 : (constraints.maxWidth - 32) / 3;
-        final board = Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _BoardColumn(
-              width: columnWidth,
-              today: store.today,
-              title: context.l10n.todoColumn,
-              status: CueTaskStatus.todo,
-              tasks: _tasks(CueTaskStatus.todo),
-              onAccept: (task) => unawaited(
-                store.moveToStatus(task, CueTaskStatus.todo).catchError((_) {}),
+        final board = ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight,
+            maxHeight: constraints.maxHeight,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _BoardColumn(
+                width: columnWidth,
+                today: store.today,
+                title: context.l10n.todoColumn,
+                status: CueTaskStatus.todo,
+                tasks: _tasks(CueTaskStatus.todo),
+                onAccept: (task) => unawaited(
+                  store
+                      .moveToStatus(task, CueTaskStatus.todo)
+                      .catchError((_) {}),
+                ),
+                onOpenTask: onOpenTask,
               ),
-              onOpenTask: onOpenTask,
-            ),
-            const SizedBox(width: 16),
-            _BoardColumn(
-              width: columnWidth,
-              today: store.today,
-              title: context.l10n.doingColumn,
-              status: CueTaskStatus.doing,
-              tasks: _tasks(CueTaskStatus.doing),
-              onAccept: (task) => unawaited(
-                store
-                    .moveToStatus(task, CueTaskStatus.doing)
-                    .catchError((_) {}),
+              const SizedBox(width: 16),
+              _BoardColumn(
+                width: columnWidth,
+                today: store.today,
+                title: context.l10n.doingColumn,
+                status: CueTaskStatus.doing,
+                tasks: _tasks(CueTaskStatus.doing),
+                onAccept: (task) => unawaited(
+                  store
+                      .moveToStatus(task, CueTaskStatus.doing)
+                      .catchError((_) {}),
+                ),
+                onOpenTask: onOpenTask,
               ),
-              onOpenTask: onOpenTask,
-            ),
-            const SizedBox(width: 16),
-            _BoardColumn(
-              width: columnWidth,
-              today: store.today,
-              title: context.l10n.doneColumn,
-              status: CueTaskStatus.done,
-              tasks: _tasks(CueTaskStatus.done),
-              onAccept: (task) => unawaited(
-                store.moveToStatus(task, CueTaskStatus.done).catchError((_) {}),
+              const SizedBox(width: 16),
+              _BoardColumn(
+                width: columnWidth,
+                today: store.today,
+                title: context.l10n.doneColumn,
+                status: CueTaskStatus.done,
+                tasks: _tasks(CueTaskStatus.done),
+                onAccept: (task) => unawaited(
+                  store
+                      .moveToStatus(task, CueTaskStatus.done)
+                      .catchError((_) {}),
+                ),
+                onOpenTask: onOpenTask,
               ),
-              onOpenTask: onOpenTask,
-            ),
-          ],
+            ],
+          ),
         );
         if (!compact) return board;
         return SingleChildScrollView(
@@ -195,7 +1057,6 @@ class _BoardColumnState extends State<_BoardColumn> {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 140),
           width: widget.width,
-          height: 720,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _hovering ? CueColors.selected : CueColors.subtle,
@@ -325,49 +1186,56 @@ class _GroupedPreview extends StatelessWidget {
             : (constraints.maxWidth - (groups.length - 1) * 16) / groups.length;
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var index = 0; index < groups.length; index++) ...[
-                if (index > 0) const SizedBox(width: 16),
-                Container(
-                  width: columnWidth,
-                  height: 720,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: CueColors.subtle,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${groups[index].$1} · ${groups[index].$2.length}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: CueColors.secondary,
-                          fontWeight: FontWeight.w600,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight,
+              maxHeight: constraints.maxHeight,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var index = 0; index < groups.length; index++) ...[
+                  if (index > 0) const SizedBox(width: 16),
+                  Container(
+                    width: columnWidth,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: CueColors.subtle,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${groups[index].$1} · ${groups[index].$2.length}',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: CueColors.secondary,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: groups[index].$2.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
-                          itemBuilder: (context, taskIndex) {
-                            final task = groups[index].$2[taskIndex];
-                            return CueTaskCard(
-                              task: task,
-                              referenceDate: store.today,
-                              onOpen: () => onOpenTask(task),
-                            );
-                          },
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: groups[index].$2.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 8),
+                            itemBuilder: (context, taskIndex) {
+                              final task = groups[index].$2[taskIndex];
+                              return CueTaskCard(
+                                task: task,
+                                referenceDate: store.today,
+                                onOpen: () => onOpenTask(task),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         );
       },

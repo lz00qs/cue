@@ -100,7 +100,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get serverVerificationHelp => '登录前会先验证服务器，你可以稍后在设置中更改。';
 
   @override
-  String get inbox => '收件箱';
+  String get inbox => '收集箱';
 
   @override
   String get today => '今天';
@@ -565,4 +565,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get notYet => '尚未';
+
+  @override
+  String get group => '分组';
+
+  @override
+  String get addGroup => '添加分组';
+
+  @override
+  String get renameGroup => '重命名分组';
+
+  @override
+  String get deleteGroup => '删除分组';
+
+  @override
+  String get ungrouped => '未分组';
+
+  @override
+  String get groupSection => '按分组';
+
+  @override
+  String get groupPriorityNone => '无优先级';
+
+  @override
+  String get groupPriorityHigh => '高优先级';
+
+  @override
+  String get groupPriorityMedium => '中优先级';
+
+  @override
+  String get groupPriorityLow => '低优先级';
+
+  @override
+  String get completedAndAbandoned => '已完成 & 已放弃';
+
+  @override
+  String get enterGroupName => '输入分组名称';
+
+  @override
+  String get seeMore => '查看更多';
 }

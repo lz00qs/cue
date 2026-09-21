@@ -30,7 +30,7 @@
   "serverUrlHelp": "以 http:// 或 https:// 开头，/api 可省略。",
   "connect": "连接",
   "serverVerificationHelp": "登录前会先验证服务器，你可以稍后在设置中更改。",
-  "inbox": "收件箱",
+  "inbox": "收集箱",
   "today": "今天",
   "tomorrow": "明天",
   "later": "稍后",
@@ -175,5 +175,18 @@
   "toggleComplete": "切换完成状态",
   "createdOn": "创建于 {date}",
   "createdToday": "今天",
-  "notYet": "尚未"
+  "notYet": "尚未",
+  "group": "分组",
+  "addGroup": "添加分组",
+  "renameGroup": "重命名分组",
+  "deleteGroup": "删除分组",
+  "ungrouped": "未分组",
+  "groupSection": "按分组",
+  "groupPriorityNone": "无优先级",
+  "groupPriorityHigh": "高优先级",
+  "groupPriorityMedium": "中优先级",
+  "groupPriorityLow": "低优先级",
+  "completedAndAbandoned": "已完成 & 已放弃",
+  "enterGroupName": "输入分组名称",
+  "seeMore": "查看更多"
 }

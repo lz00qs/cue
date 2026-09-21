@@ -152,7 +152,9 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         : 20.0;
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (_view == CueView.calendar) {
+        if (_view == CueView.calendar ||
+            _view == CueView.inbox ||
+            _view == CueView.board) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
               horizontalPadding,
@@ -166,8 +168,12 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                 _PageHeader(
                   title: _pageTitle,
                   subtitle: _pageSubtitle,
-                  onTitleTap: _showMonthPickerPopover,
-                  extraActions: const _CalendarMonthHeaderNavigation(),
+                  onTitleTap: _view == CueView.calendar
+                      ? _showMonthPickerPopover
+                      : null,
+                  extraActions: _view == CueView.calendar
+                      ? const _CalendarMonthHeaderNavigation()
+                      : null,
                   actionLabel: context.l10n.addTask,
                   onAction: () => _showAddTaskDialog(),
                   useIconButton: true,
@@ -228,7 +234,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     CueView.today => context.l10n.today,
     CueView.upcoming => context.l10n.upcoming,
     CueView.list => context.l10n.allTasks,
-    CueView.board => context.l10n.board,
+    CueView.board => context.l10n.inbox,
     CueView.calendar => formatMonthYear(
       context,
       ref.watch(calendarFocusedMonthProvider),
@@ -242,13 +248,19 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
       '${formatLongDate(context, _store.today)} · ${context.l10n.taskCount(_store.todayTasks.length)}',
     CueView.upcoming => context.l10n.planWhatComesNext,
     CueView.list => context.l10n.oneTaskModel,
-    CueView.board => context.l10n.threeStages,
+    CueView.board => context.l10n.openTaskCount(_store.activeTasks.length),
     CueView.calendar => context.l10n.monthViewDueOnly,
     CueView.quadrants => context.l10n.importanceUrgencyTwoDays,
   };
 
   Widget get _pageBody => switch (_view) {
-    CueView.board => BoardView(onOpenTask: _showTaskDetails),
+    CueView.inbox || CueView.board => BoardView(
+      onOpenTask: _showTaskDetails,
+      onAddTask: ({group, priority}) => _showAddTaskDialog(
+        prefilledGroup: group,
+        prefilledPriority: priority,
+      ),
+    ),
     CueView.calendar => CalendarView(
       onOpenTask: _showTaskDetails,
       onSelectDay: (day) => _showAddTaskDialog(prefilledDate: day),
@@ -304,172 +316,22 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _showAddTaskDialog({DateTime? prefilledDate}) async {
-    final titleController = TextEditingController();
-    final noteController = TextEditingController();
-    var priority = 2;
-    var important = false;
-    var status = CueTaskStatus.todo;
-    final today = _store.today;
-    DateTime? dueAt = prefilledDate == null
-        ? DateTime(today.year, today.month, today.day, 18)
-        : DateTime(
-            prefilledDate.year,
-            prefilledDate.month,
-            prefilledDate.day,
-            18,
-          );
-
+  Future<void> _showAddTaskDialog({
+    DateTime? prefilledDate,
+    String? prefilledGroup,
+    int? prefilledPriority,
+  }) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return AlertDialog(
-              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-              actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              title: Text(
-                context.l10n.newTask,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: CueColors.primary,
-                ),
-              ),
-              content: SizedBox(
-                width: 420,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      TextField(
-                        controller: titleController,
-                        autofocus: true,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.taskTitle,
-                          hintText: context.l10n.taskTitleHint,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: noteController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.note,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: DropdownButtonFormField<int>(
-                              initialValue: priority,
-                              decoration: InputDecoration(
-                                labelText: context.l10n.priority,
-                              ),
-                              items: List.generate(
-                                4,
-                                (index) => DropdownMenuItem(
-                                  value: index,
-                                  child: Text('P$index'),
-                                ),
-                              ),
-                              onChanged: (value) =>
-                                  setModalState(() => priority = value ?? 2),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<CueTaskStatus>(
-                              initialValue: status,
-                              decoration: InputDecoration(
-                                labelText: context.l10n.status,
-                              ),
-                              items: [
-                                DropdownMenuItem(
-                                  value: CueTaskStatus.todo,
-                                  child: Text(context.l10n.toDo),
-                                ),
-                                DropdownMenuItem(
-                                  value: CueTaskStatus.doing,
-                                  child: Text(context.l10n.doing),
-                                ),
-                                DropdownMenuItem(
-                                  value: CueTaskStatus.done,
-                                  child: Text(context.l10n.done),
-                                ),
-                              ],
-                              onChanged: (value) => setModalState(
-                                () => status = value ?? CueTaskStatus.todo,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<DateTime?>(
-                        initialValue: dueAt,
-                        decoration: InputDecoration(
-                          labelText: context.l10n.dueDate,
-                        ),
-                        items: _dueDateChoices(dueAt),
-                        onChanged: (value) =>
-                            setModalState(() => dueAt = value),
-                      ),
-                      const SizedBox(height: 6),
-                      CheckboxListTile(
-                        value: important,
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        title: Text(context.l10n.important),
-                        subtitle: Text(context.l10n.quadrantUsage),
-                        onChanged: (value) =>
-                            setModalState(() => important = value ?? false),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: Text(context.l10n.cancel),
-                ),
-                FilledButton(
-                  onPressed: () async {
-                    if (titleController.text.trim().isEmpty) return;
-                    final succeeded = await _runTaskOperation(
-                      () => _store.addTask(
-                        title: titleController.text,
-                        note: noteController.text,
-                        priority: priority,
-                        important: important,
-                        status: status,
-                        dueAt: dueAt,
-                      ),
-                    );
-                    if (succeeded && dialogContext.mounted) {
-                      Navigator.pop(dialogContext);
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: CueColors.accent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: Text(context.l10n.addTask),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (dialogContext) => _AddTaskDialog(
+        store: _store,
+        onRunOperation: _runTaskOperation,
+        dueDateChoices: _dueDateChoices,
+        prefilledDate: prefilledDate,
+        prefilledGroup: prefilledGroup,
+        prefilledPriority: prefilledPriority,
+      ),
     );
-    titleController.dispose();
-    noteController.dispose();
   }
 
   Future<void> _showTaskDetails(CueTask initialTask) async {
@@ -617,7 +479,8 @@ class _Sidebar extends StatelessWidget {
           const SizedBox(height: 8),
           _SidebarItem(
             label: context.l10n.inbox,
-            selected: selected == CueView.inbox,
+            count: store.activeTasks.length,
+            selected: selected == CueView.inbox || selected == CueView.board,
             onTap: () => onSelect(CueView.inbox),
           ),
           const SizedBox(height: 8),
@@ -642,12 +505,6 @@ class _Sidebar extends StatelessWidget {
             label: context.l10n.list,
             selected: selected == CueView.list,
             onTap: () => onSelect(CueView.list),
-          ),
-          const SizedBox(height: 8),
-          _SidebarItem(
-            label: context.l10n.board,
-            selected: selected == CueView.board,
-            onTap: () => onSelect(CueView.board),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
@@ -746,11 +603,13 @@ class _SidebarItem extends StatefulWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.count,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final int? count;
 
   @override
   State<_SidebarItem> createState() => _SidebarItemState();
@@ -795,14 +654,40 @@ class _SidebarItemState extends State<_SidebarItem> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  color: widget.selected ? CueColors.accent : CueColors.primary,
-                  fontSize: 15,
-                  height: 21 / 15,
+              Expanded(
+                child: Text(
+                  widget.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: widget.selected ? CueColors.accent : CueColors.primary,
+                    fontSize: 15,
+                    height: 21 / 15,
+                  ),
                 ),
               ),
+              if (widget.count != null && widget.count! > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 1.5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: widget.selected
+                        ? CueColors.accent.withValues(alpha: 0.15)
+                        : (CueColors.border.withValues(alpha: 0.6)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${widget.count}',
+                    style: TextStyle(
+                      color: widget.selected
+                          ? CueColors.accent
+                          : CueColors.secondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -1331,6 +1216,225 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AddTaskDialog extends StatefulWidget {
+  const _AddTaskDialog({
+    required this.store,
+    required this.onRunOperation,
+    required this.dueDateChoices,
+    this.prefilledDate,
+    this.prefilledGroup,
+    this.prefilledPriority,
+  });
+
+  final TaskStore store;
+  final Future<bool> Function(Future<void> Function()) onRunOperation;
+  final List<DropdownMenuItem<DateTime?>> Function(DateTime?) dueDateChoices;
+  final DateTime? prefilledDate;
+  final String? prefilledGroup;
+  final int? prefilledPriority;
+
+  @override
+  State<_AddTaskDialog> createState() => _AddTaskDialogState();
+}
+
+class _AddTaskDialogState extends State<_AddTaskDialog> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _noteController;
+  late int _priority;
+  late String _group;
+  late bool _important;
+  late CueTaskStatus _status;
+  DateTime? _dueAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _noteController = TextEditingController();
+    _priority = widget.prefilledPriority ?? 2;
+    _group = widget.prefilledGroup ?? TaskStore.defaultUngrouped;
+    _important = false;
+    _status = CueTaskStatus.todo;
+    final today = widget.store.today;
+    _dueAt = widget.prefilledDate == null
+        ? DateTime(today.year, today.month, today.day, 18)
+        : DateTime(
+            widget.prefilledDate!.year,
+            widget.prefilledDate!.month,
+            widget.prefilledDate!.day,
+            18,
+          );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      title: Text(
+        context.l10n.newTask,
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: CueColors.primary,
+        ),
+      ),
+      content: SizedBox(
+        width: 420,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: _titleController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: context.l10n.taskTitle,
+                  hintText: context.l10n.taskTitleHint,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _noteController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: context.l10n.note,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _priority,
+                      decoration: InputDecoration(
+                        labelText: context.l10n.priority,
+                      ),
+                      items: List.generate(
+                        4,
+                        (index) => DropdownMenuItem(
+                          value: index,
+                          child: Text('P$index'),
+                        ),
+                      ),
+                      onChanged: (value) =>
+                          setState(() => _priority = value ?? 2),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonFormField<CueTaskStatus>(
+                      initialValue: _status,
+                      decoration: InputDecoration(
+                        labelText: context.l10n.status,
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: CueTaskStatus.todo,
+                          child: Text(context.l10n.toDo),
+                        ),
+                        DropdownMenuItem(
+                          value: CueTaskStatus.doing,
+                          child: Text(context.l10n.doing),
+                        ),
+                        DropdownMenuItem(
+                          value: CueTaskStatus.done,
+                          child: Text(context.l10n.done),
+                        ),
+                      ],
+                      onChanged: (value) => setState(
+                        () => _status = value ?? CueTaskStatus.todo,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: widget.store.groups.contains(_group)
+                    ? _group
+                    : TaskStore.defaultUngrouped,
+                decoration: InputDecoration(
+                  labelText: context.l10n.group,
+                ),
+                items: widget.store.groups.map((g) {
+                  return DropdownMenuItem<String>(
+                    value: g,
+                    child: Text(g),
+                  );
+                }).toList(),
+                onChanged: (value) => setState(
+                  () => _group = value ?? TaskStore.defaultUngrouped,
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<DateTime?>(
+                initialValue: _dueAt,
+                decoration: InputDecoration(
+                  labelText: context.l10n.dueDate,
+                ),
+                items: widget.dueDateChoices(_dueAt),
+                onChanged: (value) => setState(() => _dueAt = value),
+              ),
+              const SizedBox(height: 6),
+              CheckboxListTile(
+                value: _important,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(context.l10n.important),
+                subtitle: Text(context.l10n.quadrantUsage),
+                onChanged: (value) =>
+                    setState(() => _important = value ?? false),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(context.l10n.cancel),
+        ),
+        FilledButton(
+          onPressed: () async {
+            if (_titleController.text.trim().isEmpty) return;
+            final succeeded = await widget.onRunOperation(
+              () => widget.store.addTask(
+                title: _titleController.text,
+                note: _noteController.text,
+                priority: _priority,
+                important: _important,
+                status: _status,
+                dueAt: _dueAt,
+                group: _group == TaskStore.defaultUngrouped ? null : _group,
+              ),
+            );
+            if (succeeded && context.mounted) {
+              Navigator.pop(context);
+            }
+          },
+          style: FilledButton.styleFrom(
+            backgroundColor: CueColors.accent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(context.l10n.addTask),
+        ),
+      ],
     );
   }
 }
