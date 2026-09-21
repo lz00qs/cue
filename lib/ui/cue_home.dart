@@ -11,6 +11,7 @@ import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
 import 'cue_theme.dart';
 import 'appearance_menu.dart';
+import 'cue_date_picker.dart';
 import 'cue_widgets.dart';
 import 'desktop/task_details_popover.dart';
 import 'language_menu.dart';
@@ -326,7 +327,6 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
       builder: (dialogContext) => _AddTaskDialog(
         store: _store,
         onRunOperation: _runTaskOperation,
-        dueDateChoices: _dueDateChoices,
         prefilledDate: prefilledDate,
         prefilledGroup: prefilledGroup,
         prefilledPriority: prefilledPriority,
@@ -376,29 +376,6 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
           ),
         ) ??
         false;
-  }
-
-  List<DropdownMenuItem<DateTime?>> _dueDateChoices(DateTime? selected) {
-    final today = _store.today;
-    final values = <DateTime?>[
-      DateTime(today.year, today.month, today.day, 18),
-      DateTime(today.year, today.month, today.day + 1, 18),
-      selected,
-      null,
-    ];
-    final seen = <int?>{};
-    return values.where((value) => seen.add(value?.millisecondsSinceEpoch)).map(
-      (value) {
-        final label = value == null
-            ? context.l10n.noDueDate
-            : TaskStore.isSameDay(value, today)
-            ? '${context.l10n.today} · 18:00'
-            : TaskStore.isSameDay(value, today.add(const Duration(days: 1)))
-            ? '${context.l10n.tomorrow} · 18:00'
-            : '${formatShortMonthDay(context, value)} · 18:00';
-        return DropdownMenuItem(value: value, child: Text(label));
-      },
-    ).toList();
   }
 
   Future<bool> _runTaskOperation(Future<void> Function() operation) async {
@@ -1249,7 +1226,6 @@ class _AddTaskDialog extends StatefulWidget {
   const _AddTaskDialog({
     required this.store,
     required this.onRunOperation,
-    required this.dueDateChoices,
     this.prefilledDate,
     this.prefilledGroup,
     this.prefilledPriority,
@@ -1257,7 +1233,6 @@ class _AddTaskDialog extends StatefulWidget {
 
   final TaskStore store;
   final Future<bool> Function(Future<void> Function()) onRunOperation;
-  final List<DropdownMenuItem<DateTime?>> Function(DateTime?) dueDateChoices;
   final DateTime? prefilledDate;
   final String? prefilledGroup;
   final int? prefilledPriority;
@@ -1271,8 +1246,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   late final TextEditingController _noteController;
   late int _priority;
   late String _group;
-  late bool _important;
   DateTime? _dueAt;
+  String? _reminder;
+  String? _recurrence;
 
   @override
   void initState() {
@@ -1281,7 +1257,6 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     _noteController = TextEditingController();
     _priority = widget.prefilledPriority ?? 2;
     _group = widget.prefilledGroup ?? TaskStore.defaultUngrouped;
-    _important = false;
     final today = widget.store.today;
     _dueAt = widget.prefilledDate == null
         ? DateTime(today.year, today.month, today.day, 18)
@@ -1298,6 +1273,28 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     _titleController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickDueDate() async {
+    final result = await showCueDatePickerPopover(
+      context: context,
+      today: widget.store.today,
+      initialDueAt: _dueAt,
+      initialReminder: _reminder,
+      initialRecurrence: _recurrence,
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      if (result.cleared) {
+        _dueAt = null;
+        _reminder = null;
+        _recurrence = null;
+      } else {
+        _dueAt = result.dueAt;
+        _reminder = result.reminder;
+        _recurrence = result.recurrence;
+      }
+    });
   }
 
   @override
@@ -1360,21 +1357,28 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<DateTime?>(
-                initialValue: _dueAt,
-                decoration: InputDecoration(labelText: context.l10n.dueDate),
-                items: widget.dueDateChoices(_dueAt),
-                onChanged: (value) => setState(() => _dueAt = value),
-              ),
-              const SizedBox(height: 6),
-              CheckboxListTile(
-                value: _important,
-                contentPadding: EdgeInsets.zero,
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(context.l10n.important),
-                subtitle: Text(context.l10n.quadrantUsage),
-                onChanged: (value) =>
-                    setState(() => _important = value ?? false),
+              InkWell(
+                key: const Key('desktop-new-task-duedate-picker'),
+                onTap: _pickDueDate,
+                borderRadius: BorderRadius.circular(8),
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: context.l10n.dueDate,
+                    suffixIcon: const Icon(Icons.calendar_month_outlined),
+                  ),
+                  child: Text(
+                    cueDueDateTimeLabel(
+                      context,
+                      _dueAt,
+                      today: widget.store.today,
+                    ),
+                    style: TextStyle(
+                      color: _dueAt == null
+                          ? CueColors.secondary
+                          : CueColors.primary,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1393,8 +1397,9 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                 title: _titleController.text,
                 note: _noteController.text,
                 priority: _priority,
-                important: _important,
                 dueAt: _dueAt,
+                reminder: _reminder,
+                recurrence: _recurrence,
                 group: _group == TaskStore.defaultUngrouped ? null : _group,
               ),
             );

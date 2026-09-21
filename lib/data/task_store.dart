@@ -19,7 +19,6 @@ class TaskStore extends ChangeNotifier {
       String title, {
       String note = '',
       int priority = 2,
-      bool important = false,
       DateTime? dueAt,
       DateTime? completedAt,
       double order = 1000,
@@ -30,7 +29,6 @@ class TaskStore extends ChangeNotifier {
         title: title,
         note: note,
         priority: priority,
-        important: important,
         sortOrder: order,
         dueAt: dueAt,
         completedAt: completedAt,
@@ -119,7 +117,6 @@ class TaskStore extends ChangeNotifier {
         'Review PCB layout',
         note: 'Check routing, clearances, and the power plane before handoff.',
         priority: 0,
-        important: true,
         dueAt: DateTime(2026, 9, 13, 10, 30),
         order: 1500,
         group: '研发事项',
@@ -129,7 +126,6 @@ class TaskStore extends ChangeNotifier {
         'Run thermal simulation',
         note: 'Compare the revised enclosure against the baseline model.',
         priority: 1,
-        important: true,
         dueAt: DateTime(2026, 9, 13, 14),
         order: 1600,
         group: '研发事项',
@@ -138,7 +134,6 @@ class TaskStore extends ChangeNotifier {
         'signal-drift',
         'Analyze signal drift',
         priority: 2,
-        important: true,
         dueAt: DateTime(2026, 9, 15),
         order: 1700,
         group: '研发事项',
@@ -148,7 +143,6 @@ class TaskStore extends ChangeNotifier {
         'Finalize requirements',
         note: 'Approved for the September build.',
         priority: 2,
-        important: true,
         completedAt: DateTime(2026, 9, 13, 9, 15),
         dueAt: DateTime(2026, 9, 13, 9),
         order: 1800,
@@ -212,7 +206,6 @@ class TaskStore extends ChangeNotifier {
         'design-handoff',
         'Prepare design handoff',
         priority: 2,
-        important: true,
         dueAt: DateTime(2026, 9, 24),
         order: 8000,
         group: '研发事项',
@@ -221,7 +214,6 @@ class TaskStore extends ChangeNotifier {
         'october-roadmap',
         'Plan October roadmap',
         priority: 2,
-        important: true,
         dueAt: DateTime(2026, 9, 30),
         order: 9000,
         group: '工作',
@@ -440,10 +432,10 @@ class TaskStore extends ChangeNotifier {
     return result;
   }
 
-  List<CueTask> quadrantTasks({required bool important, required bool urgent}) {
-    final result = activeTasks.where((task) {
-      return task.important == important && isUrgent(task) == urgent;
-    }).toList();
+  List<CueTask> tasksForPriority(int priority) {
+    final result = activeTasks
+        .where((task) => task.priority == priority)
+        .toList();
     result.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return result;
   }
@@ -534,8 +526,9 @@ class TaskStore extends ChangeNotifier {
     required String title,
     String note = '',
     int priority = 2,
-    bool important = false,
     DateTime? dueAt,
+    String? reminder,
+    String? recurrence,
     String? group,
   }) async {
     final trimmed = title.trim();
@@ -552,9 +545,10 @@ class TaskStore extends ChangeNotifier {
       title: trimmed,
       note: note.trim(),
       priority: priority,
-      important: important,
       sortOrder: _tasks.length * 1000 + 1000,
       dueAt: dueAt,
+      reminder: reminder,
+      recurrence: recurrence,
       createdAt: now,
       updatedAt: now,
       group: normalizedGroup,
@@ -614,12 +608,6 @@ class TaskStore extends ChangeNotifier {
       {'group': normalized},
     );
   }
-
-  Future<void> toggleImportant(CueTask task) => _update(
-    task,
-    task.copyWith(important: !task.important),
-    {'important': !task.important},
-  );
 
   Future<void> updateNote(CueTask task, String note) =>
       _update(task, task.copyWith(note: note.trim()), {'note': note.trim()});

@@ -68,6 +68,7 @@ export class TasksService {
     return this.database.transaction(async (client) => {
       await this.lockTaskWrites(client);
       const now = new Date();
+      const priority = input.priority ?? 2;
       const order =
         input.sortOrder ??
         Number(
@@ -89,8 +90,8 @@ export class TasksService {
           randomUUID(),
           input.title.trim(),
           input.note?.trim() ?? '',
-          input.priority ?? 2,
-          input.important ?? false,
+          priority,
+          isImportant(priority),
           order,
           input.dueAt ?? null,
           input.reminder ?? null,
@@ -119,6 +120,7 @@ export class TasksService {
         input.completedAt === undefined
           ? existing.completed_at
           : input.completedAt;
+      const priority = input.priority ?? existing.priority;
       const result = await client.query<TaskRow>(
         `UPDATE tasks SET
            title = $2, note = $3, priority = $4,
@@ -132,8 +134,8 @@ export class TasksService {
           id,
           input.title?.trim() ?? existing.title,
           input.note?.trim() ?? existing.note,
-          input.priority ?? existing.priority,
-          input.important ?? existing.important,
+          priority,
+          isImportant(priority),
           input.sortOrder ?? Number(existing.sort_order),
           input.dueAt === undefined ? existing.due_at : input.dueAt,
           input.reminder === undefined ? existing.reminder : input.reminder,
@@ -196,7 +198,7 @@ function toTask(row: TaskRow) {
     title: row.title,
     note: row.note,
     priority: row.priority,
-    important: row.important,
+    important: isImportant(row.priority),
     sortOrder: Number(row.sort_order),
     dueAt: row.due_at?.toISOString() ?? null,
     reminder: row.reminder ?? null,
@@ -209,4 +211,8 @@ function toTask(row: TaskRow) {
     version: row.version,
     revision: Number(row.revision),
   };
+}
+
+function isImportant(priority: number) {
+  return priority === 0;
 }

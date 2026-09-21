@@ -7,10 +7,10 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 - 单管理员登录，无注册、邀请或多用户入口
 - 15 分钟 Access Token、30 天 Refresh Token 与客户端自动刷新
 - PostgreSQL 持久化、启动时自动迁移和首次示例数据
-- 任务新增、读取、状态/重要性更新、软删除
+- 任务新增、读取、状态/优先级更新、软删除；仅 P0 视为重要
 - 乐观并发控制：每条任务包含 `version`
 - 增量同步基础：全局 `revision` 与删除 tombstone
-- Today、Inbox、Upcoming、All Tasks、Kanban、Month Calendar、Eisenhower Quadrants
+- Today、Inbox、Upcoming、All Tasks、Kanban、Month Calendar、Priority Quadrants
 - Flutter 乐观更新、失败回滚和登录会话恢复
 - 多端增量同步：SSE 更新通知、断线重连、每分钟轮询兜底、回到前台同步、下拉刷新和手动同步
 - 并发同步请求合并，以及 409 版本冲突后的服务端状态恢复

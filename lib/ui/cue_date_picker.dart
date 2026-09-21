@@ -18,6 +18,26 @@ class CueDatePickerResult {
   final bool cleared;
 }
 
+String cueDueDateTimeLabel(
+  BuildContext context,
+  DateTime? dueAt, {
+  required DateTime today,
+}) {
+  if (dueAt == null) return context.l10n.noDueDate;
+  final date = TaskStore.dateOnly(dueAt);
+  final reference = TaskStore.dateOnly(today);
+  final dateLabel = TaskStore.isSameDay(date, reference)
+      ? context.l10n.today
+      : TaskStore.isSameDay(date, reference.add(const Duration(days: 1)))
+      ? context.l10n.tomorrow
+      : formatShortMonthDay(context, dueAt);
+  if (dueAt.hour == 0 && dueAt.minute == 0) return dateLabel;
+  final time =
+      '${dueAt.hour.toString().padLeft(2, '0')}:'
+      '${dueAt.minute.toString().padLeft(2, '0')}';
+  return '$dateLabel · $time';
+}
+
 Future<CueDatePickerResult?> showCueDatePickerPopover({
   required BuildContext context,
   required DateTime today,
@@ -104,8 +124,16 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
 
   @override
   Widget build(BuildContext context) {
-    final firstDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month, 1);
-    final lastDayOfMonth = DateTime(_displayedMonth.year, _displayedMonth.month + 1, 0);
+    final firstDayOfMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month,
+      1,
+    );
+    final lastDayOfMonth = DateTime(
+      _displayedMonth.year,
+      _displayedMonth.month + 1,
+      0,
+    );
     final daysInMonth = lastDayOfMonth.day;
     final startWeekday = firstDayOfMonth.weekday % 7; // 0 for Sunday
 
@@ -174,7 +202,10 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         color: CueColors.secondary,
                         onPressed: () {
                           setState(() {
-                            _displayedMonth = DateTime(widget.today.year, widget.today.month);
+                            _displayedMonth = DateTime(
+                              widget.today.year,
+                              widget.today.month,
+                            );
                           });
                         },
                       ),
@@ -237,7 +268,10 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                     _displayedMonth.month,
                     dayNumber,
                   );
-                  final isSelected = TaskStore.isSameDay(cellDate, _selectedDate);
+                  final isSelected = TaskStore.isSameDay(
+                    cellDate,
+                    _selectedDate,
+                  );
                   final isToday = TaskStore.isSameDay(cellDate, widget.today);
 
                   return InkWell(
@@ -253,8 +287,8 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         color: isSelected
                             ? CueColors.accent
                             : isToday
-                                ? CueColors.selected
-                                : Colors.transparent,
+                            ? CueColors.selected
+                            : Colors.transparent,
                         shape: BoxShape.circle,
                         border: isToday && !isSelected
                             ? Border.all(color: CueColors.accent, width: 1)
@@ -266,8 +300,8 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                           color: isSelected
                               ? CueColors.onAccent
                               : isToday
-                                  ? CueColors.accent
-                                  : CueColors.primary,
+                              ? CueColors.accent
+                              : CueColors.primary,
                           fontSize: 13,
                           fontWeight: isSelected || isToday
                               ? FontWeight.w600
@@ -287,23 +321,34 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.access_time, size: 18, color: CueColors.secondary),
+                    Icon(
+                      Icons.access_time,
+                      size: 18,
+                      color: CueColors.secondary,
+                    ),
                     const SizedBox(width: 10),
-                    Text('时间', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    Text(
+                      '时间',
+                      style: TextStyle(color: CueColors.primary, fontSize: 14),
+                    ),
                     const Spacer(),
                     InkWell(
+                      key: const Key('cue-date-picker-time'),
                       onTap: () async {
                         final picked = await showTimePicker(
                           context: context,
-                          initialTime: _selectedTime ?? const TimeOfDay(hour: 18, minute: 0),
+                          initialTime:
+                              _selectedTime ??
+                              const TimeOfDay(hour: 18, minute: 0),
                           builder: (context, child) {
                             return Theme(
                               data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.dark(
-                                  primary: CueColors.accent,
-                                  surface: CueColors.popover,
-                                  onSurface: CueColors.primary,
-                                ),
+                                colorScheme: Theme.of(context).colorScheme
+                                    .copyWith(
+                                      primary: CueColors.accent,
+                                      surface: CueColors.popover,
+                                      onSurface: CueColors.primary,
+                                    ),
                               ),
                               child: child!,
                             );
@@ -315,9 +360,14 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                       },
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: _selectedTime != null ? CueColors.selected : CueColors.subtle,
+                          color: _selectedTime != null
+                              ? CueColors.selected
+                              : CueColors.subtle,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
@@ -328,13 +378,21 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                                   ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
                                   : '全天',
                               style: TextStyle(
-                                color: _selectedTime != null ? CueColors.accent : CueColors.secondary,
+                                color: _selectedTime != null
+                                    ? CueColors.accent
+                                    : CueColors.secondary,
                                 fontSize: 13,
-                                fontWeight: _selectedTime != null ? FontWeight.w600 : FontWeight.normal,
+                                fontWeight: _selectedTime != null
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Icon(Icons.edit_calendar, size: 14, color: CueColors.tertiary),
+                            Icon(
+                              Icons.edit_calendar,
+                              size: 14,
+                              color: CueColors.tertiary,
+                            ),
                           ],
                         ),
                       ),
@@ -345,7 +403,11 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         onTap: () {
                           setState(() => _selectedTime = null);
                         },
-                        child: Icon(Icons.cancel, size: 16, color: CueColors.tertiary),
+                        child: Icon(
+                          Icons.cancel,
+                          size: 16,
+                          color: CueColors.tertiary,
+                        ),
                       ),
                     ],
                   ],
@@ -357,9 +419,16 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Row(
                   children: [
-                    Icon(Icons.notifications_none, size: 18, color: CueColors.secondary),
+                    Icon(
+                      Icons.notifications_none,
+                      size: 18,
+                      color: CueColors.secondary,
+                    ),
                     const SizedBox(width: 10),
-                    Text('提醒', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    Text(
+                      '提醒',
+                      style: TextStyle(color: CueColors.primary, fontSize: 14),
+                    ),
                     const Spacer(),
                     PopupMenuButton<String>(
                       tooltip: '提醒时间',
@@ -373,13 +442,22 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         setState(() => _selectedReminder = key);
                       },
                       itemBuilder: (context) => [
-                        for (final key in ['none', 'on_time', 'min_5', 'min_30', 'hour_1', 'day_1'])
+                        for (final key in [
+                          'none',
+                          'on_time',
+                          'min_5',
+                          'min_30',
+                          'hour_1',
+                          'day_1',
+                        ])
                           PopupMenuItem<String>(
                             value: key,
                             child: Text(
                               _reminderLabel(key),
                               style: TextStyle(
-                                color: key == _selectedReminder ? CueColors.accent : CueColors.primary,
+                                color: key == _selectedReminder
+                                    ? CueColors.accent
+                                    : CueColors.primary,
                               ),
                             ),
                           ),
@@ -390,12 +468,18 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                           Text(
                             _reminderLabel(_selectedReminder),
                             style: TextStyle(
-                              color: _selectedReminder != 'none' ? CueColors.accent : CueColors.secondary,
+                              color: _selectedReminder != 'none'
+                                  ? CueColors.accent
+                                  : CueColors.secondary,
                               fontSize: 13,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: CueColors.tertiary,
+                          ),
                         ],
                       ),
                     ),
@@ -410,7 +494,10 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                   children: [
                     Icon(Icons.repeat, size: 18, color: CueColors.secondary),
                     const SizedBox(width: 10),
-                    Text('重复', style: TextStyle(color: CueColors.primary, fontSize: 14)),
+                    Text(
+                      '重复',
+                      style: TextStyle(color: CueColors.primary, fontSize: 14),
+                    ),
                     const Spacer(),
                     PopupMenuButton<String>(
                       tooltip: '重复规则',
@@ -424,13 +511,22 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         setState(() => _selectedRecurrence = key);
                       },
                       itemBuilder: (context) => [
-                        for (final key in ['none', 'daily', 'weekly', 'monthly', 'yearly', 'workday'])
+                        for (final key in [
+                          'none',
+                          'daily',
+                          'weekly',
+                          'monthly',
+                          'yearly',
+                          'workday',
+                        ])
                           PopupMenuItem<String>(
                             value: key,
                             child: Text(
                               _recurrenceLabel(key),
                               style: TextStyle(
-                                color: key == _selectedRecurrence ? CueColors.accent : CueColors.primary,
+                                color: key == _selectedRecurrence
+                                    ? CueColors.accent
+                                    : CueColors.primary,
                               ),
                             ),
                           ),
@@ -441,12 +537,18 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                           Text(
                             _recurrenceLabel(_selectedRecurrence),
                             style: TextStyle(
-                              color: _selectedRecurrence != 'none' ? CueColors.accent : CueColors.secondary,
+                              color: _selectedRecurrence != 'none'
+                                  ? CueColors.accent
+                                  : CueColors.secondary,
                               fontSize: 13,
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.chevron_right, size: 18, color: CueColors.tertiary),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 18,
+                            color: CueColors.tertiary,
+                          ),
                         ],
                       ),
                     ),
@@ -469,7 +571,10 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pop(context, const CueDatePickerResult(cleared: true));
+                        Navigator.pop(
+                          context,
+                          const CueDatePickerResult(cleared: true),
+                        );
                       },
                       child: const Text('清除'),
                     ),
@@ -485,7 +590,7 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                         ),
                       ),
                       onPressed: () {
-                        final hour = _selectedTime?.hour ?? 18;
+                        final hour = _selectedTime?.hour ?? 0;
                         final minute = _selectedTime?.minute ?? 0;
                         final finalDueAt = DateTime(
                           _selectedDate.year,
@@ -498,8 +603,12 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                           context,
                           CueDatePickerResult(
                             dueAt: finalDueAt,
-                            reminder: _selectedReminder == 'none' ? null : _selectedReminder,
-                            recurrence: _selectedRecurrence == 'none' ? null : _selectedRecurrence,
+                            reminder: _selectedReminder == 'none'
+                                ? null
+                                : _selectedReminder,
+                            recurrence: _selectedRecurrence == 'none'
+                                ? null
+                                : _selectedRecurrence,
                           ),
                         );
                       },

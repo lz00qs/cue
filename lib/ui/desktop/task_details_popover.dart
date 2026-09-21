@@ -501,8 +501,6 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                     onSelected: (value) {
                       if (value == 'complete') {
                         widget.onRun(() => _store.toggleComplete(task));
-                      } else if (value == 'important') {
-                        widget.onRun(() => _store.toggleImportant(task));
                       } else if (value == 'delete') {
                         widget.onDelete(task);
                       }
@@ -511,10 +509,6 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                       PopupMenuItem(
                         value: 'complete',
                         child: Text(context.l10n.toggleComplete),
-                      ),
-                      PopupMenuItem(
-                        value: 'important',
-                        child: Text(context.l10n.important),
                       ),
                       PopupMenuItem(
                         value: 'delete',

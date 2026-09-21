@@ -71,6 +71,10 @@ void main() {
 
     await store.updatePriority(store.tasks.single, 0);
     expect(store.tasks.single.priority, 0);
+    expect(store.tasks.single.important, isTrue);
+
+    await store.updatePriority(store.tasks.single, 1);
+    expect(store.tasks.single.important, isFalse);
 
     final tomorrow = DateTime(2026, 9, 16, 18);
     await store.updateDueAt(store.tasks.single, tomorrow);
@@ -78,6 +82,20 @@ void main() {
 
     await store.updateDueAt(store.tasks.single, null);
     expect(store.tasks.single.dueAt, isNull);
+  });
+
+  test('assigns each quadrant to exactly one priority', () {
+    final store = TaskStore([
+      _task(revision: 1, id: 'p0').copyWith(priority: 0, sortOrder: 4000),
+      _task(revision: 2, id: 'p1').copyWith(priority: 1, sortOrder: 3000),
+      _task(revision: 3, id: 'p2').copyWith(priority: 2, sortOrder: 2000),
+      _task(revision: 4, id: 'p3').copyWith(priority: 3, sortOrder: 1000),
+    ]);
+
+    for (var priority = 0; priority < 4; priority++) {
+      expect(store.tasksForPriority(priority), hasLength(1));
+      expect(store.tasksForPriority(priority).single.priority, priority);
+    }
   });
 
   test('completion syncs completedAt without a task status field', () async {
@@ -97,9 +115,8 @@ void main() {
   });
 
   test('toggling a completed task returns it to unfinished', () async {
-    final completed = _task(
-      revision: 1,
-    ).copyWith(completedAt: DateTime(2026, 9, 15, 11));
+    final completed = _task(revision: 1)
+        .copyWith(completedAt: DateTime(2026, 9, 15, 11));
     final store = TaskStore([completed]);
 
     await store.toggleComplete(completed);
@@ -117,6 +134,22 @@ void main() {
     expect(store.tasks.single.dueAt, due);
     expect(store.tasks.single.reminder, 'min_30');
     expect(store.tasks.single.recurrence, 'daily');
+  });
+
+  test('creates a task with a custom due time and schedule options', () async {
+    final store = TaskStore([]);
+    final dueAt = DateTime(2026, 10, 8, 9, 45);
+
+    await store.addTask(
+      title: 'Custom schedule',
+      dueAt: dueAt,
+      reminder: 'min_30',
+      recurrence: 'weekly',
+    );
+
+    expect(store.tasks.single.dueAt, dueAt);
+    expect(store.tasks.single.reminder, 'min_30');
+    expect(store.tasks.single.recurrence, 'weekly');
   });
 
   test('recurring task appears on subsequent matching days', () async {
@@ -226,7 +259,6 @@ CueTask _task({required int revision, String id = 'synced-task'}) {
     title: 'Synced task',
     note: '',
     priority: 2,
-    important: false,
     sortOrder: 1000,
     dueAt: now,
     createdAt: now,

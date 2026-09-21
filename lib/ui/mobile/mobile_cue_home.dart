@@ -199,8 +199,9 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     final noteController = TextEditingController();
     final today = _store.today;
     var priority = 2;
-    var important = false;
-    var dueAt = prefilledDate == null
+    String? reminder;
+    String? recurrence;
+    DateTime? dueAt = prefilledDate == null
         ? DateTime(today.year, today.month, today.day, 18)
         : DateTime(
             prefilledDate.year,
@@ -262,13 +263,17 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                       const SizedBox(height: 8),
                       Row(
                         children: List.generate(4, (index) {
-                          return Padding(
-                            padding: EdgeInsets.only(right: index == 3 ? 0 : 8),
-                            child: _MobilePill(
-                              label: 'P$index',
-                              selected: priority == index,
-                              onTap: () =>
-                                  setSheetState(() => priority = index),
+                          return Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                right: index == 3 ? 0 : 8,
+                              ),
+                              child: _MobilePill(
+                                label: 'P$index',
+                                selected: priority == index,
+                                onTap: () =>
+                                    setSheetState(() => priority = index),
+                              ),
                             ),
                           );
                         }),
@@ -279,7 +284,9 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                           Expanded(
                             child: _DateChoice(
                               label: context.l10n.today,
-                              selected: TaskStore.isSameDay(dueAt, today),
+                              selected:
+                                  dueAt != null &&
+                                  TaskStore.isSameDay(dueAt!, today),
                               onTap: () => setSheetState(
                                 () => dueAt = DateTime(
                                   today.year,
@@ -294,10 +301,12 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                           Expanded(
                             child: _DateChoice(
                               label: context.l10n.tomorrow,
-                              selected: TaskStore.isSameDay(
-                                dueAt,
-                                today.add(const Duration(days: 1)),
-                              ),
+                              selected:
+                                  dueAt != null &&
+                                  TaskStore.isSameDay(
+                                    dueAt!,
+                                    today.add(const Duration(days: 1)),
+                                  ),
                               onTap: () {
                                 final tomorrow = today.add(
                                   const Duration(days: 1),
@@ -315,20 +324,84 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                           ),
                         ],
                       ),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: important,
-                        activeTrackColor: _MobileColors.accent,
-                        title: Text(
-                          context.l10n.important,
-                          style: TextStyle(color: _MobileColors.primary),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        key: const Key('mobile-new-task-duedate-picker'),
+                        onTap: () async {
+                          final result = await showCueDatePickerPopover(
+                            context: context,
+                            today: today,
+                            initialDueAt: dueAt,
+                            initialReminder: reminder,
+                            initialRecurrence: recurrence,
+                          );
+                          if (result == null || !context.mounted) return;
+                          setSheetState(() {
+                            if (result.cleared) {
+                              dueAt = null;
+                              reminder = null;
+                              recurrence = null;
+                            } else {
+                              dueAt = result.dueAt;
+                              reminder = result.reminder;
+                              recurrence = result.recurrence;
+                            }
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _MobileColors.subtle,
+                            border: Border.all(color: _MobileColors.border),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_month_outlined,
+                                size: 18,
+                                color: _MobileColors.accent,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      context.l10n.dueDate,
+                                      style: TextStyle(
+                                        color: _MobileColors.secondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      cueDueDateTimeLabel(
+                                        context,
+                                        dueAt,
+                                        today: today,
+                                      ),
+                                      style: TextStyle(
+                                        color: _MobileColors.primary,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: _MobileColors.secondary,
+                                size: 18,
+                              ),
+                            ],
+                          ),
                         ),
-                        subtitle: Text(
-                          context.l10n.showInPriorityQuadrants,
-                          style: TextStyle(color: _MobileColors.secondary),
-                        ),
-                        onChanged: (value) =>
-                            setSheetState(() => important = value),
                       ),
                       const SizedBox(height: 8),
                       SizedBox(
@@ -347,8 +420,9 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                                 title: titleController.text,
                                 note: noteController.text,
                                 priority: priority,
-                                important: important,
                                 dueAt: dueAt,
+                                reminder: reminder,
+                                recurrence: recurrence,
                               ),
                             );
                             if (succeeded && sheetContext.mounted) {
@@ -713,25 +787,25 @@ class _MobileQuadrantsPage extends ConsumerWidget {
         context.l10n.doNow,
         context.l10n.importantUrgent,
         _MobileColors.dangerBackground,
-        store.quadrantTasks(important: true, urgent: true),
+        store.tasksForPriority(0),
       ),
       (
         context.l10n.schedule,
         context.l10n.importantLater,
         _MobileColors.orangeBackground,
-        store.quadrantTasks(important: true, urgent: false),
+        store.tasksForPriority(1),
       ),
       (
         context.l10n.batch,
         context.l10n.urgentLowerValue,
         CueColors.prioritySelected,
-        store.quadrantTasks(important: false, urgent: true),
+        store.tasksForPriority(2),
       ),
       (
         context.l10n.reconsider,
         context.l10n.neither,
         _MobileColors.subtle,
-        store.quadrantTasks(important: false, urgent: false),
+        store.tasksForPriority(3),
       ),
     ];
     return RefreshIndicator(
@@ -1547,6 +1621,7 @@ class _QuickAddButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      key: const Key('mobile-quick-add'),
       onTap: onTap,
       child: Container(
         width: 56,

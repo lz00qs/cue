@@ -30,7 +30,10 @@ export class CreateTaskDto {
   @Max(3)
   priority?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignored. Importance is derived from priority (P0 only).',
+  })
   @IsOptional()
   @IsBoolean()
   important?: boolean;
@@ -87,7 +90,10 @@ export class UpdateTaskDto {
   @Max(3)
   priority?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    deprecated: true,
+    description: 'Ignored. Importance is derived from priority (P0 only).',
+  })
   @IsOptional()
   @IsBoolean()
   important?: boolean;

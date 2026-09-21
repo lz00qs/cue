@@ -62,13 +62,13 @@ void main() {
     // Switch to Quadrants on mobile
     await tester.tap(find.text('Quadrants'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Importance × urgency'), findsWidgets);
+    expect(find.textContaining('priority per quadrant'), findsWidgets);
 
     // Resize back to desktop
     await tester.binding.setSurfaceSize(const Size(1200, 900));
     await tester.pumpAndSettle();
     // Should remain on Quadrants view
-    expect(find.textContaining('Importance × urgency'), findsWidgets);
+    expect(find.textContaining('priority per quadrant'), findsWidgets);
   });
 
   testWidgets('appearance can be changed on desktop and mobile', (
@@ -187,7 +187,7 @@ void main() {
     expect(find.textContaining('DONE ·'), findsNothing);
   });
 
-  testWidgets('desktop new task dialog omits task status selection', (
+  testWidgets('desktop new task dialog omits status and importance controls', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
@@ -204,6 +204,12 @@ void main() {
     expect(find.text('To do'), findsNothing);
     expect(find.text('Doing'), findsNothing);
     expect(find.text('Done'), findsNothing);
+    expect(find.text('Important'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('desktop-new-task-duedate-picker')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
+    expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
   });
 
   testWidgets('desktop inbox renames a group inline', (tester) async {
@@ -399,6 +405,29 @@ void main() {
     expect(find.text('System default'), findsNWidgets(2));
     expect(find.text('Import & sync'), findsOneWidget);
     expect(find.text('Local demo'), findsOneWidget);
+  });
+
+  testWidgets('mobile new task sheet opens the custom due date picker', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-quick-add')));
+    await tester.pumpAndSettle();
+
+    final dueDatePicker = find.byKey(
+      const Key('mobile-new-task-duedate-picker'),
+    );
+    expect(dueDatePicker, findsOneWidget);
+    await tester.ensureVisible(dueDatePicker);
+    await tester.tap(dueDatePicker);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
+    expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
   });
 
   testWidgets('mobile board groups tasks without workflow status tabs', (

@@ -49,6 +49,21 @@ test('sync cursor advances only through changes in the response', async () => {
   assert.equal(queries.length, 2, 'sync must not query a later max revision');
 });
 
+test('importance is derived from P0 even when stored data is stale', async () => {
+  const service = new TasksService({
+    query: async () => ({
+      rows: [
+        row(1, { id: 'p0', priority: 0, important: false }),
+        row(2, { id: 'p1', priority: 1, important: true }),
+      ],
+    }),
+  });
+
+  const tasks = await service.list();
+  assert.equal(tasks[0].important, true);
+  assert.equal(tasks[1].important, false);
+});
+
 test('each task write locks before allocating a revision', async () => {
   for (const operation of ['create', 'update', 'remove']) {
     const statements = [];

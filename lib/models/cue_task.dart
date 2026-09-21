@@ -4,7 +4,6 @@ class CueTask {
     required this.title,
     required this.note,
     required this.priority,
-    required this.important,
     required this.sortOrder,
     required this.createdAt,
     required this.updatedAt,
@@ -22,7 +21,6 @@ class CueTask {
   final String title;
   final String note;
   final int priority;
-  final bool important;
   final double sortOrder;
   final DateTime? dueAt;
   final String? reminder;
@@ -36,12 +34,12 @@ class CueTask {
   final String? group;
 
   bool get isCompleted => completedAt != null;
+  bool get important => priority == 0;
 
   CueTask copyWith({
     String? title,
     String? note,
     int? priority,
-    bool? important,
     double? sortOrder,
     DateTime? dueAt,
     bool clearDueAt = false,
@@ -64,7 +62,6 @@ class CueTask {
       title: title ?? this.title,
       note: note ?? this.note,
       priority: priority ?? this.priority,
-      important: important ?? this.important,
       sortOrder: sortOrder ?? this.sortOrder,
       dueAt: clearDueAt ? null : dueAt ?? this.dueAt,
       reminder: clearReminder ? null : reminder ?? this.reminder,
@@ -90,7 +87,6 @@ class CueTask {
       title: json['title'] as String,
       note: json['note'] as String? ?? '',
       priority: json['priority'] as int,
-      important: json['important'] as bool,
       sortOrder: (json['sortOrder'] as num).toDouble(),
       dueAt: optionalDate('dueAt'),
       reminder: json['reminder'] as String?,
@@ -109,7 +105,6 @@ class CueTask {
     'title': title,
     'note': note,
     'priority': priority,
-    'important': important,
     'sortOrder': sortOrder,
     'dueAt': dueAt?.toUtc().toIso8601String(),
     'reminder': reminder,

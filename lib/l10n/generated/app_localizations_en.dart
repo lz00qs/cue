@@ -174,7 +174,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get importanceUrgencyTwoDays =>
-      'Importance × urgency · urgency within 2 days';
+      'Priority quadrants · one priority per quadrant';
 
   @override
   String get taskAddedToday => 'Task added to Today';
@@ -360,31 +360,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dueSoon => 'Due soon';
 
   @override
-  String get urgentDefinition => 'Urgent = due within 2 days';
+  String get urgentDefinition => 'Only P0 is important';
 
   @override
   String get doNow => 'Do now';
 
   @override
-  String get doNowRule => 'Important · due within 2 days';
+  String get doNowRule => 'P0 · Important';
 
   @override
   String get schedule => 'Schedule';
 
   @override
-  String get scheduleRule => 'Important · not urgent';
+  String get scheduleRule => 'P1';
 
   @override
   String get batch => 'Batch';
 
   @override
-  String get batchRule => 'Due soon · lower importance';
+  String get batchRule => 'P2';
 
   @override
   String get reconsider => 'Reconsider';
 
   @override
-  String get reconsiderRule => 'Neither important nor urgent';
+  String get reconsiderRule => 'P3';
 
   @override
   String get noMatchingTasks => 'No matching tasks';
@@ -419,19 +419,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nothingScheduled => 'Nothing scheduled';
 
   @override
-  String get importantUrgent => 'Important · urgent';
+  String get importantUrgent => 'P0 · Important';
 
   @override
-  String get importantLater => 'Important · later';
+  String get importantLater => 'P1';
 
   @override
-  String get urgentLowerValue => 'Urgent · lower value';
+  String get urgentLowerValue => 'P2';
 
   @override
-  String get neither => 'Neither';
+  String get neither => 'P3';
 
   @override
-  String get importanceUrgency => 'Importance × urgency';
+  String get importanceUrgency => 'One priority per quadrant';
 
   @override
   String get localDemo => 'Local demo';

@@ -77,32 +77,28 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
                 title: context.l10n.doNow,
                 rule: context.l10n.doNowRule,
                 color: CueColors.danger,
-                important: true,
-                urgent: true,
+                priority: 0,
               ),
               _panel(
                 context,
                 title: context.l10n.schedule,
                 rule: context.l10n.scheduleRule,
                 color: CueColors.orange,
-                important: true,
-                urgent: false,
+                priority: 1,
               ),
               _panel(
                 context,
                 title: context.l10n.batch,
                 rule: context.l10n.batchRule,
                 color: CueColors.accent,
-                important: false,
-                urgent: true,
+                priority: 2,
               ),
               _panel(
                 context,
                 title: context.l10n.reconsider,
                 rule: context.l10n.reconsiderRule,
                 color: CueColors.green,
-                important: false,
-                urgent: false,
+                priority: 3,
               ),
             ];
             if (compact) {
@@ -148,14 +144,13 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
     required String title,
     required String rule,
     required Color color,
-    required bool important,
-    required bool urgent,
+    required int priority,
   }) {
-    var tasks = _store
-        .quadrantTasks(important: important, urgent: urgent)
-        .toList();
-    if (_filter == QuadrantFilter.important && !important) tasks = [];
-    if (_filter == QuadrantFilter.dueSoon && !urgent) tasks = [];
+    var tasks = _store.tasksForPriority(priority).toList();
+    if (_filter == QuadrantFilter.important && priority != 0) tasks = [];
+    if (_filter == QuadrantFilter.dueSoon) {
+      tasks = tasks.where(_store.isUrgent).toList();
+    }
     return _QuadrantPanel(
       title: title,
       rule: rule,

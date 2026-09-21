@@ -383,7 +383,7 @@ abstract class AppLocalizations {
   /// No description provided for @importanceUrgencyTwoDays.
   ///
   /// In en, this message translates to:
-  /// **'Importance × urgency · urgency within 2 days'**
+  /// **'Priority quadrants · one priority per quadrant'**
   String get importanceUrgencyTwoDays;
 
   /// No description provided for @taskAddedToday.
@@ -719,7 +719,7 @@ abstract class AppLocalizations {
   /// No description provided for @urgentDefinition.
   ///
   /// In en, this message translates to:
-  /// **'Urgent = due within 2 days'**
+  /// **'Only P0 is important'**
   String get urgentDefinition;
 
   /// No description provided for @doNow.
@@ -731,7 +731,7 @@ abstract class AppLocalizations {
   /// No description provided for @doNowRule.
   ///
   /// In en, this message translates to:
-  /// **'Important · due within 2 days'**
+  /// **'P0 · Important'**
   String get doNowRule;
 
   /// No description provided for @schedule.
@@ -743,7 +743,7 @@ abstract class AppLocalizations {
   /// No description provided for @scheduleRule.
   ///
   /// In en, this message translates to:
-  /// **'Important · not urgent'**
+  /// **'P1'**
   String get scheduleRule;
 
   /// No description provided for @batch.
@@ -755,7 +755,7 @@ abstract class AppLocalizations {
   /// No description provided for @batchRule.
   ///
   /// In en, this message translates to:
-  /// **'Due soon · lower importance'**
+  /// **'P2'**
   String get batchRule;
 
   /// No description provided for @reconsider.
@@ -767,7 +767,7 @@ abstract class AppLocalizations {
   /// No description provided for @reconsiderRule.
   ///
   /// In en, this message translates to:
-  /// **'Neither important nor urgent'**
+  /// **'P3'**
   String get reconsiderRule;
 
   /// No description provided for @noMatchingTasks.
@@ -833,31 +833,31 @@ abstract class AppLocalizations {
   /// No description provided for @importantUrgent.
   ///
   /// In en, this message translates to:
-  /// **'Important · urgent'**
+  /// **'P0 · Important'**
   String get importantUrgent;
 
   /// No description provided for @importantLater.
   ///
   /// In en, this message translates to:
-  /// **'Important · later'**
+  /// **'P1'**
   String get importantLater;
 
   /// No description provided for @urgentLowerValue.
   ///
   /// In en, this message translates to:
-  /// **'Urgent · lower value'**
+  /// **'P2'**
   String get urgentLowerValue;
 
   /// No description provided for @neither.
   ///
   /// In en, this message translates to:
-  /// **'Neither'**
+  /// **'P3'**
   String get neither;
 
   /// No description provided for @importanceUrgency.
   ///
   /// In en, this message translates to:
-  /// **'Importance × urgency'**
+  /// **'One priority per quadrant'**
   String get importanceUrgency;
 
   /// No description provided for @localDemo.

@@ -155,7 +155,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get monthViewDueOnly => '月视图 · 仅显示截止日期';
 
   @override
-  String get importanceUrgencyTwoDays => '重要性 × 紧急性 · 两天内到期视为紧急';
+  String get importanceUrgencyTwoDays => '优先级四象限 · 每个象限对应一个优先级';
 
   @override
   String get taskAddedToday => '任务已添加到今天';
@@ -341,31 +341,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dueSoon => '即将到期';
 
   @override
-  String get urgentDefinition => '紧急 = 两天内到期';
+  String get urgentDefinition => '仅 P0 为重要任务';
 
   @override
   String get doNow => '立即处理';
 
   @override
-  String get doNowRule => '重要 · 两天内到期';
+  String get doNowRule => 'P0 · 重要';
 
   @override
   String get schedule => '安排时间';
 
   @override
-  String get scheduleRule => '重要 · 不紧急';
+  String get scheduleRule => 'P1';
 
   @override
   String get batch => '批量处理';
 
   @override
-  String get batchRule => '即将到期 · 重要性较低';
+  String get batchRule => 'P2';
 
   @override
   String get reconsider => '重新考虑';
 
   @override
-  String get reconsiderRule => '不重要且不紧急';
+  String get reconsiderRule => 'P3';
 
   @override
   String get noMatchingTasks => '没有匹配的任务';
@@ -400,19 +400,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nothingScheduled => '没有已安排的任务';
 
   @override
-  String get importantUrgent => '重要 · 紧急';
+  String get importantUrgent => 'P0 · 重要';
 
   @override
-  String get importantLater => '重要 · 稍后处理';
+  String get importantLater => 'P1';
 
   @override
-  String get urgentLowerValue => '紧急 · 价值较低';
+  String get urgentLowerValue => 'P2';
 
   @override
-  String get neither => '两者皆非';
+  String get neither => 'P3';
 
   @override
-  String get importanceUrgency => '重要性 × 紧急性';
+  String get importanceUrgency => '每个象限对应一个优先级';
 
   @override
   String get localDemo => '本地演示';
