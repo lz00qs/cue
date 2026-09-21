@@ -168,21 +168,25 @@ class _QuadrantPanel extends StatelessWidget {
           Expanded(
             child: tasks.isEmpty
                 ? const _EmptyQuadrant()
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    primary: false,
-                    itemCount: tasks.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      return _QuadrantTaskTile(
-                        key: ValueKey('quadrant-task-${task.id}'),
-                        task: task,
-                        accentColor: color,
-                        onOpen: () => onOpenTask(task),
-                        onToggle: () => onToggleTask(task),
-                      );
-                    },
+                : ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context)
+                        .copyWith(scrollbars: false),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      primary: false,
+                      itemCount: tasks.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final task = tasks[index];
+                        return _QuadrantTaskTile(
+                          key: ValueKey('quadrant-task-${task.id}'),
+                          task: task,
+                          accentColor: color,
+                          onOpen: () => onOpenTask(task),
+                          onToggle: () => onToggleTask(task),
+                        );
+                      },
+                    ),
                   ),
           ),
         ],

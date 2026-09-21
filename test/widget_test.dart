@@ -100,12 +100,17 @@ void main() {
     expect(find.text('Only P0 is important'), findsNothing);
     expect(find.text('P0 · Important'), findsNothing);
     for (var priority = 0; priority < 4; priority++) {
+      final quadrantPanel = find.byKey(ValueKey('quadrant-panel-$priority'));
       expect(
         find.descendant(
-          of: find.byKey(ValueKey('quadrant-panel-$priority')),
+          of: quadrantPanel,
           matching: find.byKey(ValueKey('quadrant-priority-$priority')),
         ),
         findsOneWidget,
+      );
+      expect(
+        find.descendant(of: quadrantPanel, matching: find.byType(Scrollbar)),
+        findsNothing,
       );
     }
     expect(find.byType(CueTaskCard), findsNothing);
