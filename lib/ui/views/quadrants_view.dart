@@ -22,67 +22,42 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
   @override
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
+    final panels = [
+      _panel(title: context.l10n.doNow, color: CueColors.danger, priority: 0),
+      _panel(
+        title: context.l10n.schedule,
+        color: CueColors.orange,
+        priority: 1,
+      ),
+      _panel(title: context.l10n.batch, color: CueColors.accent, priority: 2),
+      _panel(
+        title: context.l10n.reconsider,
+        color: CueColors.green,
+        priority: 3,
+      ),
+    ];
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 820;
-            final panels = [
-              _panel(
-                title: context.l10n.doNow,
-                color: CueColors.danger,
-                priority: 0,
-              ),
-              _panel(
-                title: context.l10n.schedule,
-                color: CueColors.orange,
-                priority: 1,
-              ),
-              _panel(
-                title: context.l10n.batch,
-                color: CueColors.accent,
-                priority: 2,
-              ),
-              _panel(
-                title: context.l10n.reconsider,
-                color: CueColors.green,
-                priority: 3,
-              ),
-            ];
-            if (compact) {
-              return Column(
-                children: panels
-                    .expand((panel) => [panel, const SizedBox(height: 16)])
-                    .toList(),
-              );
-            }
-            return Column(
-              children: [
-                SizedBox(
-                  height: 336,
-                  child: Row(
-                    children: [
-                      Expanded(child: panels[0]),
-                      const SizedBox(width: 16),
-                      Expanded(child: panels[1]),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 336,
-                  child: Row(
-                    children: [
-                      Expanded(child: panels[2]),
-                      const SizedBox(width: 16),
-                      Expanded(child: panels[3]),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+        SizedBox(
+          height: 336,
+          child: Row(
+            children: [
+              Expanded(child: panels[0]),
+              const SizedBox(width: 16),
+              Expanded(child: panels[1]),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 336,
+          child: Row(
+            children: [
+              Expanded(child: panels[2]),
+              const SizedBox(width: 16),
+              Expanded(child: panels[3]),
+            ],
+          ),
         ),
       ],
     );

@@ -122,6 +122,31 @@ void main() {
     );
   });
 
+  testWidgets('quadrants remain a two-by-two grid in a narrow desktop window', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quadrants'));
+    await tester.pumpAndSettle();
+
+    final panels = List.generate(
+      4,
+      (priority) => find.byKey(ValueKey('quadrant-panel-$priority')),
+    );
+    final positions = panels.map(tester.getTopLeft).toList();
+
+    expect(positions[0].dy, positions[1].dy);
+    expect(positions[0].dx, lessThan(positions[1].dx));
+    expect(positions[2].dy, positions[3].dy);
+    expect(positions[2].dx, lessThan(positions[3].dx));
+    expect(positions[2].dy, greaterThan(positions[0].dy));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('quadrant tasks can be dragged to another quadrant', (
     tester,
   ) async {
