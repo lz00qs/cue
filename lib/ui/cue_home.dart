@@ -216,6 +216,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                         : null,
                     actionLabel: context.l10n.addTask,
                     onAction: () => _showAddTaskDialog(),
+                    showAction: _view == CueView.quadrants,
                   ),
                   const SizedBox(height: 24),
                   AnimatedSwitcher(

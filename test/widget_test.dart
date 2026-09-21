@@ -202,7 +202,9 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Add task'));
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('calendar-add-task-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('New task'), findsOneWidget);
@@ -217,6 +219,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
     expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
+  });
+
+  testWidgets('desktop task lists hide the header add task button', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    void expectQuickAddOnly() {
+      expect(find.text('Add task'), findsNothing);
+      expect(find.byKey(const Key('quick-add-field')), findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
+    }
+
+    expectQuickAddOnly();
+
+    for (final page in ['Upcoming', 'List']) {
+      await tester.tap(find.text(page).first);
+      await tester.pumpAndSettle();
+      expectQuickAddOnly();
+    }
   });
 
   testWidgets('desktop inbox renames a group inline', (tester) async {
