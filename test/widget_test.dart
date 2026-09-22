@@ -664,6 +664,9 @@ void main() {
     final fixedPageInsets = defaultTargetPlatform == TargetPlatform.macOS
         ? CueInsets.macosDesktopFixedPage
         : CueInsets.desktopFixedPage;
+    final boardPageInsets = defaultTargetPlatform == TargetPlatform.macOS
+        ? CueInsets.macosDesktopBoardPage
+        : CueInsets.desktopBoardPage;
     final scrollablePageInsets = defaultTargetPlatform == TargetPlatform.macOS
         ? CueInsets.macosDesktopScrollablePage
         : CueInsets.desktopScrollablePage;
@@ -678,9 +681,14 @@ void main() {
     await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
-    expect(pagePadding(), fixedPageInsets);
+    expect(pagePadding(), boardPageInsets);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
+    expect(pagePadding().right, 0);
     expect(pagePadding().top, expectedPageTop);
+    expect(
+      tester.getSize(find.byKey(const Key('board-scroll-end-gutter'))).width,
+      CueSpacing.desktopPageGutter,
+    );
 
     await tester.tap(find.byKey(const Key('sidebar-upcoming')));
     await tester.pumpAndSettle();

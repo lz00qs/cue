@@ -170,9 +170,13 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             _view == CueView.board) {
           return Padding(
             key: const Key('desktop-page-padding'),
-            padding: _usesMacOSIntegratedTitleBar
-                ? CueInsets.macosDesktopFixedPage
-                : CueInsets.desktopFixedPage,
+            padding: _view == CueView.inbox || _view == CueView.board
+                ? (_usesMacOSIntegratedTitleBar
+                      ? CueInsets.macosDesktopBoardPage
+                      : CueInsets.desktopBoardPage)
+                : (_usesMacOSIntegratedTitleBar
+                      ? CueInsets.macosDesktopFixedPage
+                      : CueInsets.desktopFixedPage),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

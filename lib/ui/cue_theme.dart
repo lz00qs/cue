@@ -41,6 +41,12 @@ abstract final class CueInsets {
     CueSpacing.desktopPageGutter,
     CueSpacing.s24,
   );
+  static const desktopBoardPage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.desktopPageTop,
+    0,
+    CueSpacing.s24,
+  );
   static const desktopScrollablePage = EdgeInsets.fromLTRB(
     CueSpacing.desktopPageGutter,
     CueSpacing.desktopPageTop,
@@ -51,6 +57,12 @@ abstract final class CueInsets {
     CueSpacing.desktopPageGutter,
     CueSpacing.macosDesktopPageTop,
     CueSpacing.desktopPageGutter,
+    CueSpacing.s24,
+  );
+  static const macosDesktopBoardPage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.macosDesktopPageTop,
+    0,
     CueSpacing.s24,
   );
   static const macosDesktopScrollablePage = EdgeInsets.fromLTRB(
@@ -86,6 +98,7 @@ abstract final class CueInsets {
   static const screen = EdgeInsets.all(CueSpacing.s24);
   static const dialog = screen;
   static const card = EdgeInsets.all(CueSpacing.s12);
+  static const boardColumn = EdgeInsets.all(CueSpacing.s16);
 }
 
 abstract final class CueColors {
@@ -112,6 +125,10 @@ abstract final class CueColors {
       isDark ? const Color(0xFF000000) : const Color(0xFF1A1C26);
   static Color get subtle =>
       isDark ? const Color(0xFF17181C) : const Color(0xFFF8F8FA);
+  static Color get boardSurface =>
+      isDark ? const Color(0xFF1A1B20) : const Color(0xFFF5F6F8);
+  static Color get boardCardBorder =>
+      isDark ? const Color(0xFF3A3C44) : const Color(0xFFE1E3E8);
   static Color get selected =>
       isDark ? const Color(0xFF172455) : const Color(0xFFE9EEFF);
   static Color get accent =>

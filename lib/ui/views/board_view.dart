@@ -132,6 +132,10 @@ class _GroupSectionBoard extends StatelessWidget {
                 ],
                 const SizedBox(width: 16),
                 _AddGroupColumn(store: store),
+                const SizedBox(
+                  key: Key('board-scroll-end-gutter'),
+                  width: CueSpacing.desktopPageGutter,
+                ),
               ],
             ),
           ),
@@ -314,9 +318,9 @@ class _GroupColumnState extends State<_GroupColumn> {
         key: Key('group-drag-feedback-${widget.group}'),
         width: 300,
         height: widget.height,
-        padding: CueInsets.card,
+        padding: CueInsets.boardColumn,
         decoration: BoxDecoration(
-          color: CueColors.subtle,
+          color: CueColors.boardSurface,
           border: Border.all(color: CueColors.accent),
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
@@ -474,15 +478,18 @@ class _GroupColumnState extends State<_GroupColumn> {
                         color: CueColors.secondary,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        '$label ${pTasks.length}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: CueColors.secondary,
+                      Expanded(
+                        child: Text(
+                          '$label ${pTasks.length}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: CueColors.secondary,
+                          ),
                         ),
                       ),
-                      const Spacer(),
                       SizedBox(
                         width: 24,
                         height: 24,
@@ -613,11 +620,12 @@ class _GroupColumnState extends State<_GroupColumn> {
             key: _columnKey,
             duration: const Duration(milliseconds: 140),
             width: 300,
-            padding: CueInsets.card,
+            padding: CueInsets.boardColumn,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: _hovering || widget.isColumnDropTarget
                   ? CueColors.selected
-                  : CueColors.subtle,
+                  : CueColors.boardSurface,
               border: Border.all(
                 color: _hovering || widget.isColumnDropTarget
                     ? CueColors.accent
@@ -947,12 +955,12 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
             border: Border.all(
               color: _hovered
                   ? CueColors.strongBorder
-                  : CueColors.border.withValues(alpha: 0.6),
+                  : CueColors.boardCardBorder,
             ),
             boxShadow: [
               BoxShadow(
-                color: CueColors.shadow.withValues(alpha: 0.04),
-                blurRadius: 3,
+                color: CueColors.shadow.withValues(alpha: 0.06),
+                blurRadius: 4,
                 offset: Offset(0, 1),
               ),
             ],
@@ -1032,7 +1040,7 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
       data: task,
       feedback: Material(
         color: Colors.transparent,
-        child: SizedBox(width: 276, child: cardContent),
+        child: SizedBox(width: 268, child: cardContent),
       ),
       childWhenDragging: Opacity(opacity: 0.35, child: cardContent),
       child: cardContent,
@@ -1101,11 +1109,9 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
               decoration: BoxDecoration(
-                color: CueColors.subtle,
+                color: CueColors.boardSurface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: CueColors.border.withValues(alpha: 0.6),
-                ),
+                border: Border.all(color: CueColors.boardCardBorder),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1260,9 +1266,10 @@ class _GroupedPreview extends StatelessWidget {
                   if (index > 0) const SizedBox(width: 16),
                   Container(
                     width: columnWidth,
-                    padding: CueInsets.card,
+                    padding: CueInsets.boardColumn,
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
-                      color: CueColors.subtle,
+                      color: CueColors.boardSurface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -1298,6 +1305,10 @@ class _GroupedPreview extends StatelessWidget {
                     ),
                   ),
                 ],
+                const SizedBox(
+                  key: Key('board-scroll-end-gutter'),
+                  width: CueSpacing.desktopPageGutter,
+                ),
               ],
             ),
           ),

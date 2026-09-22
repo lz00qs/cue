@@ -253,7 +253,9 @@ class _CueTaskCardState extends State<CueTaskCard> {
           decoration: BoxDecoration(
             color: CueColors.card,
             border: Border.all(
-              color: _hovered ? CueColors.strongBorder : CueColors.border,
+              color: _hovered
+                  ? CueColors.strongBorder
+                  : CueColors.boardCardBorder,
             ),
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
