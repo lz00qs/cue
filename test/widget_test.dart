@@ -1252,6 +1252,77 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets(
+    'time picker dialog aligns with Cue design tokens and can be set and cleared',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Review PCB layout'));
+      await tester.pumpAndSettle();
+
+      // Open date picker
+      await tester.tap(find.byKey(const Key('desktop-task-duedate-picker')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('cue-date-picker-popover')), findsOneWidget);
+      expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
+
+      // Verify initial time button shows default time
+      expect(find.text('10:30'), findsOneWidget);
+
+      // Open time picker dialog
+      await tester.tap(find.byKey(const Key('cue-date-picker-time')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+
+      // Verify TimePickerThemeData in Theme
+      final timePickerTheme = Theme.of(
+        tester.element(find.byType(TimePickerDialog)),
+      ).timePickerTheme;
+      expect(timePickerTheme.backgroundColor, CueColors.popover);
+      expect(timePickerTheme.dialBackgroundColor, CueColors.subtle);
+      expect(timePickerTheme.dialHandColor, CueColors.accent);
+      final hourMinuteColor = timePickerTheme.hourMinuteColor as WidgetStateColor;
+      final hourMinuteTextColor = timePickerTheme.hourMinuteTextColor as WidgetStateColor;
+      expect(
+        hourMinuteColor.resolve({WidgetState.selected}),
+        CueColors.selected,
+      );
+      expect(
+        hourMinuteColor.resolve({}),
+        CueColors.subtle,
+      );
+      expect(
+        hourMinuteTextColor.resolve({WidgetState.selected}),
+        CueColors.accent,
+      );
+      expect(
+        hourMinuteTextColor.resolve({}),
+        CueColors.primary,
+      );
+
+      // Confirm time picker
+      await tester.tap(
+        find.descendant(
+          of: find.byType(TimePickerDialog),
+          matching: find.text('OK'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(TimePickerDialog), findsNothing);
+
+      // Clear time using the close icon
+      expect(find.byTooltip('清除时间'), findsOneWidget);
+      await tester.tap(find.byTooltip('清除时间'));
+      await tester.pumpAndSettle();
+      expect(find.text('全天'), findsOneWidget);
+      expect(find.byTooltip('清除时间'), findsNothing);
+    },
+  );
 }
 
 Future<void> _pumpRemoteCue(WidgetTester tester, _ManualSyncApi api) async {

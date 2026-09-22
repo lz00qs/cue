@@ -177,6 +177,14 @@ abstract final class CueTheme {
         onPrimary: CueColors.onAccent,
         surface: CueColors.canvas,
         onSurface: CueColors.primary,
+      ).copyWith(
+        surfaceTint: Colors.transparent,
+        surfaceContainerHigh: CueColors.popover,
+        surfaceContainerHighest: CueColors.subtle,
+        primaryContainer: CueColors.selected,
+        onPrimaryContainer: CueColors.accent,
+        outline: CueColors.border,
+        outlineVariant: CueColors.border,
       ),
     );
 
@@ -246,6 +254,106 @@ abstract final class CueTheme {
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.accent, width: 1.5),
           borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+      ),
+      timePickerTheme: TimePickerThemeData(
+        backgroundColor: CueColors.popover,
+        elevation: 20,
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: CueColors.strongBorder),
+          borderRadius: const BorderRadius.all(Radius.circular(16)),
+        ),
+        hourMinuteColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return CueColors.selected;
+          }
+          return CueColors.subtle;
+        }),
+        hourMinuteTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return CueColors.accent;
+          }
+          return CueColors.primary;
+        }),
+        hourMinuteShape: RoundedRectangleBorder(
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
+          side: BorderSide(color: CueColors.border),
+        ),
+        hourMinuteTextStyle: const TextStyle(
+          fontSize: 48,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'SF Pro Display',
+        ),
+        dialBackgroundColor: CueColors.subtle,
+        dialHandColor: CueColors.accent,
+        dialTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return CueColors.onAccent;
+          }
+          return CueColors.primary;
+        }),
+        dialTextStyle: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          fontFamily: 'SF Pro Display',
+        ),
+        entryModeIconColor: CueColors.secondary,
+        helpTextStyle: TextStyle(
+          color: CueColors.primary,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'SF Pro Display',
+        ),
+        timeSelectorSeparatorColor: WidgetStateProperty.resolveWith(
+          (_) => CueColors.primary,
+        ),
+        timeSelectorSeparatorTextStyle: WidgetStateProperty.resolveWith(
+          (_) => TextStyle(
+            fontSize: 48,
+            fontWeight: FontWeight.w600,
+            color: CueColors.primary,
+            fontFamily: 'SF Pro Display',
+          ),
+        ),
+        dayPeriodColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return CueColors.selected;
+          }
+          return CueColors.subtle;
+        }),
+        dayPeriodTextColor: WidgetStateColor.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return CueColors.accent;
+          }
+          return CueColors.secondary;
+        }),
+        dayPeriodBorderSide: BorderSide(color: CueColors.border),
+        dayPeriodShape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+        ),
+        cancelButtonStyle: TextButton.styleFrom(
+          foregroundColor: CueColors.secondary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'SF Pro Display',
+          ),
+        ),
+        confirmButtonStyle: TextButton.styleFrom(
+          backgroundColor: CueColors.accent,
+          foregroundColor: CueColors.onAccent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'SF Pro Display',
+          ),
         ),
       ),
     );

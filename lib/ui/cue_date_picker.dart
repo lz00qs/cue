@@ -357,81 +357,93 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                       style: TextStyle(color: CueColors.primary, fontSize: 14),
                     ),
                     const Spacer(),
-                    InkWell(
-                      key: const Key('cue-date-picker-time'),
-                      onTap: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime:
-                              _selectedTime ??
-                              const TimeOfDay(hour: 18, minute: 0),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: Theme.of(context).colorScheme
-                                    .copyWith(
-                                      primary: CueColors.accent,
-                                      surface: CueColors.popover,
-                                      onSurface: CueColors.primary,
-                                    ),
+                    Tooltip(
+                      message: '选择时间',
+                      child: InkWell(
+                        key: const Key('cue-date-picker-time'),
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime:
+                                _selectedTime ??
+                                const TimeOfDay(hour: 18, minute: 0),
+                            barrierColor: CueColors.modalBarrier,
+                            builder: (context, child) {
+                              final theme = Theme.of(context);
+                              return Theme(
+                                data: theme.copyWith(
+                                  colorScheme: theme.colorScheme.copyWith(
+                                    primary: CueColors.accent,
+                                    onPrimary: CueColors.onAccent,
+                                    primaryContainer: CueColors.selected,
+                                    onPrimaryContainer: CueColors.accent,
+                                    surface: CueColors.popover,
+                                    onSurface: CueColors.primary,
+                                    surfaceContainerHigh: CueColors.popover,
+                                    surfaceContainerHighest: CueColors.subtle,
+                                    surfaceTint: Colors.transparent,
+                                    outline: CueColors.border,
+                                    outlineVariant: CueColors.border,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            setState(() => _selectedTime = picked);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: CueSpacing.s2,
+                            horizontal: CueSpacing.s4,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _selectedTime != null
+                                    ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
+                                    : '全天',
+                                style: TextStyle(
+                                  color: _selectedTime != null
+                                      ? CueColors.accent
+                                      : CueColors.secondary,
+                                  fontSize: 13,
+                                ),
                               ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null) {
-                          setState(() => _selectedTime = picked);
-                        }
-                      },
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: CueSpacing.s8,
-                          vertical: CueSpacing.s4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _selectedTime != null
-                              ? CueColors.selected
-                              : CueColors.subtle,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _selectedTime != null
-                                  ? '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
-                                  : '全天',
-                              style: TextStyle(
-                                color: _selectedTime != null
-                                    ? CueColors.accent
-                                    : CueColors.secondary,
-                                fontSize: 13,
-                                fontWeight: _selectedTime != null
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 18,
+                                color: CueColors.tertiary,
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.edit_calendar,
-                              size: 14,
-                              color: CueColors.tertiary,
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                     if (_selectedTime != null) ...[
                       const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() => _selectedTime = null);
-                        },
-                        child: Icon(
-                          Icons.cancel,
-                          size: 16,
-                          color: CueColors.tertiary,
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _selectedTime = null);
+                          },
+                          child: Tooltip(
+                            message: '清除时间',
+                            child: Padding(
+                              padding: const EdgeInsets.all(2),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: CueColors.tertiary,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
