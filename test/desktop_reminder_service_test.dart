@@ -125,6 +125,14 @@ void main() {
   });
 
   group('DesktopReminderService lifecycle and scheduling', () {
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+    });
+
     test('invokes onNotificationTap callback on notification response', () async {
       final fake = FakeLocalNotificationsPlugin();
       String? tappedTaskId;
@@ -178,8 +186,7 @@ void main() {
         expect(fake.scheduled, hasLength(1));
         final pending = fake.scheduled.first;
         expect(pending.title, 'Complete documentation');
-        expect(pending.body, contains('到期时间：'));
-        expect(pending.body, contains('High priority task'));
+        expect(pending.body, isNull);
         expect(pending.payload, startsWith('cue-task:scheduled-1:'));
       }
 

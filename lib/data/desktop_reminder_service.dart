@@ -304,25 +304,10 @@ class DesktopReminderService {
     int id,
     ReminderOccurrence occurrence,
   ) {
-    final due = occurrence.dueAt;
-    final date =
-        '${due.year.toString().padLeft(4, '0')}-'
-        '${due.month.toString().padLeft(2, '0')}-'
-        '${due.day.toString().padLeft(2, '0')} '
-        '${due.hour.toString().padLeft(2, '0')}:'
-        '${due.minute.toString().padLeft(2, '0')}';
-    final isZh = _languageCode.toLowerCase().startsWith('zh');
-    final prefix = isZh ? '到期时间：' : 'Due: ';
-    final dueLine = '$prefix$date';
-    final note = occurrence.task.note.trim();
-    final body = note.isNotEmpty
-        ? '$dueLine\n${note.length > 80 ? '${note.substring(0, 80)}...' : note}'
-        : dueLine;
-
     return _DesiredNotification(
       id: id,
       title: occurrence.task.title,
-      body: body,
+      body: null,
       scheduledAt: occurrence.scheduledAt,
       payload:
           '$_payloadPrefix${occurrence.task.id}:'
@@ -371,7 +356,7 @@ class _DesiredNotification {
 
   final int id;
   final String title;
-  final String body;
+  final String? body;
   final DateTime scheduledAt;
   final String payload;
 }
