@@ -55,7 +55,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
       bottomNavigationBar: _MobileBottomNavigation(
         destination: _destination,
         onSelect: (destination) {
-          ref.read(mobileUiProvider.notifier).selectDestination(destination);
+          navigateToMobileDestination(ref, destination);
         },
       ),
     );
@@ -148,15 +148,11 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
   }
 
   void _openBoard() {
-    ref
-        .read(mobileUiProvider.notifier)
-        .selectDestination(MobileDestination.board);
+    navigateToMobileDestination(ref, MobileDestination.board);
   }
 
   void _openToday() {
-    ref
-        .read(mobileUiProvider.notifier)
-        .selectDestination(MobileDestination.today);
+    navigateToMobileDestination(ref, MobileDestination.today);
   }
 
   Future<void> _syncNow() => _runOperation(_store.sync);

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/api_client.dart';
 import '../data/locale_store.dart';
 import '../data/server_config_store.dart';
+import '../data/startup_view_store.dart';
 import '../data/task_store.dart';
 import '../data/theme_store.dart';
 import '../data/token_store.dart';
@@ -46,6 +47,7 @@ class AppState {
     this.configuringServer = false,
     this.locale,
     this.themeMode = ThemeMode.system,
+    this.startupView = StartupView.today,
   });
 
   final TaskStore? store;
@@ -56,6 +58,7 @@ class AppState {
   final bool configuringServer;
   final Locale? locale;
   final ThemeMode themeMode;
+  final StartupView startupView;
 
   static const _unchanged = Object();
 
@@ -68,6 +71,7 @@ class AppState {
     bool? configuringServer,
     Object? locale = _unchanged,
     ThemeMode? themeMode,
+    StartupView? startupView,
   }) => AppState(
     store: identical(store, _unchanged) ? this.store : store as TaskStore?,
     email: identical(email, _unchanged) ? this.email : email as String?,
@@ -81,6 +85,7 @@ class AppState {
     configuringServer: configuringServer ?? this.configuringServer,
     locale: identical(locale, _unchanged) ? this.locale : locale as Locale?,
     themeMode: themeMode ?? this.themeMode,
+    startupView: startupView ?? this.startupView,
   );
 }
 
@@ -88,6 +93,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
   TokenStore? _tokens;
   LocaleStore? _localeStore;
   ThemeStore? _themeStore;
+  StartupViewStore? _startupViewStore;
   ServerConfigStore? _serverConfig;
   ApiClient? _api;
   TaskStore? _activeStore;
@@ -117,6 +123,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     _tokens = TokenStore();
     _localeStore = LocaleStore();
     _themeStore = ThemeStore();
+    _startupViewStore = StartupViewStore();
     Future.microtask(_bootstrap);
     return AppState(themeMode: defaultMode);
   }
@@ -156,6 +163,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     try {
       await _restoreTheme();
       await _restoreLocale();
+      await _restoreStartupView();
       if (_isNativePlatform) {
         _serverConfig = ServerConfigStore();
         final savedUrl = await _serverConfig!.serverUrl;
@@ -200,13 +208,21 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     try {
       final mode = await _themeStore!.mode;
       if (mode != null && ref.mounted) {
-        changeTheme(
-          _parseThemeMode(mode),
-          persist: false,
-        );
+        changeTheme(_parseThemeMode(mode), persist: false);
       }
     } catch (_) {
       // A theme preference should never prevent the app from starting.
+    }
+  }
+
+  Future<void> _restoreStartupView() async {
+    try {
+      final view = await _startupViewStore!.view;
+      if (view != null && ref.mounted) {
+        state = state.copyWith(startupView: view);
+      }
+    } catch (_) {
+      // A startup view preference should never prevent the app from starting.
     }
   }
 
@@ -220,11 +236,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
         ThemeMode.light => 'light',
         ThemeMode.system => 'system',
       };
-      unawaited(
-        store
-            .save(modeString)
-            .catchError((_) {}),
-      );
+      unawaited(store.save(modeString).catchError((_) {}));
     }
   }
 
@@ -233,6 +245,14 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     final store = _localeStore;
     if (store != null) {
       unawaited(store.save(locale?.languageCode).catchError((_) {}));
+    }
+  }
+
+  void changeStartupView(StartupView view) {
+    state = state.copyWith(startupView: view);
+    final store = _startupViewStore;
+    if (store != null) {
+      unawaited(store.save(view).catchError((_) {}));
     }
   }
 

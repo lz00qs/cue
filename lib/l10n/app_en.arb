@@ -41,6 +41,7 @@
   "calendar": "Calendar",
   "quadrants": "Quadrants",
   "settings": "Settings",
+  "defaultView": "Default view",
   "addTask": "Add task",
   "openTaskCount": "{count, plural, =0{No open tasks} =1{1 open task} other{{count} open tasks}}",
   "@openTaskCount": {"placeholders": {"count": {"type": "int"}}},

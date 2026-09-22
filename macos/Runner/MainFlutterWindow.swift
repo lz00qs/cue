@@ -33,7 +33,7 @@ class MainFlutterWindow: NSWindow {
   private func handleLocalStorage(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     let allowedKeys: Set<String> = [
       "cue_access_token", "cue_refresh_token", "cue_user_email",
-      "cue_server_url", "cue_language_code", "cue_theme"
+      "cue_server_url", "cue_language_code", "cue_theme", "cue_startup_view"
     ]
     guard let arguments = call.arguments as? [String: Any],
           let key = arguments["key"] as? String,

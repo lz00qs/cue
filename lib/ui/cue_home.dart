@@ -14,6 +14,7 @@ import 'appearance_menu.dart';
 import 'cue_date_picker.dart';
 import 'cue_widgets.dart';
 import 'desktop/task_details_popover.dart';
+import 'default_view_menu.dart';
 import 'language_menu.dart';
 import 'mobile/mobile_cue_home.dart';
 import 'views/board_view.dart';
@@ -89,7 +90,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         actions: {
           _FocusQuickAddIntent: CallbackAction<_FocusQuickAddIntent>(
             onInvoke: (_) {
-              ref.read(cueHomeUiProvider.notifier).focusToday();
+              navigateToCueView(ref, CueView.today);
               WidgetsBinding.instance.addPostFrameCallback(
                 (_) => _quickAddFocus.requestFocus(),
               );
@@ -268,7 +269,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   };
 
   void _selectView(CueView view) {
-    ref.read(cueHomeUiProvider.notifier).selectView(view);
+    navigateToCueView(ref, view);
   }
 
   Future<void> _quickAdd() async {
@@ -780,7 +781,7 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
   }
 }
 
-enum _SidebarAction { appearance, language, server, signOut }
+enum _SidebarAction { defaultView, appearance, language, server, signOut }
 
 class _SidebarSettingsMenu extends StatelessWidget {
   const _SidebarSettingsMenu({
@@ -872,6 +873,13 @@ class _SidebarSettingsMenu extends StatelessWidget {
         ),
         const PopupMenuDivider(height: 1),
         PopupMenuItem<_SidebarAction>(
+          value: _SidebarAction.defaultView,
+          child: _SettingsMenuItem(
+            icon: Icons.home_outlined,
+            label: context.l10n.defaultView,
+          ),
+        ),
+        PopupMenuItem<_SidebarAction>(
           value: _SidebarAction.appearance,
           child: _SettingsMenuItem(
             icon: Icons.contrast_rounded,
@@ -943,6 +951,8 @@ class _SidebarSettingsMenu extends StatelessWidget {
 
   void _handleAction(BuildContext context, _SidebarAction action) {
     switch (action) {
+      case _SidebarAction.defaultView:
+        showDefaultViewPicker(context);
       case _SidebarAction.appearance:
         showAppearancePicker(context, mobile: false);
       case _SidebarAction.language:

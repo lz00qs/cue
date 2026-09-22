@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:cue/data/app_storage.dart';
 import 'package:cue/data/locale_store.dart';
 import 'package:cue/data/server_config_store.dart';
+import 'package:cue/data/startup_view_store.dart';
 import 'package:cue/data/theme_store.dart';
 import 'package:cue/data/token_store.dart';
 
@@ -48,6 +49,7 @@ void main() {
       final server = ServerConfigStore();
       final locale = LocaleStore();
       final theme = ThemeStore();
+      final startupView = StartupViewStore();
       await tokens.save(
         accessToken: 'access',
         refreshToken: 'refresh',
@@ -56,11 +58,13 @@ void main() {
       await server.save('https://cue.example.com');
       await locale.save('zh');
       await theme.save('dark');
+      await startupView.save(StartupView.calendar);
 
       expect(await TokenStore().refreshToken, 'refresh');
       expect(await ServerConfigStore().serverUrl, 'https://cue.example.com');
       expect(await LocaleStore().languageCode, 'zh');
       expect(await ThemeStore().mode, 'dark');
+      expect(await StartupViewStore().view, StartupView.calendar);
       expect(
         values.keys,
         containsAll([
@@ -70,6 +74,7 @@ void main() {
           'cue_server_url',
           'cue_language_code',
           'cue_theme',
+          'cue_startup_view',
         ]),
       );
       expect(calls, containsAll(['read', 'write']));

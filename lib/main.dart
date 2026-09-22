@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'l10n/l10n.dart';
 import 'state/app_state.dart';
+import 'state/page_state.dart';
 import 'ui/cue_home.dart';
 import 'ui/cue_theme.dart';
 import 'ui/login_screen.dart';
@@ -56,13 +57,18 @@ class _CueAppView extends ConsumerWidget {
                 ? controller.beginServerConfiguration
                 : null,
           )
-        : CueHome(
-            userEmail: app.email,
-            onLogout: ref.read(demoModeProvider) ? null : controller.logout,
-            serverUrl: isNativePlatform ? app.serverUrl : null,
-            onConfigureServer: isNativePlatform
-                ? controller.beginServerConfiguration
-                : null,
+        : ProviderScope(
+            overrides: [
+              initialStartupViewProvider.overrideWithValue(app.startupView),
+            ],
+            child: CueHome(
+              userEmail: app.email,
+              onLogout: ref.read(demoModeProvider) ? null : controller.logout,
+              serverUrl: isNativePlatform ? app.serverUrl : null,
+              onConfigureServer: isNativePlatform
+                  ? controller.beginServerConfiguration
+                  : null,
+            ),
           );
     return MaterialApp(
       onGenerateTitle: (context) => context.l10n.appTitle,

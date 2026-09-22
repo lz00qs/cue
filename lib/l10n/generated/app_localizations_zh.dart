@@ -133,6 +133,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
+  String get defaultView => '默认界面';
+
+  @override
   String get addTask => '添加任务';
 
   @override

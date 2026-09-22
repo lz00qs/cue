@@ -344,6 +344,12 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @defaultView.
+  ///
+  /// In en, this message translates to:
+  /// **'Default view'**
+  String get defaultView;
+
   /// No description provided for @addTask.
   ///
   /// In en, this message translates to:

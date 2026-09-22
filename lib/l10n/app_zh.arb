@@ -41,6 +41,7 @@
   "calendar": "日历",
   "quadrants": "四象限",
   "settings": "设置",
+  "defaultView": "默认界面",
   "addTask": "添加任务",
   "openTaskCount": "{count} 个未完成任务",
   "taskCount": "{count} 个任务",

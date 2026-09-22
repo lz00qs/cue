@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:cue/data/api_client.dart';
 import 'package:cue/data/task_store.dart';
+import 'package:cue/data/startup_view_store.dart';
 import 'package:cue/data/token_store.dart';
 import 'package:cue/l10n/l10n.dart';
 import 'package:cue/main.dart';
@@ -276,6 +277,80 @@ void main() {
     await tester.tap(find.byKey(const Key('appearance-option-system')));
     await tester.pumpAndSettle();
     expect(find.text('System default'), findsWidgets);
+  });
+
+  testWidgets('desktop settings change the view used on next launch', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focus for today'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Default view'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('default-view-option-today')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('default-view-option-calendar')));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CueHome)),
+      listen: false,
+    );
+    expect(
+      container.read(appControllerProvider).startupView,
+      StartupView.calendar,
+    );
+    expect(find.text('Focus for today'), findsOneWidget);
+  });
+
+  testWidgets('desktop opens on the configured default view', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = TaskStore.demo();
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [taskStoreProvider.overrideWithValue(store)],
+        child: ProviderScope(
+          overrides: [
+            initialStartupViewProvider.overrideWithValue(StartupView.calendar),
+          ],
+          child: MaterialApp(
+            theme: CueTheme.active,
+            locale: const Locale('en'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            home: const CueHome(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('calendar-title-picker-trigger')),
+      findsOneWidget,
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CueHome)),
+      listen: false,
+    );
+    expect(container.read(cueHomeUiProvider).view, CueView.calendar);
+
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(mobileUiProvider).destination,
+      MobileDestination.calendar,
+    );
+    expect(find.text('September'), findsWidgets);
   });
 
   testWidgets(

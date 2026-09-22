@@ -137,6 +137,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
+  String get defaultView => 'Default view';
+
+  @override
   String get addTask => 'Add task';
 
   @override

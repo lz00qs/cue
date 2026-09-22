@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/startup_view_store.dart';
 import 'app_state.dart';
 
 enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
@@ -12,30 +13,33 @@ class CueHomeUiState {
   final CueListFilter filter;
 }
 
+final initialStartupViewProvider = Provider<StartupView>(
+  (ref) => StartupView.today,
+  dependencies: const [],
+);
+
 final cueHomeUiProvider = NotifierProvider<CueHomeUi, CueHomeUiState>(
   CueHomeUi.new,
+  dependencies: [initialStartupViewProvider],
 );
 
 class CueHomeUi extends Notifier<CueHomeUiState> {
   @override
-  CueHomeUiState build() =>
-      const CueHomeUiState(CueView.today, CueListFilter.today);
+  CueHomeUiState build() {
+    final view = _mapStartupView(ref.read(initialStartupViewProvider));
+    final filter = view == CueView.upcoming
+        ? CueListFilter.upcoming
+        : CueListFilter.today;
+    return CueHomeUiState(view, filter);
+  }
 
-  void selectView(CueView view, {bool syncMobile = true}) {
+  void selectView(CueView view) {
     final filter = switch (view) {
       CueView.today => CueListFilter.today,
       CueView.upcoming => CueListFilter.upcoming,
       _ => state.filter,
     };
     state = CueHomeUiState(view, filter);
-    if (syncMobile) {
-      final dest = _mapViewToDestination(view);
-      if (dest != null) {
-        ref
-            .read(mobileUiProvider.notifier)
-            .selectDestination(dest, syncDesktop: false);
-      }
-    }
   }
 
   void selectFilter(CueListFilter filter) {
@@ -45,6 +49,17 @@ class CueHomeUi extends Notifier<CueHomeUiState> {
   void focusToday() {
     selectView(CueView.today);
   }
+}
+
+CueView _mapStartupView(StartupView view) {
+  return switch (view) {
+    StartupView.inbox => CueView.inbox,
+    StartupView.today => CueView.today,
+    StartupView.upcoming => CueView.upcoming,
+    StartupView.list => CueView.list,
+    StartupView.calendar => CueView.calendar,
+    StartupView.quadrants => CueView.quadrants,
+  };
 }
 
 MobileDestination? _mapViewToDestination(CueView view) {
@@ -69,29 +84,38 @@ class MobileUiState {
 
 final mobileUiProvider = NotifierProvider<MobileUi, MobileUiState>(
   MobileUi.new,
+  dependencies: [initialStartupViewProvider],
 );
 
 class MobileUi extends Notifier<MobileUiState> {
   @override
-  MobileUiState build() => const MobileUiState(MobileDestination.today, false);
+  MobileUiState build() {
+    final view = _mapStartupView(ref.read(initialStartupViewProvider));
+    return MobileUiState(_mapViewToDestination(view)!, false);
+  }
 
-  void selectDestination(
-    MobileDestination destination, {
-    bool syncDesktop = true,
-  }) {
+  void selectDestination(MobileDestination destination) {
     state = MobileUiState(destination, state.showLater);
-    if (syncDesktop) {
-      final view = _mapDestinationToView(destination);
-      if (view != null) {
-        ref
-            .read(cueHomeUiProvider.notifier)
-            .selectView(view, syncMobile: false);
-      }
-    }
   }
 
   void showLater(bool value) {
     state = MobileUiState(state.destination, value);
+  }
+}
+
+void navigateToCueView(WidgetRef ref, CueView view) {
+  ref.read(cueHomeUiProvider.notifier).selectView(view);
+  final destination = _mapViewToDestination(view);
+  if (destination != null) {
+    ref.read(mobileUiProvider.notifier).selectDestination(destination);
+  }
+}
+
+void navigateToMobileDestination(WidgetRef ref, MobileDestination destination) {
+  ref.read(mobileUiProvider.notifier).selectDestination(destination);
+  final view = _mapDestinationToView(destination);
+  if (view != null) {
+    ref.read(cueHomeUiProvider.notifier).selectView(view);
   }
 }
 
