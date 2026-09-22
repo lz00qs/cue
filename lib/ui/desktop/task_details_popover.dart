@@ -527,8 +527,27 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                 children: [
                   const Spacer(),
                   PopupMenuButton<String>(
+                    key: const Key('desktop-task-actions-menu'),
                     tooltip: context.l10n.moreOptions,
-                    icon: const Icon(Icons.more_horiz, size: 20),
+                    padding: EdgeInsets.zero,
+                    iconSize: 20,
+                    position: PopupMenuPosition.over,
+                    offset: const Offset(0, -90),
+                    constraints: const BoxConstraints.tightFor(width: 160),
+                    color: CueColors.popover,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 12,
+                    shadowColor: Colors.black.withValues(alpha: 0.32),
+                    menuPadding: const EdgeInsets.all(6),
+                    clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: CueColors.border),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    icon: Icon(
+                      Icons.more_horiz_rounded,
+                      color: CueColors.secondary,
+                    ),
                     onSelected: (value) {
                       if (value == 'complete') {
                         widget.onRun(() => _store.toggleComplete(task));
@@ -538,16 +557,94 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                     },
                     itemBuilder: (_) => [
                       PopupMenuItem(
+                        key: const Key('desktop-task-action-complete'),
                         value: 'complete',
-                        child: Text(context.l10n.toggleComplete),
+                        height: 36,
+                        padding: EdgeInsets.zero,
+                        child: _TaskActionMenuItemContent(
+                          icon: task.isCompleted
+                              ? Icons.radio_button_unchecked_rounded
+                              : Icons.check_circle_outline_rounded,
+                          label: context.l10n.toggleComplete,
+                        ),
                       ),
                       PopupMenuItem(
+                        key: const Key('desktop-task-action-delete'),
                         value: 'delete',
-                        child: Text(context.l10n.delete),
+                        height: 36,
+                        padding: EdgeInsets.zero,
+                        child: _TaskActionMenuItemContent(
+                          icon: Icons.delete_outline_rounded,
+                          label: context.l10n.delete,
+                          danger: true,
+                        ),
                       ),
                     ],
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskActionMenuItemContent extends StatefulWidget {
+  const _TaskActionMenuItemContent({
+    required this.icon,
+    required this.label,
+    this.danger = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool danger;
+
+  @override
+  State<_TaskActionMenuItemContent> createState() =>
+      _TaskActionMenuItemContentState();
+}
+
+class _TaskActionMenuItemContentState
+    extends State<_TaskActionMenuItemContent> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = widget.danger ? CueColors.danger : CueColors.primary;
+    final hoverColor = widget.danger
+        ? CueColors.dangerBackground
+        : CueColors.subtle;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: _hovered ? hoverColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Icon(widget.icon, size: 17, color: foreground),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 13,
+                  height: 18 / 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],

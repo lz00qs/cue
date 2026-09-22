@@ -522,6 +522,51 @@ void main() {
     expect(find.text('Check connector labels'), findsOneWidget);
   });
 
+  testWidgets('desktop task action menu follows the Cue popover style', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Review PCB layout'));
+    await tester.pumpAndSettle();
+
+    final menuFinder = find.byKey(const Key('desktop-task-actions-menu'));
+    final menu = tester.widget<PopupMenuButton<String>>(menuFinder);
+    expect(menu.position, PopupMenuPosition.over);
+    expect(menu.offset, const Offset(0, -90));
+    expect(menu.constraints, const BoxConstraints.tightFor(width: 160));
+    expect(menu.color, CueColors.popover);
+    expect(menu.surfaceTintColor, Colors.transparent);
+    expect(menu.menuPadding, const EdgeInsets.all(6));
+
+    final menuButtonRect = tester.getRect(menuFinder);
+    await tester.tap(menuFinder);
+    await tester.pumpAndSettle();
+
+    final completeItemFinder = find.byKey(
+      const Key('desktop-task-action-complete'),
+    );
+    final deleteItemFinder = find.byKey(
+      const Key('desktop-task-action-delete'),
+    );
+    final completeItem = tester.widget<PopupMenuItem<String>>(
+      completeItemFinder,
+    );
+    final deleteItem = tester.widget<PopupMenuItem<String>>(deleteItemFinder);
+    expect(completeItem.height, 36);
+    expect(deleteItem.height, 36);
+    final completeItemRect = tester.getRect(completeItemFinder);
+    final deleteItemRect = tester.getRect(deleteItemFinder);
+    expect(deleteItemRect.bottom, lessThan(menuButtonRect.top));
+    expect(deleteItemRect.right, closeTo(menuButtonRect.right - 6, 0.1));
+    expect(completeItemRect.left, greaterThan(menuButtonRect.left - 160));
+    expect(find.byIcon(Icons.check_circle_outline_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline_rounded), findsOneWidget);
+  });
+
   testWidgets('desktop empty task note uses the concise note placeholder', (
     tester,
   ) async {
