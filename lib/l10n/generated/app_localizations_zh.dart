@@ -491,6 +491,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get syncNow => '立即同步';
 
   @override
+  String get syncFailedRetry => '同步失败 · 点击重试';
+
+  @override
   String get changeServer => '更改服务器';
 
   @override

@@ -164,6 +164,7 @@
   "lastSynced": "Last synced",
   "server": "Server",
   "syncNow": "Sync now",
+  "syncFailedRetry": "Sync failed · click to retry",
   "changeServer": "Change server",
   "cueWorkspace": "Cue workspace",
   "focusStreak": "Focus streak · 12 days",

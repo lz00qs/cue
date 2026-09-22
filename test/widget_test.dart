@@ -1,8 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:cue/data/api_client.dart';
+import 'package:cue/data/task_store.dart';
+import 'package:cue/data/token_store.dart';
+import 'package:cue/l10n/l10n.dart';
 import 'package:cue/main.dart';
+import 'package:cue/state/app_state.dart';
 import 'package:cue/state/page_state.dart';
+import 'package:cue/ui/cue_home.dart';
 import 'package:cue/ui/cue_theme.dart';
 import 'package:cue/ui/cue_widgets.dart';
 
@@ -53,7 +62,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Switch to Calendar on desktop
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
     expect(find.text('September 2026'), findsOneWidget);
 
@@ -83,7 +92,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Quadrants'));
+    await tester.tap(find.byKey(const Key('sidebar-quadrants')));
     await tester.pumpAndSettle();
 
     final panel = tester.widget<Container>(
@@ -138,10 +147,20 @@ void main() {
         tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
 
     expect(pageBackground(), CueColors.canvas);
-    for (final page in ['Inbox', 'Upcoming', 'List', 'Calendar', 'Quadrants']) {
-      await tester.tap(find.text(page).first);
+    for (final entry in const {
+      'Inbox': 'sidebar-inbox',
+      'Upcoming': 'sidebar-upcoming',
+      'List': 'sidebar-list',
+      'Calendar': 'sidebar-calendar',
+      'Quadrants': 'sidebar-quadrants',
+    }.entries) {
+      await tester.tap(find.byKey(Key(entry.value)));
       await tester.pumpAndSettle();
-      expect(pageBackground(), CueColors.canvas, reason: '$page background');
+      expect(
+        pageBackground(),
+        CueColors.canvas,
+        reason: '${entry.key} background',
+      );
     }
   });
 
@@ -153,7 +172,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Quadrants'));
+    await tester.tap(find.byKey(const Key('sidebar-quadrants')));
     await tester.pumpAndSettle();
 
     final panels = List.generate(
@@ -178,7 +197,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Quadrants'));
+    await tester.tap(find.byKey(const Key('sidebar-quadrants')));
     await tester.pumpAndSettle();
 
     const taskKey = ValueKey('quadrant-task-design-handoff');
@@ -208,7 +227,9 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Appearance'));
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsOneWidget);
     await tester.tap(find.byKey(const Key('appearance-option-dark')));
@@ -297,11 +318,11 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    expect(find.text('Cue'), findsOneWidget);
+    expect(find.byKey(const Key('sidebar-today')), findsOneWidget);
     expect(find.text('Focus for today'), findsOneWidget);
     expect(find.text('Review PCB layout'), findsOneWidget);
 
-    await tester.tap(find.text('Inbox'));
+    await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
     expect(find.text('社会事项'), findsOneWidget);
@@ -322,19 +343,86 @@ void main() {
     expect(find.textContaining('DONE ·'), findsNothing);
   });
 
-  testWidgets('desktop sidebar title uses balanced top and left inset', (
-    tester,
-  ) async {
+  testWidgets('desktop sidebar uses a compact fixed icon rail', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    expect(
-      tester.getTopLeft(find.text('Cue')),
-      const Offset(CueSpacing.s16, CueSpacing.s16),
+    expect(tester.getSize(find.byKey(const Key('desktop-sidebar'))).width, 68);
+    expect(find.text('Cue'), findsNothing);
+    expect(find.byTooltip('Today'), findsOneWidget);
+  });
+
+  testWidgets('manual sync rotates for at least two seconds', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final api = _ManualSyncApi(
+      () async => const SyncResult(changes: [], latestRevision: 0),
     );
+    await _pumpRemoteCue(tester, api);
+
+    await tester.tap(find.byKey(const Key('sidebar-sync')));
+    await tester.pump();
+
+    AnimationController rotation() =>
+        tester
+                .widget<RotationTransition>(
+                  find.byKey(const Key('sidebar-sync-rotation')),
+                )
+                .turns
+            as AnimationController;
+
+    expect(rotation().isAnimating, isTrue);
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(rotation().isAnimating, isTrue);
+    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.pumpAndSettle();
+    expect(rotation().isAnimating, isFalse);
+    expect(find.byKey(const Key('sidebar-sync-failed')), findsNothing);
+  });
+
+  testWidgets('manual sync keeps rotating until a slow sync completes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final sync = Completer<SyncResult>();
+    final api = _ManualSyncApi(() => sync.future);
+    await _pumpRemoteCue(tester, api);
+
+    await tester.tap(find.byKey(const Key('sidebar-sync')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2500));
+
+    final rotation =
+        tester
+                .widget<RotationTransition>(
+                  find.byKey(const Key('sidebar-sync-rotation')),
+                )
+                .turns
+            as AnimationController;
+    expect(rotation.isAnimating, isTrue);
+
+    sync.complete(const SyncResult(changes: [], latestRevision: 0));
+    await tester.pumpAndSettle();
+    expect(rotation.isAnimating, isFalse);
+  });
+
+  testWidgets('manual sync shows a retryable failure icon', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final api = _ManualSyncApi(() async => throw const ApiException('Offline'));
+    await _pumpRemoteCue(tester, api);
+
+    await tester.tap(find.byKey(const Key('sidebar-sync')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(find.byKey(const Key('sidebar-sync-failed')), findsOneWidget);
+    expect(find.byTooltip('Sync failed · click to retry'), findsOneWidget);
   });
 
   testWidgets('desktop new task dialog omits status and importance controls', (
@@ -345,7 +433,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('calendar-add-task-button')));
     await tester.pumpAndSettle();
@@ -381,8 +469,8 @@ void main() {
 
     expectQuickAddOnly();
 
-    for (final page in ['Upcoming', 'List']) {
-      await tester.tap(find.text(page).first);
+    for (final key in ['sidebar-upcoming', 'sidebar-list']) {
+      await tester.tap(find.byKey(Key(key)));
       await tester.pumpAndSettle();
       expectQuickAddOnly();
     }
@@ -410,21 +498,21 @@ void main() {
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
     expect(pagePadding().top, CueSpacing.desktopPageTop);
 
-    await tester.tap(find.text('Inbox').first);
+    await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
     expect(pagePadding(), CueInsets.desktopFixedPage);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
     expect(pagePadding().top, CueSpacing.desktopPageTop);
 
-    await tester.tap(find.text('Upcoming').first);
+    await tester.tap(find.byKey(const Key('sidebar-upcoming')));
     await tester.pumpAndSettle();
 
     expect(pagePadding(), CueInsets.desktopScrollablePage);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
     expect(pagePadding().top, CueSpacing.desktopPageTop);
 
-    await tester.tap(find.text('Calendar').first);
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
     expect(pagePadding(), CueInsets.desktopFixedPage);
@@ -448,7 +536,7 @@ void main() {
 
     final initialTop = tester.getTopLeft(quickCaptureFor(CueView.today)).dy;
 
-    await tester.tap(find.text('Upcoming').first);
+    await tester.tap(find.byKey(const Key('sidebar-upcoming')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 90));
 
@@ -467,7 +555,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Inbox'));
+    await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
     final prioritySection = find.byKey(const Key('group-priority-研发事项-3'));
@@ -550,7 +638,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Inbox'));
+    await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
     final socialColumn = find.byKey(const Key('group-col-社会事项'));
@@ -686,7 +774,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Inbox'));
+    await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('整理机架'));
     await tester.pumpAndSettle();
@@ -707,7 +795,7 @@ void main() {
 
       await tester.pumpWidget(const CueApp.demo());
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Inbox'));
+      await tester.tap(find.byKey(const Key('sidebar-inbox')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('组装模拟器'));
       await tester.pumpAndSettle();
@@ -889,7 +977,9 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Language'));
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Language'));
     await tester.pumpAndSettle();
     final languageDialog = find.byType(Dialog);
     expect(languageDialog, findsOneWidget);
@@ -897,7 +987,9 @@ void main() {
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Appearance'));
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
     final appearanceDialog = find.byType(Dialog);
     expect(appearanceDialog, findsOneWidget);
@@ -943,4 +1035,37 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+}
+
+Future<void> _pumpRemoteCue(WidgetTester tester, _ManualSyncApi api) async {
+  final store = TaskStore.remote(api);
+  addTearDown(store.dispose);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [taskStoreProvider.overrideWithValue(store)],
+      child: MaterialApp(
+        theme: CueTheme.active,
+        locale: const Locale('en'),
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        home: const CueHome(
+          userEmail: 'test@cue.local',
+          serverUrl: 'http://127.0.0.1:8080',
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+class _ManualSyncApi extends ApiClient {
+  _ManualSyncApi(this._sync) : super(TokenStore());
+
+  final Future<SyncResult> Function() _sync;
+
+  @override
+  Future<SyncResult> sync(int since) => _sync();
+
+  @override
+  Stream<int> watchRevisions() => const Stream.empty();
 }

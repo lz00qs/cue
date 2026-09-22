@@ -510,6 +510,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncNow => 'Sync now';
 
   @override
+  String get syncFailedRetry => 'Sync failed · click to retry';
+
+  @override
   String get changeServer => 'Change server';
 
   @override

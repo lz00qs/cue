@@ -422,164 +422,92 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 252,
+      key: const Key('desktop-sidebar'),
+      width: 68,
       padding: const EdgeInsets.fromLTRB(
+        CueSpacing.s12,
+        CueSpacing.s12,
+        CueSpacing.s12,
         CueSpacing.s16,
-        CueSpacing.s16,
-        CueSpacing.s4,
-        CueSpacing.s24,
       ),
       decoration: BoxDecoration(
         color: CueColors.sidebar,
         border: Border(right: BorderSide(color: CueColors.border)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            'Cue',
-            style: TextStyle(
-              color: CueColors.primary,
-              fontSize: 24,
-              height: 29 / 24,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            context.l10n.tagline,
-            style: const TextStyle(
-              color: CueColors.tertiary,
-              fontSize: 11,
-              height: 13 / 11,
-            ),
-          ),
-          const SizedBox(height: 8),
           _SidebarItem(
+            key: const Key('sidebar-inbox'),
             label: context.l10n.inbox,
+            icon: Icons.inbox_outlined,
+            selectedIcon: Icons.inbox_rounded,
             count: store.activeTasks.length,
             selected: selected == CueView.inbox || selected == CueView.board,
             onTap: () => onSelect(CueView.inbox),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
+            key: const Key('sidebar-today'),
             label: context.l10n.today,
+            icon: Icons.wb_sunny_outlined,
+            selectedIcon: Icons.wb_sunny_rounded,
             selected: selected == CueView.today,
             onTap: () => onSelect(CueView.today),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
+            key: const Key('sidebar-upcoming'),
             label: context.l10n.upcoming,
+            icon: Icons.schedule_rounded,
             selected: selected == CueView.upcoming,
             onTap: () => onSelect(CueView.upcoming),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           SizedBox(
-            width: 220,
+            width: 28,
             child: Divider(height: 1, thickness: 1, color: CueColors.border),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           _SidebarItem(
+            key: const Key('sidebar-list'),
             label: context.l10n.list,
+            icon: Icons.checklist_rounded,
             selected: selected == CueView.list,
             onTap: () => onSelect(CueView.list),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
+            key: const Key('sidebar-calendar'),
             label: context.l10n.calendar,
+            icon: Icons.calendar_month_outlined,
+            selectedIcon: Icons.calendar_month_rounded,
             selected: selected == CueView.calendar,
             onTap: () => onSelect(CueView.calendar),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
+            key: const Key('sidebar-quadrants'),
             label: context.l10n.quadrants,
+            icon: Icons.grid_view_rounded,
             selected: selected == CueView.quadrants,
             onTap: () => onSelect(CueView.quadrants),
           ),
           const Spacer(),
-          const Padding(
-            padding: EdgeInsets.only(
-              left: CueSpacing.s4,
-              bottom: CueSpacing.s8,
+          if (store.isRemote) ...[
+            _SidebarSyncButton(
+              syncing: store.isSyncing,
+              failed: store.lastError != null,
+              onSync: onSync,
             ),
-            child: AppearanceMenuButton(showLabel: true),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(
-              left: CueSpacing.s4,
-              bottom: CueSpacing.s8,
-            ),
-            child: LanguageMenuButton(showLabel: true),
-          ),
-          if (serverUrl != null)
-            Padding(
-              padding: const EdgeInsets.only(
-                left: CueSpacing.s12,
-                right: CueSpacing.s12,
-                bottom: CueSpacing.s8,
-              ),
-              child: Text(
-                serverUrl!,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: CueColors.tertiary, fontSize: 11),
-              ),
-            ),
-          Container(
-            width: 220,
-            padding: CueInsets.card,
-            decoration: BoxDecoration(
-              color: CueColors.card.withValues(alpha: 0.64),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: store.lastError == null
-                        ? CueColors.green
-                        : CueColors.danger,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    store.lastError ??
-                        (store.isSyncing
-                            ? context.l10n.syncing
-                            : userEmail == null
-                            ? context.l10n.synced
-                            : context.l10n.userSynced(userEmail!)),
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: CueColors.secondary, fontSize: 11),
-                  ),
-                ),
-                if (store.isRemote)
-                  IconButton(
-                    onPressed: store.isSyncing ? null : onSync,
-                    icon: const Icon(Icons.sync_rounded, size: 17),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: context.l10n.syncNow,
-                  ),
-                if (onConfigureServer != null)
-                  IconButton(
-                    onPressed: onConfigureServer,
-                    icon: const Icon(Icons.dns_outlined, size: 17),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: context.l10n.changeServer,
-                  ),
-                if (onLogout != null)
-                  IconButton(
-                    onPressed: onLogout,
-                    icon: const Icon(Icons.logout_rounded, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: context.l10n.signOut,
-                  ),
-              ],
-            ),
+            const SizedBox(height: 8),
+          ],
+          _SidebarSettingsMenu(
+            store: store,
+            userEmail: userEmail,
+            serverUrl: serverUrl,
+            onConfigureServer: onConfigureServer,
+            onLogout: onLogout,
           ),
         ],
       ),
@@ -589,13 +517,18 @@ class _Sidebar extends StatelessWidget {
 
 class _SidebarItem extends StatefulWidget {
   const _SidebarItem({
+    super.key,
     required this.label,
+    required this.icon,
     required this.selected,
     required this.onTap,
+    this.selectedIcon,
     this.count,
   });
 
   final String label;
+  final IconData icon;
+  final IconData? selectedIcon;
   final bool selected;
   final VoidCallback onTap;
   final int? count;
@@ -609,80 +542,439 @@ class _SidebarItemState extends State<_SidebarItem> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          width: 232,
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
-          decoration: BoxDecoration(
-            color: widget.selected
-                ? CueColors.selected
-                : _hovered
-                ? CueColors.sidebarHover
-                : CueColors.sidebar,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              SvgPicture.asset(
-                widget.selected
-                    ? 'assets/figma/indicator-selected.svg'
-                    : 'assets/figma/indicator.svg',
-                width: 8,
-                height: 8,
-                colorFilter: ColorFilter.mode(
-                  widget.selected ? CueColors.accent : CueColors.secondary,
-                  BlendMode.srcIn,
-                ),
+    return Tooltip(
+      message: widget.label,
+      waitDuration: const Duration(milliseconds: 300),
+      child: Semantics(
+        button: true,
+        selected: widget.selected,
+        label: widget.label,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            onTap: widget.onTap,
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: widget.selected
+                    ? CueColors.selected
+                    : _hovered
+                    ? CueColors.sidebarHover
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  widget.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    widget.selected
+                        ? (widget.selectedIcon ?? widget.icon)
+                        : widget.icon,
+                    size: 22,
                     color: widget.selected
                         ? CueColors.accent
-                        : CueColors.primary,
-                    fontSize: 15,
-                    height: 21 / 15,
+                        : CueColors.secondary,
+                  ),
+                  if (widget.count != null && widget.count! > 0)
+                    Positioned(
+                      top: 3,
+                      right: 2,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 16),
+                        height: 16,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: widget.selected
+                              ? CueColors.accent
+                              : CueColors.strongBorder,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: CueColors.sidebar,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          widget.count! > 99 ? '99+' : '${widget.count}',
+                          style: TextStyle(
+                            color: widget.selected
+                                ? CueColors.onAccent
+                                : CueColors.primary,
+                            fontSize: 9,
+                            height: 1,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarSyncButton extends StatefulWidget {
+  const _SidebarSyncButton({
+    required this.syncing,
+    required this.failed,
+    required this.onSync,
+  });
+
+  final bool syncing;
+  final bool failed;
+  final Future<bool> Function() onSync;
+
+  @override
+  State<_SidebarSyncButton> createState() => _SidebarSyncButtonState();
+}
+
+class _SidebarSyncButtonState extends State<_SidebarSyncButton>
+    with SingleTickerProviderStateMixin {
+  static const _minimumAnimationDuration = Duration(seconds: 2);
+  late final AnimationController _rotationController;
+  bool _hovered = false;
+  bool _manualSyncing = false;
+  bool? _manualFailureOverride;
+
+  bool get _isSyncing => _manualSyncing || widget.syncing;
+  bool get _failed => !_isSyncing && (_manualFailureOverride ?? widget.failed);
+
+  @override
+  void initState() {
+    super.initState();
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _updateRotation();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SidebarSyncButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.failed != widget.failed && !_manualSyncing) {
+      _manualFailureOverride = null;
+    }
+    _updateRotation();
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  void _updateRotation() {
+    if (_isSyncing) {
+      if (!_rotationController.isAnimating) {
+        _rotationController.repeat();
+      }
+    } else {
+      _rotationController
+        ..stop()
+        ..reset();
+    }
+  }
+
+  Future<void> _startSync() async {
+    if (_isSyncing) return;
+
+    setState(() {
+      _manualSyncing = true;
+      _manualFailureOverride = null;
+    });
+    _updateRotation();
+
+    final stopwatch = Stopwatch()..start();
+    var succeeded = false;
+    try {
+      succeeded = await widget.onSync();
+    } catch (_) {
+      succeeded = false;
+    }
+
+    final remaining = _minimumAnimationDuration - stopwatch.elapsed;
+    if (remaining > Duration.zero) await Future<void>.delayed(remaining);
+    if (!mounted) return;
+
+    setState(() {
+      _manualSyncing = false;
+      _manualFailureOverride = !succeeded;
+    });
+    _updateRotation();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tooltip = _isSyncing
+        ? context.l10n.syncing
+        : _failed
+        ? context.l10n.syncFailedRetry
+        : context.l10n.syncNow;
+
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 300),
+      child: Semantics(
+        button: true,
+        enabled: !_isSyncing,
+        label: tooltip,
+        child: MouseRegion(
+          cursor: _isSyncing
+              ? SystemMouseCursors.basic
+              : SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            key: const Key('sidebar-sync'),
+            onTap: _isSyncing ? null : _startSync,
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _hovered && !_isSyncing
+                    ? CueColors.sidebarHover
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: _failed
+                    ? Icon(
+                        Icons.sync_problem_rounded,
+                        key: const Key('sidebar-sync-failed'),
+                        size: 22,
+                        color: CueColors.danger,
+                      )
+                    : RotationTransition(
+                        key: const Key('sidebar-sync-rotation'),
+                        turns: _rotationController,
+                        child: Icon(
+                          Icons.sync_rounded,
+                          key: const Key('sidebar-sync-icon'),
+                          size: 22,
+                          color: _isSyncing
+                              ? CueColors.accent
+                              : CueColors.secondary,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _SidebarAction { appearance, language, server, signOut }
+
+class _SidebarSettingsMenu extends StatelessWidget {
+  const _SidebarSettingsMenu({
+    required this.store,
+    required this.userEmail,
+    required this.serverUrl,
+    required this.onConfigureServer,
+    required this.onLogout,
+  });
+
+  final TaskStore store;
+  final String? userEmail;
+  final String? serverUrl;
+  final VoidCallback? onConfigureServer;
+  final Future<void> Function()? onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final status =
+        store.lastError ??
+        (store.isSyncing
+            ? context.l10n.syncing
+            : userEmail == null
+            ? context.l10n.synced
+            : context.l10n.userSynced(userEmail!));
+
+    return PopupMenuButton<_SidebarAction>(
+      key: const Key('sidebar-settings'),
+      tooltip: context.l10n.settings,
+      position: PopupMenuPosition.over,
+      offset: const Offset(52, 0),
+      constraints: const BoxConstraints(minWidth: 244, maxWidth: 280),
+      color: CueColors.popover,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: CueColors.border),
+      ),
+      onSelected: (action) => _handleAction(context, action),
+      itemBuilder: (context) => [
+        PopupMenuItem<_SidebarAction>(
+          enabled: false,
+          height: 56,
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: store.lastError == null
+                      ? CueColors.green
+                      : CueColors.danger,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      status,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: CueColors.primary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    if (serverUrl != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        serverUrl!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: CueColors.tertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        PopupMenuItem<_SidebarAction>(
+          value: _SidebarAction.appearance,
+          child: _SettingsMenuItem(
+            icon: Icons.contrast_rounded,
+            label: context.l10n.appearance,
+          ),
+        ),
+        PopupMenuItem<_SidebarAction>(
+          value: _SidebarAction.language,
+          child: _SettingsMenuItem(
+            icon: Icons.language_rounded,
+            label: context.l10n.language,
+          ),
+        ),
+        if (onConfigureServer != null)
+          PopupMenuItem<_SidebarAction>(
+            value: _SidebarAction.server,
+            child: _SettingsMenuItem(
+              icon: Icons.dns_outlined,
+              label: context.l10n.changeServer,
+            ),
+          ),
+        if (onLogout != null) ...[
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<_SidebarAction>(
+            value: _SidebarAction.signOut,
+            child: _SettingsMenuItem(
+              icon: Icons.logout_rounded,
+              label: context.l10n.signOut,
+              color: CueColors.danger,
+            ),
+          ),
+        ],
+      ],
+      child: Semantics(
+        button: true,
+        label: context.l10n.settings,
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.settings_outlined,
+                size: 22,
+                color: CueColors.secondary,
+              ),
+              Positioned(
+                right: 7,
+                bottom: 7,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: store.lastError == null
+                        ? CueColors.green
+                        : CueColors.danger,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: CueColors.sidebar, width: 1.5),
                   ),
                 ),
               ),
-              if (widget.count != null && widget.count! > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CueSpacing.s8,
-                    vertical: CueSpacing.s2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: widget.selected
-                        ? CueColors.accent.withValues(alpha: 0.15)
-                        : (CueColors.border.withValues(alpha: 0.6)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${widget.count}',
-                    style: TextStyle(
-                      color: widget.selected
-                          ? CueColors.accent
-                          : CueColors.secondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  void _handleAction(BuildContext context, _SidebarAction action) {
+    switch (action) {
+      case _SidebarAction.appearance:
+        showAppearancePicker(context, mobile: false);
+      case _SidebarAction.language:
+        showLanguagePicker(context, mobile: false);
+      case _SidebarAction.server:
+        onConfigureServer?.call();
+      case _SidebarAction.signOut:
+        onLogout?.call();
+    }
+  }
+}
+
+class _SettingsMenuItem extends StatelessWidget {
+  const _SettingsMenuItem({
+    required this.icon,
+    required this.label,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = color ?? CueColors.primary;
+    return Row(
+      children: [
+        Icon(icon, size: 19, color: color ?? CueColors.secondary),
+        const SizedBox(width: 12),
+        Text(label, style: TextStyle(color: foreground, fontSize: 13)),
+      ],
     );
   }
 }

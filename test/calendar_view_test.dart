@@ -13,7 +13,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('calendar-task-thermal-simulation')));
@@ -49,7 +49,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
     // Verify there is no horizontal SingleChildScrollView in CalendarView
@@ -82,7 +82,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
     // Initial month should be September 2026
@@ -116,7 +116,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Calendar'));
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
     // Tap title trigger to open month picker popover

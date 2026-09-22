@@ -152,6 +152,7 @@
   "lastSynced": "上次同步",
   "server": "服务器",
   "syncNow": "立即同步",
+  "syncFailedRetry": "同步失败 · 点击重试",
   "changeServer": "更改服务器",
   "cueWorkspace": "Cue 工作区",
   "focusStreak": "已连续专注 12 天",

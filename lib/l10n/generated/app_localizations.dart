@@ -1010,6 +1010,12 @@ abstract class AppLocalizations {
   /// **'Sync now'**
   String get syncNow;
 
+  /// No description provided for @syncFailedRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed · click to retry'**
+  String get syncFailedRetry;
+
   /// No description provided for @changeServer.
   ///
   /// In en, this message translates to:
