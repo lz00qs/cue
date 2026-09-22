@@ -44,10 +44,11 @@ Cue-Local-2026!
 ## Docker 部署
 
 ```bash
-flutter pub get
-flutter build web --release
 docker compose up --build -d
 ```
+
+Web 镜像会在 Docker 构建阶段直接从当前 Flutter 源码编译，避免旧的
+`build/web` 产物与新版 API 不兼容。宿主机无需预先运行 `flutter build web`。
 
 浏览器打开 [http://localhost:8080](http://localhost:8080)。端口默认只绑定 `127.0.0.1`，不会直接暴露到局域网。
 

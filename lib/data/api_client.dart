@@ -92,11 +92,10 @@ class ApiClient {
         data: {'email': email.trim(), 'password': password},
       );
       final data = response.data!;
-      final normalizedEmail =
-          (data['user'] as Map<String, dynamic>)['email'] as String;
+      final normalizedEmail = _extractEmail(data);
       await _tokens.save(
-        accessToken: data['accessToken'] as String,
-        refreshToken: data['refreshToken'] as String,
+        accessToken: _extractString(data, 'accessToken'),
+        refreshToken: _extractString(data, 'refreshToken'),
         email: normalizedEmail,
       );
       return normalizedEmail;
@@ -269,16 +268,36 @@ class ApiClient {
         data: {'refreshToken': refreshToken},
       );
       final data = response.data!;
-      final email = (data['user'] as Map<String, dynamic>)['email'] as String;
+      final email = _extractEmail(data);
       await _tokens.save(
-        accessToken: data['accessToken'] as String,
-        refreshToken: data['refreshToken'] as String,
+        accessToken: _extractString(data, 'accessToken'),
+        refreshToken: _extractString(data, 'refreshToken'),
         email: email,
       );
     } on DioException catch (error) {
       if (error.response?.statusCode == 401) await _tokens.clear();
       throw _mapError(error);
     }
+  }
+
+  /// Safely extracts a [String] value from the response [data] map.
+  ///
+  /// Throws [ApiException] when the field is missing or not a [String],
+  /// which produces a clear message instead of a minified [TypeError] on web.
+  static String _extractString(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value is String) return value;
+    throw ApiException('Unexpected server response: "$key" is not a string');
+  }
+
+  /// Safely extracts the email from the nested `user` object in [data].
+  static String _extractEmail(Map<String, dynamic> data) {
+    final user = data['user'];
+    if (user is Map<String, dynamic>) {
+      final email = user['email'];
+      if (email is String) return email;
+    }
+    throw const ApiException('Unexpected server response: missing user email');
   }
 
   ApiException _mapError(DioException error) {
