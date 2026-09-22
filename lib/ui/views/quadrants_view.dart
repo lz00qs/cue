@@ -124,7 +124,7 @@ class _QuadrantPanel extends StatelessWidget {
         return AnimatedContainer(
           duration: const Duration(milliseconds: 140),
           height: 336,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(CueSpacing.s16),
           decoration: BoxDecoration(
             color: CueColors.quadrantSurface,
             border: Border.all(color: isDropTarget ? color : CueColors.border),
@@ -220,7 +220,7 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
           decoration: BoxDecoration(
             color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
@@ -234,7 +234,7 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
                 onTap: widget.onToggle,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
-                  padding: const EdgeInsets.all(2),
+                  padding: const EdgeInsets.all(CueSpacing.s2),
                   child: Container(
                     width: 18,
                     height: 18,

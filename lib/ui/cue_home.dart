@@ -128,7 +128,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             onConfigureServer: widget.onConfigureServer,
             onSync: () => _runTaskOperation(_store.sync),
           ),
-          Expanded(child: _buildContent(desktop: true)),
+          Expanded(child: _buildContent()),
         ],
       ),
     );
@@ -143,26 +143,15 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildContent({required bool desktop}) {
-    final horizontalPadding = desktop
-        ? (_view == CueView.today ||
-                  _view == CueView.inbox ||
-                  _view == CueView.list
-              ? 40.0
-              : 48.0)
-        : 20.0;
+  Widget _buildContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (_view == CueView.calendar ||
             _view == CueView.inbox ||
             _view == CueView.board) {
           return Padding(
-            padding: EdgeInsets.fromLTRB(
-              horizontalPadding,
-              desktop ? 32 : 20,
-              horizontalPadding,
-              24,
-            ),
+            key: const Key('desktop-page-padding'),
+            padding: CueInsets.desktopFixedPage,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -184,6 +173,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                 Expanded(
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
+                    layoutBuilder: _topAlignedSwitcherLayout,
                     child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
                   ),
                 ),
@@ -196,12 +186,8 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                desktop ? 40 : 20,
-                horizontalPadding,
-                48,
-              ),
+              key: const Key('desktop-page-padding'),
+              padding: CueInsets.desktopScrollablePage,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -221,6 +207,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
                   const SizedBox(height: 24),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),
+                    layoutBuilder: _topAlignedSwitcherLayout,
                     child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
                   ),
                 ],
@@ -399,6 +386,16 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }
 }
 
+Widget _topAlignedSwitcherLayout(
+  Widget? currentChild,
+  List<Widget> previousChildren,
+) {
+  return Stack(
+    alignment: Alignment.topCenter,
+    children: [...previousChildren, ?currentChild],
+  );
+}
+
 class _FocusQuickAddIntent extends Intent {
   const _FocusQuickAddIntent();
 }
@@ -428,7 +425,12 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 252,
-      padding: const EdgeInsets.fromLTRB(16, 28, 4, 24),
+      padding: const EdgeInsets.fromLTRB(
+        CueSpacing.s16,
+        CueSpacing.s28,
+        CueSpacing.s4,
+        CueSpacing.s24,
+      ),
       decoration: BoxDecoration(
         color: CueColors.sidebar,
         border: Border(right: BorderSide(color: CueColors.border)),
@@ -499,16 +501,26 @@ class _Sidebar extends StatelessWidget {
           ),
           const Spacer(),
           const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+            padding: EdgeInsets.only(
+              left: CueSpacing.s4,
+              bottom: CueSpacing.s8,
+            ),
             child: AppearanceMenuButton(showLabel: true),
           ),
           const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 8),
+            padding: EdgeInsets.only(
+              left: CueSpacing.s4,
+              bottom: CueSpacing.s8,
+            ),
             child: LanguageMenuButton(showLabel: true),
           ),
           if (serverUrl != null)
             Padding(
-              padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+              padding: const EdgeInsets.only(
+                left: CueSpacing.s12,
+                right: CueSpacing.s12,
+                bottom: CueSpacing.s8,
+              ),
               child: Text(
                 serverUrl!,
                 overflow: TextOverflow.ellipsis,
@@ -517,7 +529,7 @@ class _Sidebar extends StatelessWidget {
             ),
           Container(
             width: 220,
-            padding: const EdgeInsets.all(12),
+            padding: CueInsets.card,
             decoration: BoxDecoration(
               color: CueColors.card.withValues(alpha: 0.64),
               borderRadius: BorderRadius.circular(12),
@@ -610,7 +622,7 @@ class _SidebarItemState extends State<_SidebarItem> {
           duration: const Duration(milliseconds: 120),
           width: 232,
           height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
           decoration: BoxDecoration(
             color: widget.selected
                 ? CueColors.selected
@@ -649,8 +661,8 @@ class _SidebarItemState extends State<_SidebarItem> {
               if (widget.count != null && widget.count! > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 1.5,
+                    horizontal: CueSpacing.s8,
+                    vertical: CueSpacing.s2,
                   ),
                   decoration: BoxDecoration(
                     color: widget.selected
@@ -831,7 +843,9 @@ class _CalendarMonthHeaderNavigation extends ConsumerWidget {
                     .resetToToday(),
                 borderRadius: BorderRadius.circular(4),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CueSpacing.s10,
+                  ),
                   child: Text(
                     context.l10n.today,
                     style: TextStyle(
@@ -948,7 +962,7 @@ class _TaskListView extends StatelessWidget {
         else
           ...tasks.map(
             (task) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: CueSpacing.s12),
               child: CueTaskRow(
                 key: ValueKey(task.id),
                 task: task,
@@ -998,7 +1012,7 @@ class _QuickCapture extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 52,
-      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+      padding: const EdgeInsets.fromLTRB(CueSpacing.s16, 0, CueSpacing.s8, 0),
       decoration: BoxDecoration(
         color: CueColors.card,
         border: Border.all(color: CueColors.border),
@@ -1104,10 +1118,10 @@ class _MonthPickerPopoverState extends ConsumerState<MonthPickerPopover> {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: CueColors.border),
       ),
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: CueInsets.dialog,
       child: Container(
         width: 300,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(CueSpacing.s20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1304,9 +1318,24 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-      actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+      titlePadding: const EdgeInsets.fromLTRB(
+        CueSpacing.s24,
+        CueSpacing.s24,
+        CueSpacing.s24,
+        0,
+      ),
+      contentPadding: const EdgeInsets.fromLTRB(
+        CueSpacing.s24,
+        CueSpacing.s20,
+        CueSpacing.s24,
+        CueSpacing.s8,
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(
+        CueSpacing.s24,
+        CueSpacing.s12,
+        CueSpacing.s24,
+        CueSpacing.s24,
+      ),
       title: Text(
         context.l10n.newTask,
         style: TextStyle(

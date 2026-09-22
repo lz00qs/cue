@@ -221,7 +221,10 @@ class _CalendarCellState extends State<_CalendarCell> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CueSpacing.s6,
+            vertical: CueSpacing.s6,
+          ),
           decoration: BoxDecoration(
             color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
@@ -275,13 +278,13 @@ class _CalendarCellState extends State<_CalendarCell> {
                         }
                       }
 
-                      final visibleTasks =
-                          widget.tasks.take(visibleCount).toList();
+                      final visibleTasks = widget.tasks
+                          .take(visibleCount)
+                          .toList();
 
                       return ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(
-                          context,
-                        ).copyWith(scrollbars: false),
+                        behavior: ScrollConfiguration.of(context)
+                            .copyWith(scrollbars: false),
                         child: SingleChildScrollView(
                           physics: const NeverScrollableScrollPhysics(),
                           child: Column(
@@ -333,7 +336,7 @@ class _TaskPill extends StatelessWidget {
           width: double.infinity,
           height: 21,
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s6),
           decoration: BoxDecoration(
             color: task.isCompleted ? CueColors.subtle : CueColors.selected,
             borderRadius: BorderRadius.circular(4),
@@ -393,7 +396,7 @@ class _MoreTasksPill extends StatelessWidget {
         width: double.infinity,
         height: 21,
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s6),
         decoration: BoxDecoration(
           color: CueColors.subtle,
           borderRadius: BorderRadius.circular(4),

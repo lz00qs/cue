@@ -151,7 +151,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
     return Dialog(
       key: const Key('desktop-task-details-popover'),
       alignment: Alignment.center,
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: CueInsets.dialog,
       elevation: 24,
       shadowColor: Colors.black.withValues(alpha: 0.72),
       backgroundColor: CueColors.popover,
@@ -197,8 +197,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: CueSpacing.s8,
+                            vertical: CueSpacing.s4,
                           ),
                           decoration: BoxDecoration(
                             color: CueColors.subtle,
@@ -306,7 +306,12 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
             const Divider(height: 1, thickness: 1),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(24, 18, 24, 16),
+                padding: const EdgeInsets.fromLTRB(
+                  CueSpacing.s24,
+                  CueSpacing.s18,
+                  CueSpacing.s24,
+                  CueSpacing.s16,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -325,8 +330,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                           hintText: context.l10n.taskTitle,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                            horizontal: CueSpacing.s10,
+                            vertical: CueSpacing.s8,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -353,8 +358,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                         borderRadius: BorderRadius.circular(6),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 4,
-                            horizontal: 4,
+                            vertical: CueSpacing.s4,
+                            horizontal: CueSpacing.s4,
                           ),
                           child: Text(
                             task.title,
@@ -412,8 +417,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                           ],
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
+                              horizontal: CueSpacing.s8,
+                              vertical: CueSpacing.s4,
                             ),
                             decoration: BoxDecoration(
                               color: CueColors.subtle,
@@ -469,8 +474,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                           decoration: InputDecoration(
                             hintText: context.l10n.note,
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
+                              horizontal: CueSpacing.s10,
+                              vertical: CueSpacing.s8,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -496,8 +501,8 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                           borderRadius: BorderRadius.circular(6),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
-                              vertical: 4,
-                              horizontal: 4,
+                              vertical: CueSpacing.s4,
+                              horizontal: CueSpacing.s4,
                             ),
                             child: Text(
                               task.note.isEmpty ? context.l10n.note : task.note,
@@ -519,7 +524,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
             ),
             Container(
               height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: CueColors.border)),
               ),
@@ -538,7 +543,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                     surfaceTintColor: Colors.transparent,
                     elevation: 12,
                     shadowColor: Colors.black.withValues(alpha: 0.32),
-                    menuPadding: const EdgeInsets.all(6),
+                    menuPadding: const EdgeInsets.all(CueSpacing.s6),
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(
                       side: BorderSide(color: CueColors.border),
@@ -625,7 +630,7 @@ class _TaskActionMenuItemContentState
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
         height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s10),
         decoration: BoxDecoration(
           color: _hovered ? hoverColor : Colors.transparent,
           borderRadius: BorderRadius.circular(6),

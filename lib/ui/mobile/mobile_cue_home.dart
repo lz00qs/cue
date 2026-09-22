@@ -222,7 +222,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                 bottom: MediaQuery.viewInsetsOf(context).bottom,
               ),
               child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                padding: CueInsets.mobileForm,
                 decoration: BoxDecoration(
                   color: _MobileColors.card,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -266,7 +266,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                           return Expanded(
                             child: Padding(
                               padding: EdgeInsets.only(
-                                right: index == 3 ? 0 : 8,
+                                right: index == 3 ? 0 : CueSpacing.s8,
                               ),
                               child: _MobilePill(
                                 label: 'P$index',
@@ -351,8 +351,8 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                         borderRadius: BorderRadius.circular(10),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 12,
+                            horizontal: CueSpacing.s14,
+                            vertical: CueSpacing.s12,
                           ),
                           decoration: BoxDecoration(
                             color: _MobileColors.subtle,
@@ -480,7 +480,7 @@ class _MobileTodayPage extends ConsumerWidget {
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
+        padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
             title: showLater ? context.l10n.later : context.l10n.today,
@@ -601,7 +601,7 @@ class _MobileBoardPage extends ConsumerWidget {
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
+        padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
             title: context.l10n.board,
@@ -620,7 +620,7 @@ class _MobileBoardPage extends ConsumerWidget {
                 ];
                 if (tasks.isEmpty) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.only(bottom: CueSpacing.s24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -686,7 +686,7 @@ class _MobileCalendarPage extends ConsumerWidget {
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
+        padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
             title: formatMonthName(context, month),
@@ -818,7 +818,7 @@ class _MobileQuadrantsPage extends ConsumerWidget {
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 92),
+        padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
             title: context.l10n.quadrants,
@@ -889,7 +889,7 @@ class _MobileSettingsPage extends ConsumerWidget {
         ? context.l10n.chinese
         : context.l10n.english;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
+      padding: CueInsets.mobileSettingsPage,
       children: [
         Text(
           context.l10n.settings,
@@ -1001,7 +1001,7 @@ class _MobileSettingsPage extends ConsumerWidget {
           ref.watch(taskRevisionProvider);
           final store = ref.watch(taskStoreProvider)!;
           return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            padding: CueInsets.mobileSheet,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1107,7 +1107,7 @@ class _MobileSettingsPage extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        padding: CueInsets.mobileSheet,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1303,7 +1303,7 @@ class _MobileTaskRow extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Container(
         height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
         decoration: BoxDecoration(
           color: _MobileColors.card,
           border: Border.all(color: _MobileColors.border),
@@ -1315,7 +1315,7 @@ class _MobileTaskRow extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: onToggle,
               child: Padding(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(CueSpacing.s2),
                 child: SvgPicture.asset(
                   task.isCompleted
                       ? 'assets/figma/checkbox-completed.svg'
@@ -1472,7 +1472,7 @@ class _MobileQuadrant extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: CueInsets.card,
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(16),
@@ -1523,7 +1523,9 @@ class _MobileQuadrant extends StatelessWidget {
                     child: Container(
                       width: double.infinity,
                       height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CueSpacing.s10,
+                      ),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
                         color: _MobileColors.card,
@@ -1583,7 +1585,12 @@ class _MobileBottomNavigation extends StatelessWidget {
     ];
     return Container(
       height: 84,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
+      padding: const EdgeInsets.fromLTRB(
+        CueSpacing.s12,
+        CueSpacing.s8,
+        CueSpacing.s12,
+        CueSpacing.s20,
+      ),
       decoration: BoxDecoration(
         color: _MobileColors.card,
         border: Border(top: BorderSide(color: _MobileColors.border)),
@@ -1812,7 +1819,10 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
       key: const Key('task-details-dialog'),
       backgroundColor: _MobileColors.card,
       surfaceTintColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: CueSpacing.s20,
+        vertical: CueSpacing.s24,
+      ),
       shape: RoundedRectangleBorder(
         side: BorderSide(color: _MobileColors.border),
         borderRadius: BorderRadius.circular(16),
@@ -1919,7 +1929,12 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              padding: const EdgeInsets.fromLTRB(
+                CueSpacing.s24,
+                CueSpacing.s12,
+                CueSpacing.s24,
+                0,
+              ),
               child: _editingTitle
                   ? TextField(
                       key: const Key('mobile-task-title-field'),
@@ -1935,8 +1950,8 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         hintText: context.l10n.taskTitle,
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
+                          horizontal: CueSpacing.s10,
+                          vertical: CueSpacing.s8,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -1974,7 +1989,12 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                     ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+              padding: const EdgeInsets.fromLTRB(
+                CueSpacing.s24,
+                CueSpacing.s12,
+                CueSpacing.s24,
+                0,
+              ),
               child: Text(
                 '${_area(context, task)} · ${context.l10n.createdOn(_createdLabel(context, task, store.today))}',
                 style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
@@ -1982,7 +2002,12 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
             ),
             if (_editingNote || task.note.isNotEmpty || !task.isCompleted)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                padding: const EdgeInsets.fromLTRB(
+                  CueSpacing.s24,
+                  CueSpacing.s12,
+                  CueSpacing.s24,
+                  0,
+                ),
                 child: _editingNote
                     ? TextField(
                         key: const Key('mobile-task-note-field'),
@@ -1999,8 +2024,8 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                           hintText: context.l10n.note,
                           isDense: true,
                           contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                            horizontal: CueSpacing.s10,
+                            vertical: CueSpacing.s8,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -2041,7 +2066,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
             const Spacer(),
             Container(
               height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: _MobileColors.border)),
               ),
@@ -2103,7 +2128,10 @@ class _ProfileSummary extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 88,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CueSpacing.s16,
+          vertical: CueSpacing.s12,
+        ),
         decoration: BoxDecoration(
           color: _MobileColors.card,
           border: Border.all(color: _MobileColors.border),
@@ -2187,7 +2215,10 @@ class _SettingsRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         height: 56,
-        padding: const EdgeInsets.only(left: 16, right: 12),
+        padding: const EdgeInsets.only(
+          left: CueSpacing.s16,
+          right: CueSpacing.s12,
+        ),
         decoration: BoxDecoration(
           color: _MobileColors.card,
           border: Border.all(color: _MobileColors.border),
@@ -2365,7 +2396,7 @@ class _MobileEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.symmetric(vertical: CueSpacing.s40),
       child: Center(
         child: Text(
           label,

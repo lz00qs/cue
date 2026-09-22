@@ -63,10 +63,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: CueColors.subtle,
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: CueInsets.screen,
           child: Container(
             width: 420,
-            padding: const EdgeInsets.all(36),
+            padding: const EdgeInsets.all(CueSpacing.s36),
             decoration: BoxDecoration(
               color: CueColors.card,
               border: Border.all(color: CueColors.border),
@@ -111,7 +111,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 20),
                     Container(
                       height: 44,
-                      padding: const EdgeInsets.only(left: 12, right: 4),
+                      padding: const EdgeInsets.only(
+                        left: CueSpacing.s12,
+                        right: CueSpacing.s4,
+                      ),
                       decoration: BoxDecoration(
                         color: CueColors.subtle,
                         border: Border.all(color: CueColors.border),
@@ -189,7 +192,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   if (_error != null) ...[
                     const SizedBox(height: 14),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: CueInsets.card,
                       decoration: BoxDecoration(
                         color: CueColors.dangerBackground,
                         borderRadius: BorderRadius.circular(8),

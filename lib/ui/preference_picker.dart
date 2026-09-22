@@ -49,7 +49,7 @@ Future<T?> showCuePreferencePicker<T>({
     builder: (context) => Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      insetPadding: const EdgeInsets.all(24),
+      insetPadding: CueInsets.dialog,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 340),
         child: panel,
@@ -84,8 +84,8 @@ class CuePreferenceButton extends StatelessWidget {
           hoverColor: CueColors.sidebarHover,
           child: Padding(
             padding: EdgeInsets.symmetric(
-              horizontal: showLabel ? 12 : 8,
-              vertical: 9,
+              horizontal: showLabel ? CueSpacing.s12 : CueSpacing.s8,
+              vertical: CueSpacing.s8,
             ),
             child: Row(
               mainAxisSize: showLabel ? MainAxisSize.max : MainAxisSize.min,
@@ -145,7 +145,12 @@ class _PreferencePanel<T> extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(20, mobile ? 12 : 20, 20, 20),
+          padding: EdgeInsets.fromLTRB(
+            CueSpacing.s20,
+            mobile ? CueSpacing.s12 : CueSpacing.s20,
+            CueSpacing.s20,
+            CueSpacing.s20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

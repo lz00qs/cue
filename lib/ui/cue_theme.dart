@@ -1,5 +1,76 @@
 import 'package:flutter/material.dart';
 
+/// Cue's spacing scale uses a 4 px base grid. The 2 px half-step is reserved
+/// for dense controls and optical alignment inside components.
+abstract final class CueSpacing {
+  static const double s2 = 2;
+  static const double s4 = 4;
+  static const double s6 = 6;
+  static const double s8 = 8;
+  static const double s10 = 10;
+  static const double s12 = 12;
+  static const double s14 = 14;
+  static const double s16 = 16;
+  static const double s18 = 18;
+  static const double s20 = 20;
+  static const double s24 = 24;
+  static const double s28 = 28;
+  static const double s32 = 32;
+  static const double s36 = 36;
+  static const double s40 = 40;
+  static const double s48 = 48;
+
+  static const double mobilePageGutter = s20;
+  static const double desktopPageGutter = s32;
+  static const double desktopPageTop = s32;
+
+  // Includes the floating mobile navigation bar and its safe breathing room.
+  static const double mobileNavigationClearance = 92;
+}
+
+/// Semantic insets shared by app-level surfaces.
+abstract final class CueInsets {
+  static const desktopFixedPage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.desktopPageTop,
+    CueSpacing.desktopPageGutter,
+    CueSpacing.s24,
+  );
+  static const desktopScrollablePage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.desktopPageTop,
+    CueSpacing.desktopPageGutter,
+    CueSpacing.s48,
+  );
+  static const mobilePage = EdgeInsets.fromLTRB(
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s24,
+    CueSpacing.mobilePageGutter,
+    CueSpacing.mobileNavigationClearance,
+  );
+  static const mobileForm = EdgeInsets.fromLTRB(
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s16,
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s24,
+  );
+  static const mobileSettingsPage = EdgeInsets.fromLTRB(
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s24,
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s36,
+  );
+  static const mobileSheet = EdgeInsets.fromLTRB(
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s12,
+    CueSpacing.mobilePageGutter,
+    CueSpacing.s28,
+  );
+  static const screen = EdgeInsets.all(CueSpacing.s24);
+  static const dialog = screen;
+  static const card = EdgeInsets.all(CueSpacing.s12);
+}
+
 abstract final class CueColors {
   // Matches the Light and Dark modes of Figma's Cue Color collection.
   static const defaultMode = String.fromEnvironment(
@@ -121,7 +192,10 @@ abstract final class CueTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: CueColors.card,
-        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: CueSpacing.s14,
+          vertical: CueSpacing.s12,
+        ),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.border),
           borderRadius: BorderRadius.all(Radius.circular(10)),

@@ -171,7 +171,7 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
       child: SizedBox(
         width: 340,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(CueSpacing.s16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -340,7 +340,10 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
 
               // 1. Time (截止时间) row -> Native TimePicker dialog
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                padding: const EdgeInsets.symmetric(
+                  vertical: CueSpacing.s8,
+                  horizontal: CueSpacing.s4,
+                ),
                 child: Row(
                   children: [
                     Icon(
@@ -383,8 +386,8 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                          horizontal: CueSpacing.s8,
+                          vertical: CueSpacing.s4,
                         ),
                         decoration: BoxDecoration(
                           color: _selectedTime != null
@@ -440,8 +443,8 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
               if (!widget.completionMode)
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
+                    vertical: CueSpacing.s8,
+                    horizontal: CueSpacing.s4,
                   ),
                   child: Row(
                     children: [
@@ -520,8 +523,8 @@ class _CueDatePickerPopoverState extends State<CueDatePickerPopover> {
               if (!widget.completionMode)
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 4,
+                    vertical: CueSpacing.s8,
+                    horizontal: CueSpacing.s4,
                   ),
                   child: Row(
                     children: [

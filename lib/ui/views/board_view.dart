@@ -314,7 +314,7 @@ class _GroupColumnState extends State<_GroupColumn> {
         key: Key('group-drag-feedback-${widget.group}'),
         width: 300,
         height: widget.height,
-        padding: const EdgeInsets.all(12),
+        padding: CueInsets.card,
         decoration: BoxDecoration(
           color: CueColors.subtle,
           border: Border.all(color: CueColors.accent),
@@ -444,7 +444,7 @@ class _GroupColumnState extends State<_GroupColumn> {
       widgets.add(
         Padding(
           key: Key('group-priority-${widget.group}-$p'),
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.only(bottom: CueSpacing.s10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -461,8 +461,8 @@ class _GroupColumnState extends State<_GroupColumn> {
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 4,
-                    horizontal: 2,
+                    vertical: CueSpacing.s4,
+                    horizontal: CueSpacing.s2,
                   ),
                   child: Row(
                     children: [
@@ -538,7 +538,10 @@ class _GroupColumnState extends State<_GroupColumn> {
             setState(() => _completedCollapsed = !_completedCollapsed);
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+            padding: const EdgeInsets.symmetric(
+              vertical: CueSpacing.s4,
+              horizontal: CueSpacing.s2,
+            ),
             child: Row(
               children: [
                 Icon(
@@ -610,7 +613,7 @@ class _GroupColumnState extends State<_GroupColumn> {
             key: _columnKey,
             duration: const Duration(milliseconds: 140),
             width: 300,
-            padding: const EdgeInsets.all(12),
+            padding: CueInsets.card,
             decoration: BoxDecoration(
               color: _hovering || widget.isColumnDropTarget
                   ? CueColors.selected
@@ -655,8 +658,8 @@ class _GroupColumnState extends State<_GroupColumn> {
                                           isDense: true,
                                           contentPadding:
                                               const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 6,
+                                                horizontal: CueSpacing.s8,
+                                                vertical: CueSpacing.s6,
                                               ),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(
@@ -691,8 +694,8 @@ class _GroupColumnState extends State<_GroupColumn> {
                                       borderRadius: BorderRadius.circular(6),
                                       child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                          horizontal: 4,
+                                          vertical: CueSpacing.s4,
+                                          horizontal: CueSpacing.s4,
                                         ),
                                         child: Text(
                                           widget.group,
@@ -766,7 +769,7 @@ class _GroupColumnState extends State<_GroupColumn> {
                             surfaceTintColor: Colors.transparent,
                             elevation: 12,
                             shadowColor: Colors.black.withValues(alpha: 0.32),
-                            menuPadding: const EdgeInsets.all(6),
+                            menuPadding: const EdgeInsets.all(CueSpacing.s6),
                             clipBehavior: Clip.antiAlias,
                             shape: RoundedRectangleBorder(
                               side: BorderSide(color: CueColors.border),
@@ -859,7 +862,7 @@ class _DangerMenuItemContentState extends State<_DangerMenuItemContent> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
         height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s10),
         decoration: BoxDecoration(
           color: _hovered ? CueColors.dangerBackground : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
@@ -932,7 +935,10 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CueSpacing.s12,
+            vertical: CueSpacing.s10,
+          ),
           decoration: BoxDecoration(
             color: CueColors.card,
             borderRadius: BorderRadius.circular(10),
@@ -1091,7 +1097,7 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
             borderRadius: BorderRadius.circular(10),
             child: Container(
               height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
               decoration: BoxDecoration(
                 color: CueColors.subtle,
                 borderRadius: BorderRadius.circular(10),
@@ -1124,7 +1130,7 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
       alignment: Alignment.topLeft,
       child: Container(
         width: 260,
-        padding: const EdgeInsets.all(12),
+        padding: CueInsets.card,
         decoration: BoxDecoration(
           color: CueColors.card,
           borderRadius: BorderRadius.circular(12),
@@ -1142,8 +1148,8 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
                 hintText: context.l10n.enterGroupName,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
+                  horizontal: CueSpacing.s10,
+                  vertical: CueSpacing.s8,
                 ),
               ),
             ),
@@ -1161,8 +1167,8 @@ class _AddGroupColumnState extends State<_AddGroupColumn> {
                   style: FilledButton.styleFrom(
                     backgroundColor: CueColors.accent,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 6,
+                      horizontal: CueSpacing.s14,
+                      vertical: CueSpacing.s6,
                     ),
                   ),
                   child: Text(context.l10n.save),
@@ -1252,7 +1258,7 @@ class _GroupedPreview extends StatelessWidget {
                   if (index > 0) const SizedBox(width: 16),
                   Container(
                     width: columnWidth,
-                    padding: const EdgeInsets.all(12),
+                    padding: CueInsets.card,
                     decoration: BoxDecoration(
                       color: CueColors.subtle,
                       borderRadius: BorderRadius.circular(12),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cue/main.dart';
+import 'package:cue/state/page_state.dart';
 import 'package:cue/ui/cue_theme.dart';
 import 'package:cue/ui/cue_widgets.dart';
 
@@ -348,6 +349,79 @@ void main() {
       await tester.pumpAndSettle();
       expectQuickAddOnly();
     }
+  });
+
+  testWidgets('desktop pages share the design-system content gutter', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    expect(CueSpacing.desktopPageGutter, CueSpacing.s32);
+    expect(CueSpacing.desktopPageTop, CueSpacing.s32);
+
+    EdgeInsets pagePadding() =>
+        tester
+                .widget<Padding>(find.byKey(const Key('desktop-page-padding')))
+                .padding
+            as EdgeInsets;
+
+    expect(pagePadding(), CueInsets.desktopScrollablePage);
+    expect(pagePadding().left, CueSpacing.desktopPageGutter);
+    expect(pagePadding().top, CueSpacing.desktopPageTop);
+
+    await tester.tap(find.text('Inbox').first);
+    await tester.pumpAndSettle();
+
+    expect(pagePadding(), CueInsets.desktopFixedPage);
+    expect(pagePadding().left, CueSpacing.desktopPageGutter);
+    expect(pagePadding().top, CueSpacing.desktopPageTop);
+
+    await tester.tap(find.text('Upcoming').first);
+    await tester.pumpAndSettle();
+
+    expect(pagePadding(), CueInsets.desktopScrollablePage);
+    expect(pagePadding().left, CueSpacing.desktopPageGutter);
+    expect(pagePadding().top, CueSpacing.desktopPageTop);
+
+    await tester.tap(find.text('Calendar').first);
+    await tester.pumpAndSettle();
+
+    expect(pagePadding(), CueInsets.desktopFixedPage);
+    expect(pagePadding().left, CueSpacing.desktopPageGutter);
+    expect(pagePadding().top, CueSpacing.desktopPageTop);
+  });
+
+  testWidgets('task list switch keeps quick capture top-aligned', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    Finder quickCaptureFor(CueView view) => find.descendant(
+      of: find.byKey(ValueKey(view)),
+      matching: find.byKey(const Key('quick-add-field')),
+    );
+
+    final initialTop = tester.getTopLeft(quickCaptureFor(CueView.today)).dy;
+
+    await tester.tap(find.text('Upcoming').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    expect(quickCaptureFor(CueView.today), findsOneWidget);
+    expect(quickCaptureFor(CueView.upcoming), findsOneWidget);
+    expect(tester.getTopLeft(quickCaptureFor(CueView.today)).dy, initialTop);
+    expect(tester.getTopLeft(quickCaptureFor(CueView.upcoming)).dy, initialTop);
+
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(quickCaptureFor(CueView.upcoming)).dy, initialTop);
   });
 
   testWidgets('desktop inbox renames a group inline', (tester) async {

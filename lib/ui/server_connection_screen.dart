@@ -88,10 +88,10 @@ class _ServerConnectionScreenState
             ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: CueInsets.screen,
           child: Container(
             width: 420,
-            padding: const EdgeInsets.all(36),
+            padding: const EdgeInsets.all(CueSpacing.s36),
             decoration: BoxDecoration(
               color: CueColors.card,
               border: Border.all(color: CueColors.border),

@@ -145,7 +145,7 @@ class _CueTaskRowState extends State<CueTaskRow> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: 72,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
           decoration: BoxDecoration(
             color: _hovered ? CueColors.hover : CueColors.card,
             border: Border.all(
@@ -161,7 +161,7 @@ class _CueTaskRowState extends State<CueTaskRow> {
                   onTap: widget.onToggle,
                   behavior: HitTestBehavior.opaque,
                   child: Padding(
-                    padding: const EdgeInsets.all(2),
+                    padding: const EdgeInsets.all(CueSpacing.s2),
                     child: SvgPicture.asset(
                       task.isCompleted
                           ? 'assets/figma/checkbox-completed.svg'
@@ -249,7 +249,7 @@ class _CueTaskCardState extends State<CueTaskCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           height: widget.compact ? 82 : 96,
-          padding: const EdgeInsets.all(12),
+          padding: CueInsets.card,
           decoration: BoxDecoration(
             color: CueColors.card,
             border: Border.all(
