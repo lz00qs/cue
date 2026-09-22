@@ -206,6 +206,54 @@ abstract class AppLocalizations {
   /// **'This workspace has one administrator account.'**
   String get singleAdministrator;
 
+  /// No description provided for @initialSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Initial Setup'**
+  String get initialSetup;
+
+  /// No description provided for @setupAdminTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Administrator Account'**
+  String get setupAdminTitle;
+
+  /// No description provided for @setupAdminSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome to Cue. Create your administrator account to initialize the workspace.'**
+  String get setupAdminSubtitle;
+
+  /// No description provided for @confirmPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm password'**
+  String get confirmPassword;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
+  String get passwordsDoNotMatch;
+
+  /// No description provided for @confirmPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Please confirm your password'**
+  String get confirmPasswordRequired;
+
+  /// No description provided for @createAndSignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Account & Sign In'**
+  String get createAndSignIn;
+
+  /// No description provided for @credentialsSecurityNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Credentials are encrypted and saved securely in the database. No plaintext password is stored in .env.'**
+  String get credentialsSecurityNote;
+
   /// No description provided for @connectToCue.
   ///
   /// In en, this message translates to:

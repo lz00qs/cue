@@ -4,7 +4,8 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 
 ## 已实现
 
-- 单管理员登录，无注册、邀请或多用户入口
+- 首次启动 Web 端自动引导创建管理员账户；凭证经 bcrypt 安全哈希后存储于 PostgreSQL，不再写入本地 `.env` 文件
+- 提供服务端 CLI 密码重置工具，支持在忘记密码时快速重置
 - 15 分钟 Access Token、30 天 Refresh Token 与客户端自动刷新
 - PostgreSQL 持久化、启动时自动迁移和首次示例数据
 - 任务新增、读取、状态/优先级更新、软删除；仅 P0 视为重要
@@ -22,24 +23,27 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 
 ## 配置
 
-复制环境变量模板并修改所有密码和密钥：
+复制环境变量模板并修改数据库密码与 JWT 密钥：
 
 ```bash
 cp .env.example .env
 ```
 
-本地部署已生成一份被 Git 忽略的 `.env`。默认测试账号：
+`.env` 中仅需配置数据库连接密码与两个随机生成的 JWT Secret（至少 32 字符），**无需且不再支持在 `.env` 中存放管理员账号和密码**。
 
-```text
-admin@cue.local
-Cue-Local-2026!
+初次部署后打开浏览器访问 Web 端，系统会自动检测并引导您设置管理员邮箱与密码；凭证经 bcrypt 加密哈希后保存在 PostgreSQL 数据库中。
+
+### 忘记管理员密码
+
+若在使用过程中遗忘管理员密码，可通过宿主机直接运行 CLI 命令重置：
+
+```bash
+docker compose exec cue-api npm run reset-password -- <新密码>
+# 也可以同时指定新邮箱：
+# docker compose exec cue-api npm run reset-password -- <新密码> <新邮箱>
 ```
 
-不要将这组本地凭据用于公网部署。公网部署前请使用长随机密码和两个独立随机 JWT 密钥，并启用下文的 HTTPS 入口。
-
 任务种子数据和 PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时可在 `.env` 修改。
-
-如果不希望保存明文登录密码，可生成 bcrypt 哈希写入 `CUE_ADMIN_PASSWORD_HASH`，并清空 `CUE_ADMIN_PASSWORD`。
 
 ## Docker 部署
 

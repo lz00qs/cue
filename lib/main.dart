@@ -10,6 +10,7 @@ import 'ui/cue_home.dart';
 import 'ui/cue_theme.dart';
 import 'ui/login_screen.dart';
 import 'ui/server_connection_screen.dart';
+import 'ui/setup_admin_screen.dart';
 
 void main() {
   runApp(const CueApp());
@@ -47,6 +48,15 @@ class _CueAppView extends ConsumerWidget {
             onCancel: app.serverUrl == null
                 ? null
                 : controller.cancelServerConfiguration,
+          )
+        : !app.isInitialized
+        ? SetupAdminScreen(
+            onSetup: controller.setupAdmin,
+            initialError: app.initialError,
+            serverUrl: isNativePlatform ? app.serverUrl : null,
+            onChangeServer: isNativePlatform
+                ? controller.beginServerConfiguration
+                : null,
           )
         : app.store == null
         ? LoginScreen(

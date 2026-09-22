@@ -85,6 +85,38 @@ class ApiClient {
     }
   }
 
+  Future<bool> checkInitStatus() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(_url('/auth/status'));
+      final data = response.data;
+      if (data != null && data['initialized'] is bool) {
+        return data['initialized'] as bool;
+      }
+      return true;
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
+  }
+
+  Future<String> setupAdmin(String email, String password) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        _url('/auth/setup'),
+        data: {'email': email.trim(), 'password': password},
+      );
+      final data = response.data!;
+      final normalizedEmail = _extractEmail(data);
+      await _tokens.save(
+        accessToken: _extractString(data, 'accessToken'),
+        refreshToken: _extractString(data, 'refreshToken'),
+        email: normalizedEmail,
+      );
+      return normalizedEmail;
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
+  }
+
   Future<String> login(String email, String password) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -375,4 +407,15 @@ String normalizeServerUrl(String input, {bool allowEmpty = false}) {
   final normalized = uri.replace(path: path, query: null, fragment: null);
   final result = normalized.toString();
   return result.endsWith('/') ? result.substring(0, result.length - 1) : result;
+}
+
+final _emailRegex = RegExp(
+  r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,63}$",
+);
+
+bool isValidEmail(String? value) {
+  if (value == null) return false;
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed.length > 254) return false;
+  return _emailRegex.hasMatch(trimmed);
 }

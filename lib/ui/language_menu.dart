@@ -3,22 +3,81 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/l10n.dart';
 import '../state/app_state.dart';
+import 'cue_theme.dart';
 import 'preference_picker.dart';
 
-class LanguageMenuButton extends StatelessWidget {
+class LanguageMenuButton extends ConsumerWidget {
   const LanguageMenuButton({super.key, this.showLabel = false});
 
   final bool showLabel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = context.l10n;
-    return CuePreferenceButton(
-      label: l10n.language,
-      icon: Icons.language_rounded,
-      showLabel: showLabel,
-      onTap: () =>
-          showLanguagePicker(context, mobile: showLabel ? false : null),
+    final locale = ref.watch(
+      appControllerProvider.select((app) => app.locale),
+    );
+    final activeLanguageCode =
+        locale?.languageCode ?? Localizations.localeOf(context).languageCode;
+    final currentLanguage =
+        activeLanguageCode == 'zh' ? l10n.chinese : l10n.english;
+
+    if (showLabel) {
+      return CuePreferenceButton(
+        label: l10n.language,
+        icon: Icons.language_rounded,
+        showLabel: true,
+        onTap: () => showLanguagePicker(context, mobile: false),
+      );
+    }
+
+    return Tooltip(
+      message: l10n.language,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('language-menu-button'),
+          onTap: () => showLanguagePicker(context),
+          borderRadius: BorderRadius.circular(20),
+          hoverColor: CueColors.sidebarHover,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CueSpacing.s10,
+              vertical: CueSpacing.s6,
+            ),
+            decoration: BoxDecoration(
+              color: CueColors.subtle,
+              border: Border.all(color: CueColors.border),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.language_rounded,
+                  size: 15,
+                  color: CueColors.secondary,
+                ),
+                const SizedBox(width: CueSpacing.s6),
+                Text(
+                  currentLanguage,
+                  style: TextStyle(
+                    color: CueColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: CueSpacing.s4),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 15,
+                  color: CueColors.secondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

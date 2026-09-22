@@ -52,6 +52,7 @@ class AppState {
     this.initialError,
     this.booting = true,
     this.configuringServer = false,
+    this.isInitialized = true,
     this.locale,
     this.themeMode = ThemeMode.system,
     this.startupView = StartupView.today,
@@ -64,6 +65,7 @@ class AppState {
   final String? initialError;
   final bool booting;
   final bool configuringServer;
+  final bool isInitialized;
   final Locale? locale;
   final ThemeMode themeMode;
   final StartupView startupView;
@@ -78,6 +80,7 @@ class AppState {
     Object? initialError = _unchanged,
     bool? booting,
     bool? configuringServer,
+    bool? isInitialized,
     Object? locale = _unchanged,
     ThemeMode? themeMode,
     StartupView? startupView,
@@ -93,6 +96,7 @@ class AppState {
         : initialError as String?,
     booting: booting ?? this.booting,
     configuringServer: configuringServer ?? this.configuringServer,
+    isInitialized: isInitialized ?? this.isInitialized,
     locale: identical(locale, _unchanged) ? this.locale : locale as Locale?,
     themeMode: themeMode ?? this.themeMode,
     startupView: startupView ?? this.startupView,
@@ -300,12 +304,32 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       await _openWorkspace(email);
     } catch (error) {
       if (!ref.mounted) return;
+      var isInitialized = true;
+      try {
+        isInitialized = await _api!.checkInitStatus();
+      } catch (_) {
+        // If status check fails, fallback to default initialized state
+      }
+      if (!ref.mounted) return;
       state = state.copyWith(
         booting: false,
+        isInitialized: isInitialized,
         initialError: error is ApiException && error.statusCode != 401
             ? error.message
             : null,
       );
+    }
+  }
+
+  Future<void> setupAdmin(String email, String password) async {
+    final normalizedEmail = await _api!.setupAdmin(email, password);
+    try {
+      await _openWorkspace(normalizedEmail);
+      if (!ref.mounted) return;
+      state = state.copyWith(isInitialized: true);
+    } catch (error) {
+      await _api!.logout();
+      rethrow;
     }
   }
 
@@ -366,10 +390,18 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     final serverUrl = normalizeServerUrl(input);
     final candidate = ApiClient(_tokens!, baseUrl: serverUrl);
     await candidate.checkConnection();
+    bool isInitialized = true;
+    try {
+      isInitialized = await candidate.checkInitStatus();
+    } catch (_) {}
     await _serverConfig!.save(serverUrl);
     if (serverUrl == state.serverUrl) {
       if (!ref.mounted) return;
-      state = state.copyWith(configuringServer: false, initialError: null);
+      state = state.copyWith(
+        configuringServer: false,
+        isInitialized: isInitialized,
+        initialError: null,
+      );
       return;
     }
     await _tokens!.clear();
@@ -383,6 +415,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       email: null,
       serverUrl: serverUrl,
       configuringServer: false,
+      isInitialized: isInitialized,
       initialError: null,
       booting: false,
     );

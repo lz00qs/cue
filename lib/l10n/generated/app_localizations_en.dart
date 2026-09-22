@@ -65,6 +65,32 @@ class AppLocalizationsEn extends AppLocalizations {
       'This workspace has one administrator account.';
 
   @override
+  String get initialSetup => 'Initial Setup';
+
+  @override
+  String get setupAdminTitle => 'Create Administrator Account';
+
+  @override
+  String get setupAdminSubtitle =>
+      'Welcome to Cue. Create your administrator account to initialize the workspace.';
+
+  @override
+  String get confirmPassword => 'Confirm password';
+
+  @override
+  String get passwordsDoNotMatch => 'Passwords do not match';
+
+  @override
+  String get confirmPasswordRequired => 'Please confirm your password';
+
+  @override
+  String get createAndSignIn => 'Create Account & Sign In';
+
+  @override
+  String get credentialsSecurityNote =>
+      'Credentials are encrypted and saved securely in the database. No plaintext password is stored in .env.';
+
+  @override
   String get connectToCue => 'Connect to Cue';
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/api_client.dart';
 import '../state/page_state.dart';
 
 import '../l10n/l10n.dart';
@@ -47,7 +48,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate() || _submitting) return;
     ref.read(loginUiProvider.notifier).setSubmitting(true);
     try {
-      await widget.onLogin(_email.text, _password.text);
+      await widget.onLogin(_email.text.trim(), _password.text);
     } catch (error) {
       if (!mounted) return;
       ref.read(loginUiProvider.notifier).setError(error.toString());
@@ -155,12 +156,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.username],
                     decoration: InputDecoration(labelText: context.l10n.email),
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-                      return text.contains('@')
-                          ? null
-                          : context.l10n.enterValidEmail;
-                    },
+                    validator: (value) =>
+                        isValidEmail(value) ? null : context.l10n.enterValidEmail,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(

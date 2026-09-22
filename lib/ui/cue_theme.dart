@@ -242,18 +242,46 @@ abstract final class CueTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: CueColors.card,
-        contentPadding: EdgeInsets.symmetric(
+        fillColor: CueColors.subtle,
+        contentPadding: const EdgeInsets.symmetric(
           horizontal: CueSpacing.s14,
           vertical: CueSpacing.s12,
         ),
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: CueColors.border),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+        ),
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.border),
-          borderRadius: BorderRadius.all(Radius.circular(10)),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.accent, width: 1.5),
-          borderRadius: BorderRadius.all(Radius.circular(10)),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: CueColors.danger),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: CueColors.danger, width: 1.5),
+          borderRadius: const BorderRadius.all(Radius.circular(10)),
+        ),
+        errorStyle: TextStyle(
+          color: CueColors.danger,
+          fontSize: 12,
+        ),
+        labelStyle: TextStyle(
+          color: CueColors.secondary,
+          fontSize: 13,
+        ),
+        floatingLabelStyle: TextStyle(
+          color: CueColors.accent,
+          fontSize: 13,
+        ),
+        hintStyle: const TextStyle(
+          color: CueColors.tertiary,
+          fontSize: 13,
         ),
       ),
       timePickerTheme: TimePickerThemeData(

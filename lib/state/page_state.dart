@@ -249,3 +249,61 @@ class ServerConnectionUi extends Notifier<ServerConnectionUiState> {
     error: error,
   );
 }
+
+class SetupAdminUiState {
+  const SetupAdminUiState({
+    this.submitting = false,
+    this.obscurePassword = true,
+    this.obscureConfirmPassword = true,
+    this.error,
+    this.interacted = false,
+  });
+  final bool submitting;
+  final bool obscurePassword;
+  final bool obscureConfirmPassword;
+  final String? error;
+  final bool interacted;
+}
+
+final setupAdminUiProvider =
+    NotifierProvider.autoDispose<SetupAdminUi, SetupAdminUiState>(
+      SetupAdminUi.new,
+    );
+
+class SetupAdminUi extends Notifier<SetupAdminUiState> {
+  @override
+  SetupAdminUiState build() => const SetupAdminUiState();
+
+  void setError(String? error) => state = SetupAdminUiState(
+    submitting: state.submitting,
+    obscurePassword: state.obscurePassword,
+    obscureConfirmPassword: state.obscureConfirmPassword,
+    error: error,
+    interacted: true,
+  );
+
+  void setSubmitting(bool submitting) => state = SetupAdminUiState(
+    submitting: submitting,
+    obscurePassword: state.obscurePassword,
+    obscureConfirmPassword: state.obscureConfirmPassword,
+    error: submitting ? null : state.error,
+    interacted: true,
+  );
+
+  void togglePasswordVisibility() => state = SetupAdminUiState(
+    submitting: state.submitting,
+    obscurePassword: !state.obscurePassword,
+    obscureConfirmPassword: state.obscureConfirmPassword,
+    error: state.error,
+    interacted: state.interacted,
+  );
+
+  void toggleConfirmPasswordVisibility() => state = SetupAdminUiState(
+    submitting: state.submitting,
+    obscurePassword: state.obscurePassword,
+    obscureConfirmPassword: !state.obscureConfirmPassword,
+    error: state.error,
+    interacted: state.interacted,
+  );
+}
+

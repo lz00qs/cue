@@ -64,6 +64,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get singleAdministrator => '此工作区仅有一个管理员账户。';
 
   @override
+  String get initialSetup => '初始设置';
+
+  @override
+  String get setupAdminTitle => '创建管理员账户';
+
+  @override
+  String get setupAdminSubtitle => '欢迎使用 Cue。请创建管理员账号以初始化工作区。';
+
+  @override
+  String get confirmPassword => '确认密码';
+
+  @override
+  String get passwordsDoNotMatch => '两次输入的密码不一致';
+
+  @override
+  String get confirmPasswordRequired => '请再次输入密码以确认';
+
+  @override
+  String get createAndSignIn => '创建账号并登录';
+
+  @override
+  String get credentialsSecurityNote => '凭据已安全哈希并存储在数据库中，不会在本地 .env 文件中保存明文密码。';
+
+  @override
   String get connectToCue => '连接到 Cue';
 
   @override
