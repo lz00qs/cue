@@ -153,7 +153,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
       alignment: Alignment.center,
       insetPadding: CueInsets.dialog,
       elevation: 24,
-      shadowColor: Colors.black.withValues(alpha: 0.72),
+      shadowColor: CueColors.shadow.withValues(alpha: 0.72),
       backgroundColor: CueColors.popover,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
@@ -542,7 +542,7 @@ class _TaskDetailsPopoverState extends ConsumerState<TaskDetailsPopover> {
                     color: CueColors.popover,
                     surfaceTintColor: Colors.transparent,
                     elevation: 12,
-                    shadowColor: Colors.black.withValues(alpha: 0.32),
+                    shadowColor: CueColors.shadow.withValues(alpha: 0.32),
                     menuPadding: const EdgeInsets.all(CueSpacing.s6),
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(

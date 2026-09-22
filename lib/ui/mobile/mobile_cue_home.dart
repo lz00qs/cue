@@ -12,23 +12,6 @@ import '../cue_theme.dart';
 import '../appearance_menu.dart';
 import '../language_menu.dart';
 
-abstract final class _MobileColors {
-  static Color get canvas => CueColors.canvas;
-  static Color get card => CueColors.card;
-  static Color get subtle => CueColors.subtle;
-  static Color get selected => CueColors.selected;
-  static Color get accent => CueColors.accent;
-  static Color get primary => CueColors.primary;
-  static Color get secondary => CueColors.secondary;
-  static const tertiary = CueColors.tertiary;
-  static Color get border => CueColors.border;
-  static Color get danger => CueColors.danger;
-  static Color get dangerBackground => CueColors.dangerBackground;
-  static const orange = CueColors.orange;
-  static Color get orangeBackground => CueColors.orangeBackground;
-  static const onAccent = CueColors.onAccent;
-}
-
 class MobileCueHome extends ConsumerStatefulWidget {
   const MobileCueHome({
     super.key,
@@ -57,7 +40,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     ref.watch(taskRevisionProvider);
     ref.watch(mobileUiProvider);
     return Scaffold(
-      backgroundColor: _MobileColors.canvas,
+      backgroundColor: CueColors.canvas,
       body: Stack(
         children: [
           Positioned.fill(child: _buildPage()),
@@ -130,7 +113,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     var task = initialTask;
     await showDialog<void>(
       context: context,
-      barrierColor: _MobileColors.canvas.withValues(alpha: 0.68),
+      barrierColor: CueColors.modalBarrier,
       barrierLabel: context.l10n.closeTaskDetails,
       builder: (dialogContext) {
         return Consumer(
@@ -224,7 +207,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
               child: Container(
                 padding: CueInsets.mobileForm,
                 decoration: BoxDecoration(
-                  color: _MobileColors.card,
+                  color: CueColors.card,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: SingleChildScrollView(
@@ -237,7 +220,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                       Text(
                         context.l10n.newTask,
                         style: TextStyle(
-                          color: _MobileColors.primary,
+                          color: CueColors.primary,
                           fontSize: 20,
                           height: 25 / 20,
                           fontWeight: FontWeight.w600,
@@ -355,8 +338,8 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                             vertical: CueSpacing.s12,
                           ),
                           decoration: BoxDecoration(
-                            color: _MobileColors.subtle,
-                            border: Border.all(color: _MobileColors.border),
+                            color: CueColors.subtle,
+                            border: Border.all(color: CueColors.border),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
@@ -364,7 +347,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                               Icon(
                                 Icons.calendar_month_outlined,
                                 size: 18,
-                                color: _MobileColors.accent,
+                                color: CueColors.accent,
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -374,7 +357,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                                     Text(
                                       context.l10n.dueDate,
                                       style: TextStyle(
-                                        color: _MobileColors.secondary,
+                                        color: CueColors.secondary,
                                         fontSize: 12,
                                       ),
                                     ),
@@ -386,7 +369,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                                         today: today,
                                       ),
                                       style: TextStyle(
-                                        color: _MobileColors.primary,
+                                        color: CueColors.primary,
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -396,7 +379,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                               ),
                               Icon(
                                 Icons.chevron_right_rounded,
-                                color: _MobileColors.secondary,
+                                color: CueColors.secondary,
                                 size: 18,
                               ),
                             ],
@@ -408,7 +391,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                         height: 48,
                         child: FilledButton(
                           style: FilledButton.styleFrom(
-                            backgroundColor: _MobileColors.accent,
+                            backgroundColor: CueColors.accent,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -475,8 +458,8 @@ class _MobileTodayPage extends ConsumerWidget {
         ? tasks
         : tasks.where((task) => !morning.contains(task)).toList();
     return RefreshIndicator(
-      color: _MobileColors.accent,
-      backgroundColor: _MobileColors.card,
+      color: CueColors.accent,
+      backgroundColor: CueColors.card,
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -596,8 +579,8 @@ class _MobileBoardPage extends ConsumerWidget {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
     return RefreshIndicator(
-      color: _MobileColors.accent,
-      backgroundColor: _MobileColors.card,
+      color: CueColors.accent,
+      backgroundColor: CueColors.card,
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -681,8 +664,8 @@ class _MobileCalendarPage extends ConsumerWidget {
           ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
 
     return RefreshIndicator(
-      color: _MobileColors.accent,
-      backgroundColor: _MobileColors.card,
+      color: CueColors.accent,
+      backgroundColor: CueColors.card,
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -708,7 +691,7 @@ class _MobileCalendarPage extends ConsumerWidget {
                       ),
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: _MobileColors.tertiary,
+                        color: CueColors.tertiary,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -746,7 +729,7 @@ class _MobileCalendarPage extends ConsumerWidget {
           Text(
             context.l10n.nextUp,
             style: TextStyle(
-              color: _MobileColors.secondary,
+              color: CueColors.secondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -786,14 +769,14 @@ class _MobileQuadrantsPage extends ConsumerWidget {
       (
         context.l10n.doNow,
         context.l10n.importantUrgent,
-        _MobileColors.dangerBackground,
+        CueColors.dangerBackground,
         store.tasksForPriority(0),
         0,
       ),
       (
         context.l10n.schedule,
         context.l10n.importantLater,
-        _MobileColors.orangeBackground,
+        CueColors.orangeBackground,
         store.tasksForPriority(1),
         1,
       ),
@@ -807,14 +790,14 @@ class _MobileQuadrantsPage extends ConsumerWidget {
       (
         context.l10n.reconsider,
         context.l10n.neither,
-        _MobileColors.subtle,
+        CueColors.subtle,
         store.tasksForPriority(3),
         3,
       ),
     ];
     return RefreshIndicator(
-      color: _MobileColors.accent,
-      backgroundColor: _MobileColors.card,
+      color: CueColors.accent,
+      backgroundColor: CueColors.card,
       onRefresh: onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -894,7 +877,7 @@ class _MobileSettingsPage extends ConsumerWidget {
         Text(
           context.l10n.settings,
           style: TextStyle(
-            color: _MobileColors.primary,
+            color: CueColors.primary,
             fontSize: 20,
             height: 25 / 20,
             fontWeight: FontWeight.w600,
@@ -905,7 +888,7 @@ class _MobileSettingsPage extends ConsumerWidget {
         Text(
           context.l10n.personalizeCue,
           style: TextStyle(
-            color: _MobileColors.secondary,
+            color: CueColors.secondary,
             fontSize: 13,
             height: 18 / 13,
           ),
@@ -974,7 +957,7 @@ class _MobileSettingsPage extends ConsumerWidget {
                   height: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: _MobileColors.accent,
+                    color: CueColors.accent,
                   ),
                 )
               : null,
@@ -992,7 +975,7 @@ class _MobileSettingsPage extends ConsumerWidget {
   Future<void> _showSyncSheet(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: _MobileColors.card,
+      backgroundColor: CueColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1011,7 +994,7 @@ class _MobileSettingsPage extends ConsumerWidget {
                 Text(
                   context.l10n.multiDeviceSync,
                   style: TextStyle(
-                    color: _MobileColors.primary,
+                    color: CueColors.primary,
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1021,8 +1004,8 @@ class _MobileSettingsPage extends ConsumerWidget {
                   store.lastError ?? context.l10n.syncDescription,
                   style: TextStyle(
                     color: store.lastError == null
-                        ? _MobileColors.secondary
-                        : _MobileColors.danger,
+                        ? CueColors.secondary
+                        : CueColors.danger,
                     fontSize: 13,
                     height: 18 / 13,
                   ),
@@ -1056,7 +1039,7 @@ class _MobileSettingsPage extends ConsumerWidget {
                   height: 48,
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: _MobileColors.accent,
+                      backgroundColor: CueColors.accent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1072,8 +1055,8 @@ class _MobileSettingsPage extends ConsumerWidget {
                     height: 48,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: _MobileColors.secondary,
-                        side: BorderSide(color: _MobileColors.border),
+                        foregroundColor: CueColors.secondary,
+                        side: BorderSide(color: CueColors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -1102,7 +1085,7 @@ class _MobileSettingsPage extends ConsumerWidget {
   ) {
     return showModalBottomSheet<void>(
       context: context,
-      backgroundColor: _MobileColors.card,
+      backgroundColor: CueColors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1117,7 +1100,7 @@ class _MobileSettingsPage extends ConsumerWidget {
             Text(
               email ?? context.l10n.cueWorkspace,
               style: TextStyle(
-                color: _MobileColors.primary,
+                color: CueColors.primary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -1125,8 +1108,8 @@ class _MobileSettingsPage extends ConsumerWidget {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: _MobileColors.danger,
-                side: BorderSide(color: _MobileColors.border),
+                foregroundColor: CueColors.danger,
+                side: BorderSide(color: CueColors.border),
                 minimumSize: const Size.fromHeight(48),
               ),
               onPressed: () async {
@@ -1170,7 +1153,7 @@ class _MobileHeader extends StatelessWidget {
             child: Text(
               'CUE',
               style: TextStyle(
-                color: _MobileColors.accent,
+                color: CueColors.accent,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.44,
@@ -1183,7 +1166,7 @@ class _MobileHeader extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                color: _MobileColors.primary,
+                color: CueColors.primary,
                 fontSize: 28,
                 fontWeight: FontWeight.w600,
               ),
@@ -1194,14 +1177,14 @@ class _MobileHeader extends StatelessWidget {
             top: 52,
             child: Text(
               subtitle,
-              style: TextStyle(color: _MobileColors.secondary, fontSize: 12),
+              style: TextStyle(color: CueColors.secondary, fontSize: 12),
             ),
           ),
           Positioned(
             right: 0,
             top: 0,
             child: PopupMenuButton<String>(
-              color: _MobileColors.card,
+              color: CueColors.card,
               tooltip: context.l10n.more,
               padding: EdgeInsets.zero,
               onSelected: (value) {
@@ -1215,14 +1198,14 @@ class _MobileHeader extends StatelessWidget {
                     boardIsOpen
                         ? context.l10n.backToToday
                         : context.l10n.openBoard,
-                    style: TextStyle(color: _MobileColors.primary),
+                    style: TextStyle(color: CueColors.primary),
                   ),
                 ),
                 PopupMenuItem(
                   value: 'sync',
                   child: Text(
                     context.l10n.syncNow,
-                    style: TextStyle(color: _MobileColors.primary),
+                    style: TextStyle(color: CueColors.primary),
                   ),
                 ),
               ],
@@ -1233,10 +1216,7 @@ class _MobileHeader extends StatelessWidget {
                   alignment: Alignment.topRight,
                   child: Text(
                     '•••',
-                    style: TextStyle(
-                      color: _MobileColors.secondary,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: CueColors.secondary, fontSize: 12),
                   ),
                 ),
               ),
@@ -1268,12 +1248,8 @@ class _MobilePill extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          foregroundColor: selected
-              ? _MobileColors.onAccent
-              : _MobileColors.primary,
-          backgroundColor: selected
-              ? _MobileColors.accent
-              : _MobileColors.subtle,
+          foregroundColor: selected ? CueColors.onAccent : CueColors.primary,
+          backgroundColor: selected ? CueColors.accent : CueColors.subtle,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: const TextStyle(fontSize: 13, height: 18 / 13),
         ),
@@ -1305,8 +1281,8 @@ class _MobileTaskRow extends StatelessWidget {
         height: 64,
         padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
         decoration: BoxDecoration(
-          color: _MobileColors.card,
-          border: Border.all(color: _MobileColors.border),
+          color: CueColors.card,
+          border: Border.all(color: CueColors.border),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1336,7 +1312,7 @@ class _MobileTaskRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _MobileColors.primary,
+                      color: CueColors.primary,
                       fontSize: 15,
                       height: 20 / 15,
                       fontWeight: FontWeight.w600,
@@ -1351,7 +1327,7 @@ class _MobileTaskRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: _MobileColors.secondary,
+                      color: CueColors.secondary,
                       fontSize: 13,
                       height: 18 / 13,
                     ),
@@ -1376,10 +1352,10 @@ class _MobilePriorityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = switch (priority) {
-      0 => (_MobileColors.dangerBackground, _MobileColors.danger),
-      1 => (_MobileColors.orangeBackground, _MobileColors.orange),
-      2 => (_MobileColors.selected, _MobileColors.accent),
-      _ => (_MobileColors.subtle, _MobileColors.secondary),
+      0 => (CueColors.dangerBackground, CueColors.danger),
+      1 => (CueColors.orangeBackground, CueColors.orange),
+      2 => (CueColors.selected, CueColors.accent),
+      _ => (CueColors.subtle, CueColors.secondary),
     };
     return Container(
       width: 40,
@@ -1418,9 +1394,9 @@ class _CalendarDay extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: inMonth ? _MobileColors.card : _MobileColors.subtle,
+          color: inMonth ? CueColors.card : CueColors.subtle,
           border: selected
-              ? Border.all(color: _MobileColors.accent, width: 2)
+              ? Border.all(color: CueColors.accent, width: 2)
               : null,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -1430,7 +1406,7 @@ class _CalendarDay extends StatelessWidget {
             Text(
               '${day.day}',
               style: TextStyle(
-                color: inMonth ? _MobileColors.primary : _MobileColors.tertiary,
+                color: inMonth ? CueColors.primary : CueColors.tertiary,
                 fontSize: 12,
               ),
             ),
@@ -1440,7 +1416,7 @@ class _CalendarDay extends StatelessWidget {
               height: 4,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: hasTasks ? _MobileColors.accent : Colors.transparent,
+                  color: hasTasks ? CueColors.accent : Colors.transparent,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -1488,7 +1464,7 @@ class _MobileQuadrant extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: _MobileColors.primary,
+                    color: CueColors.primary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1497,7 +1473,7 @@ class _MobileQuadrant extends StatelessWidget {
               Text(
                 'P$priority',
                 style: TextStyle(
-                  color: _MobileColors.secondary,
+                  color: CueColors.secondary,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1509,7 +1485,7 @@ class _MobileQuadrant extends StatelessWidget {
             rule,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: _MobileColors.secondary, fontSize: 10),
+            style: TextStyle(color: CueColors.secondary, fontSize: 10),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -1528,7 +1504,7 @@ class _MobileQuadrant extends StatelessWidget {
                       ),
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
-                        color: _MobileColors.card,
+                        color: CueColors.card,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -1536,7 +1512,7 @@ class _MobileQuadrant extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: _MobileColors.primary,
+                          color: CueColors.primary,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1592,8 +1568,8 @@ class _MobileBottomNavigation extends StatelessWidget {
         CueSpacing.s20,
       ),
       decoration: BoxDecoration(
-        color: _MobileColors.card,
-        border: Border(top: BorderSide(color: _MobileColors.border)),
+        color: CueColors.card,
+        border: Border(top: BorderSide(color: CueColors.border)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1614,17 +1590,13 @@ class _MobileBottomNavigation extends StatelessWidget {
                   Icon(
                     item.$2,
                     size: 20,
-                    color: selected
-                        ? _MobileColors.accent
-                        : _MobileColors.secondary,
+                    color: selected ? CueColors.accent : CueColors.secondary,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.$3,
                     style: TextStyle(
-                      color: selected
-                          ? _MobileColors.accent
-                          : _MobileColors.secondary,
+                      color: selected ? CueColors.accent : CueColors.secondary,
                       fontSize: 11,
                       height: 14 / 11,
                       fontWeight: FontWeight.w500,
@@ -1656,11 +1628,11 @@ class _QuickAddButton extends StatelessWidget {
         height: 56,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: _MobileColors.accent,
+          color: CueColors.accent,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: Color(0x1F1A1C26),
+              color: CueColors.shadow.withValues(alpha: 0.12),
               blurRadius: 28,
               spreadRadius: -8,
               offset: Offset(0, 8),
@@ -1672,7 +1644,7 @@ class _QuickAddButton extends StatelessWidget {
           width: 24,
           height: 24,
           colorFilter: const ColorFilter.mode(
-            _MobileColors.onAccent,
+            CueColors.onAccent,
             BlendMode.srcIn,
           ),
         ),
@@ -1817,14 +1789,14 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
     _currentTask = task;
     return Dialog(
       key: const Key('task-details-dialog'),
-      backgroundColor: _MobileColors.card,
+      backgroundColor: CueColors.card,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(
         horizontal: CueSpacing.s20,
         vertical: CueSpacing.s24,
       ),
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: _MobileColors.border),
+        side: BorderSide(color: CueColors.border),
         borderRadius: BorderRadius.circular(16),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1874,7 +1846,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                           style: TextStyle(
                             color: task.isCompleted || task.dueAt != null
                                 ? CueColors.accent
-                                : _MobileColors.secondary,
+                                : CueColors.secondary,
                             fontSize: 13,
                           ),
                         ),
@@ -1885,9 +1857,9 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                     key: const Key('mobile-task-priority-picker'),
                     tooltip: context.l10n.priority,
                     offset: const Offset(0, 28),
-                    color: _MobileColors.card,
+                    color: CueColors.card,
                     shape: RoundedRectangleBorder(
-                      side: BorderSide(color: _MobileColors.border),
+                      side: BorderSide(color: CueColors.border),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     onSelected: (p) {
@@ -1906,7 +1878,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                                 style: TextStyle(
                                   color: p == task.priority
                                       ? CueColors.accent
-                                      : _MobileColors.primary,
+                                      : CueColors.primary,
                                   fontWeight: p == task.priority
                                       ? FontWeight.bold
                                       : FontWeight.normal,
@@ -1920,7 +1892,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                   ),
                   IconButton(
                     onPressed: widget.onClose,
-                    color: _MobileColors.secondary,
+                    color: CueColors.secondary,
                     icon: const Icon(Icons.close, size: 18),
                     tooltip: context.l10n.closeTaskDetails,
                   ),
@@ -1942,7 +1914,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                       focusNode: _titleFocusNode,
                       autofocus: true,
                       style: TextStyle(
-                        color: _MobileColors.primary,
+                        color: CueColors.primary,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1980,7 +1952,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: _MobileColors.primary,
+                          color: CueColors.primary,
                           fontSize: 20,
                           height: 25 / 20,
                           fontWeight: FontWeight.w600,
@@ -1997,7 +1969,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
               ),
               child: Text(
                 '${_area(context, task)} · ${context.l10n.createdOn(_createdLabel(context, task, store.today))}',
-                style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
+                style: TextStyle(color: CueColors.secondary, fontSize: 13),
               ),
             ),
             if (_editingNote || task.note.isNotEmpty || !task.isCompleted)
@@ -2016,7 +1988,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         autofocus: true,
                         maxLines: 4,
                         style: TextStyle(
-                          color: _MobileColors.primary,
+                          color: CueColors.primary,
                           fontSize: 15,
                           height: 21 / 15,
                         ),
@@ -2055,8 +2027,8 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: task.note.isEmpty
-                                ? _MobileColors.secondary
-                                : _MobileColors.primary,
+                                ? CueColors.secondary
+                                : CueColors.primary,
                             fontSize: 15,
                             height: 21 / 15,
                           ),
@@ -2068,14 +2040,14 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
               decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: _MobileColors.border)),
+                border: Border(top: BorderSide(color: CueColors.border)),
               ),
               child: Row(
                 children: [
                   const Spacer(),
                   PopupMenuButton<String>(
-                    color: _MobileColors.card,
-                    iconColor: _MobileColors.secondary,
+                    color: CueColors.card,
+                    iconColor: CueColors.secondary,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints.tightFor(width: 36),
                     onSelected: (value) async {
@@ -2091,14 +2063,14 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                         value: 'complete',
                         child: Text(
                           context.l10n.toggleComplete,
-                          style: TextStyle(color: _MobileColors.primary),
+                          style: TextStyle(color: CueColors.primary),
                         ),
                       ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text(
                           context.l10n.delete,
-                          style: TextStyle(color: _MobileColors.danger),
+                          style: TextStyle(color: CueColors.danger),
                         ),
                       ),
                     ],
@@ -2133,8 +2105,8 @@ class _ProfileSummary extends StatelessWidget {
           vertical: CueSpacing.s12,
         ),
         decoration: BoxDecoration(
-          color: _MobileColors.card,
-          border: Border.all(color: _MobileColors.border),
+          color: CueColors.card,
+          border: Border.all(color: CueColors.border),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -2144,13 +2116,13 @@ class _ProfileSummary extends StatelessWidget {
               height: 52,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _MobileColors.selected,
+                color: CueColors.selected,
                 shape: BoxShape.circle,
               ),
               child: Text(
                 monogram,
                 style: TextStyle(
-                  color: _MobileColors.accent,
+                  color: CueColors.accent,
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2164,27 +2136,21 @@ class _ProfileSummary extends StatelessWidget {
                 children: [
                   Text(
                     context.l10n.cueWorkspace,
-                    style: TextStyle(
-                      color: _MobileColors.primary,
-                      fontSize: 15,
-                    ),
+                    style: TextStyle(color: CueColors.primary, fontSize: 15),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     email ?? context.l10n.focusStreak,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _MobileColors.secondary,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: CueColors.secondary, fontSize: 13),
                   ),
                 ],
               ),
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: _MobileColors.secondary,
+              color: CueColors.secondary,
               size: 18,
             ),
           ],
@@ -2220,8 +2186,8 @@ class _SettingsRow extends StatelessWidget {
           right: CueSpacing.s12,
         ),
         decoration: BoxDecoration(
-          color: _MobileColors.card,
-          border: Border.all(color: _MobileColors.border),
+          color: CueColors.card,
+          border: Border.all(color: CueColors.border),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -2231,10 +2197,10 @@ class _SettingsRow extends StatelessWidget {
               height: 28,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _MobileColors.selected,
+                color: CueColors.selected,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 14, color: _MobileColors.accent),
+              child: Icon(icon, size: 14, color: CueColors.accent),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -2245,7 +2211,7 @@ class _SettingsRow extends StatelessWidget {
                   Text(
                     label,
                     style: TextStyle(
-                      color: _MobileColors.primary,
+                      color: CueColors.primary,
                       fontSize: 15,
                       height: 21 / 15,
                     ),
@@ -2254,7 +2220,7 @@ class _SettingsRow extends StatelessWidget {
                     Text(
                       detail!,
                       style: TextStyle(
-                        color: _MobileColors.secondary,
+                        color: CueColors.secondary,
                         fontSize: 13,
                         height: 18 / 13,
                       ),
@@ -2265,7 +2231,7 @@ class _SettingsRow extends StatelessWidget {
             trailing ??
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: _MobileColors.secondary,
+                  color: CueColors.secondary,
                   size: 16,
                 ),
           ],
@@ -2285,15 +2251,9 @@ class _SyncFact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          label,
-          style: TextStyle(color: _MobileColors.secondary, fontSize: 13),
-        ),
+        Text(label, style: TextStyle(color: CueColors.secondary, fontSize: 13)),
         const Spacer(),
-        Text(
-          value,
-          style: TextStyle(color: _MobileColors.primary, fontSize: 13),
-        ),
+        Text(value, style: TextStyle(color: CueColors.primary, fontSize: 13)),
       ],
     );
   }
@@ -2318,19 +2278,19 @@ class _MobileTextField extends StatelessWidget {
       controller: controller,
       autofocus: autofocus,
       maxLines: maxLines,
-      style: TextStyle(color: _MobileColors.primary),
-      cursorColor: _MobileColors.accent,
+      style: TextStyle(color: CueColors.primary),
+      cursorColor: CueColors.accent,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: _MobileColors.secondary),
+        labelStyle: TextStyle(color: CueColors.secondary),
         filled: true,
-        fillColor: _MobileColors.subtle,
+        fillColor: CueColors.subtle,
         enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _MobileColors.border),
+          borderSide: BorderSide(color: CueColors.border),
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _MobileColors.accent),
+          borderSide: BorderSide(color: CueColors.accent),
           borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
       ),
@@ -2354,15 +2314,9 @@ class _DateChoice extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
-        foregroundColor: selected
-            ? _MobileColors.primary
-            : _MobileColors.secondary,
-        backgroundColor: selected
-            ? _MobileColors.selected
-            : _MobileColors.subtle,
-        side: BorderSide(
-          color: selected ? _MobileColors.accent : _MobileColors.border,
-        ),
+        foregroundColor: selected ? CueColors.primary : CueColors.secondary,
+        backgroundColor: selected ? CueColors.selected : CueColors.subtle,
+        side: BorderSide(color: selected ? CueColors.accent : CueColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(label),
@@ -2380,7 +2334,7 @@ class _SheetHandle extends StatelessWidget {
         width: 36,
         height: 4,
         decoration: BoxDecoration(
-          color: _MobileColors.tertiary,
+          color: CueColors.tertiary,
           borderRadius: BorderRadius.circular(999),
         ),
       ),
@@ -2400,7 +2354,7 @@ class _MobileEmptyState extends StatelessWidget {
       child: Center(
         child: Text(
           label,
-          style: const TextStyle(color: _MobileColors.tertiary, fontSize: 13),
+          style: const TextStyle(color: CueColors.tertiary, fontSize: 13),
         ),
       ),
     );
@@ -2408,14 +2362,14 @@ class _MobileEmptyState extends StatelessWidget {
 }
 
 const _mobileEyebrowStyle = TextStyle(
-  color: _MobileColors.tertiary,
+  color: CueColors.tertiary,
   fontSize: 11,
   height: 16 / 11,
   fontWeight: FontWeight.w600,
 );
 
 TextStyle get _mobileSectionStyle => TextStyle(
-  color: _MobileColors.secondary,
+  color: CueColors.secondary,
   fontSize: 12,
   height: 16 / 12,
   fontWeight: FontWeight.w500,

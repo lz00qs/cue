@@ -96,9 +96,9 @@ class _ServerConnectionScreenState
               color: CueColors.card,
               border: Border.all(color: CueColors.border),
               borderRadius: BorderRadius.circular(20),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x101A1C26),
+                  color: CueColors.shadow.withValues(alpha: 0.06),
                   blurRadius: 36,
                   offset: Offset(0, 16),
                 ),
@@ -216,7 +216,7 @@ class _ServerConnectionScreenState
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: CueColors.onAccent,
                               ),
                             )
                           : Text(context.l10n.connect),

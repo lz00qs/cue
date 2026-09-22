@@ -256,14 +256,14 @@ class _CueTaskCardState extends State<CueTaskCard> {
               color: _hovered ? CueColors.strongBorder : CueColors.border,
             ),
             borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x121A1C26),
+                color: CueColors.shadow.withValues(alpha: 0.07),
                 blurRadius: 2,
                 offset: Offset(0, 1),
               ),
               BoxShadow(
-                color: Color(0x0A1A1C26),
+                color: CueColors.shadow.withValues(alpha: 0.04),
                 blurRadius: 18,
                 spreadRadius: -6,
                 offset: Offset(0, 6),

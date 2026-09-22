@@ -112,9 +112,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
 
   Widget _buildDesktop() {
     return Scaffold(
-      backgroundColor: _view == CueView.quadrants
-          ? CueColors.subtle
-          : CueColors.canvas,
+      backgroundColor: CueColors.canvas,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -301,7 +299,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   Future<void> _showMonthPickerPopover() async {
     await showDialog<void>(
       context: context,
-      barrierColor: Colors.black26,
+      barrierColor: CueColors.modalBarrier,
       builder: (dialogContext) => const MonthPickerPopover(),
     );
   }

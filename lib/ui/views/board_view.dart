@@ -321,7 +321,7 @@ class _GroupColumnState extends State<_GroupColumn> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
+              color: CueColors.shadow.withValues(alpha: 0.22),
               blurRadius: 18,
               offset: const Offset(0, 8),
             ),
@@ -768,7 +768,9 @@ class _GroupColumnState extends State<_GroupColumn> {
                             color: CueColors.popover,
                             surfaceTintColor: Colors.transparent,
                             elevation: 12,
-                            shadowColor: Colors.black.withValues(alpha: 0.32),
+                            shadowColor: CueColors.shadow.withValues(
+                              alpha: 0.32,
+                            ),
                             menuPadding: const EdgeInsets.all(CueSpacing.s6),
                             clipBehavior: Clip.antiAlias,
                             shape: RoundedRectangleBorder(
@@ -947,9 +949,9 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
                   ? CueColors.strongBorder
                   : CueColors.border.withValues(alpha: 0.6),
             ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x0A000000),
+                color: CueColors.shadow.withValues(alpha: 0.04),
                 blurRadius: 3,
                 offset: Offset(0, 1),
               ),
@@ -978,10 +980,10 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
                   ),
                   alignment: Alignment.center,
                   child: task.isCompleted
-                      ? const Icon(
+                      ? Icon(
                           Icons.check_rounded,
                           size: 13,
-                          color: Colors.white,
+                          color: CueColors.onAccent,
                         )
                       : null,
                 ),

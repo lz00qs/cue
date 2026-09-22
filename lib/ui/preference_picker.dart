@@ -39,13 +39,13 @@ Future<T?> showCuePreferencePicker<T>({
       useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black54,
+      barrierColor: CueColors.modalBarrier,
       builder: (context) => panel,
     );
   }
   return showDialog<T>(
     context: context,
-    barrierColor: Colors.black54,
+    barrierColor: CueColors.modalBarrier,
     builder: (context) => Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,

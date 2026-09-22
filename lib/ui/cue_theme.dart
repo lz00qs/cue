@@ -91,6 +91,8 @@ abstract final class CueColors {
       isDark ? const Color(0xFF383A42) : const Color(0xFFFFFFFF);
   static Color get modalBarrier =>
       isDark ? const Color(0x66000000) : const Color(0x33000000);
+  static Color get shadow =>
+      isDark ? const Color(0xFF000000) : const Color(0xFF1A1C26);
   static Color get subtle =>
       isDark ? const Color(0xFF17181C) : const Color(0xFFF8F8FA);
   static Color get selected =>
@@ -133,6 +135,7 @@ abstract final class CueTheme {
       brightness: brightness,
       fontFamily: 'SF Pro Display',
       scaffoldBackgroundColor: CueColors.canvas,
+      shadowColor: CueColors.shadow,
       colorScheme: ColorScheme.fromSeed(
         seedColor: CueColors.accent,
         brightness: brightness,
@@ -184,10 +187,16 @@ abstract final class CueTheme {
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: CueColors.card,
+        barrierColor: CueColors.modalBarrier,
+        shadowColor: CueColors.shadow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        modalBarrierColor: CueColors.modalBarrier,
+        shadowColor: CueColors.shadow,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

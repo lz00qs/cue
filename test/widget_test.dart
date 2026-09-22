@@ -32,6 +32,8 @@ void main() {
       final theme = Theme.of(tester.element(scaffold));
       expect(theme.brightness, expectedBrightness);
       expect(theme.colorScheme.primary, expectedAccent);
+      expect(theme.dialogTheme.barrierColor, CueColors.modalBarrier);
+      expect(theme.bottomSheetTheme.modalBarrierColor, CueColors.modalBarrier);
     }
 
     expectTheme();
@@ -121,6 +123,26 @@ void main() {
           .height,
       48,
     );
+  });
+
+  testWidgets('desktop app views share the canvas background token', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    Color? pageBackground() =>
+        tester.widget<Scaffold>(find.byType(Scaffold).first).backgroundColor;
+
+    expect(pageBackground(), CueColors.canvas);
+    for (final page in ['Inbox', 'Upcoming', 'List', 'Calendar', 'Quadrants']) {
+      await tester.tap(find.text(page).first);
+      await tester.pumpAndSettle();
+      expect(pageBackground(), CueColors.canvas, reason: '$page background');
+    }
   });
 
   testWidgets('quadrants remain a two-by-two grid in a narrow desktop window', (
