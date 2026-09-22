@@ -433,6 +433,14 @@ void main() {
       tester.getSize(find.byKey(const Key('desktop-sidebar'))).width,
       expectedWidth,
     );
+    final sidebarIcons = find.descendant(
+      of: find.byKey(const Key('desktop-sidebar')),
+      matching: find.byType(Icon),
+    );
+    expect(
+      tester.widgetList<Icon>(sidebarIcons).map((icon) => icon.size),
+      everyElement(24),
+    );
     expect(find.text('Cue'), findsNothing);
     expect(find.byTooltip('Today'), findsOneWidget);
   });

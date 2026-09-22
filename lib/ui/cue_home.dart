@@ -427,6 +427,8 @@ class _FocusQuickAddIntent extends Intent {
   const _FocusQuickAddIntent();
 }
 
+const double _sidebarIconSize = 24;
+
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.store,
@@ -609,7 +611,7 @@ class _SidebarItemState extends State<_SidebarItem> {
                     widget.selected
                         ? (widget.selectedIcon ?? widget.icon)
                         : widget.icon,
-                    size: 22,
+                    size: _sidebarIconSize,
                     color: widget.selected
                         ? CueColors.accent
                         : CueColors.secondary,
@@ -789,7 +791,7 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
                     ? Icon(
                         Icons.sync_problem_rounded,
                         key: const Key('sidebar-sync-failed'),
-                        size: 22,
+                        size: _sidebarIconSize,
                         color: CueColors.danger,
                       )
                     : RotationTransition(
@@ -798,7 +800,7 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
                         child: Icon(
                           Icons.sync_rounded,
                           key: const Key('sidebar-sync-icon'),
-                          size: 22,
+                          size: _sidebarIconSize,
                           color: _isSyncing
                               ? CueColors.accent
                               : CueColors.secondary,
@@ -956,7 +958,7 @@ class _SidebarSettingsMenu extends StatelessWidget {
             children: [
               Icon(
                 Icons.settings_outlined,
-                size: 22,
+                size: _sidebarIconSize,
                 color: CueColors.secondary,
               ),
               Positioned(
