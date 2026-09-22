@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -46,6 +47,9 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   final _quickAddController = TextEditingController();
   final _quickAddFocus = FocusNode();
   late final SyncCoordinator _syncCoordinator;
+
+  bool get _usesMacOSIntegratedTitleBar =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
 
   @override
   void initState() {
@@ -126,6 +130,12 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             serverUrl: widget.serverUrl,
             onConfigureServer: widget.onConfigureServer,
             onSync: () => _runTaskOperation(_store.sync),
+            width: _usesMacOSIntegratedTitleBar
+                ? CueSpacing.macosSidebarWidth
+                : CueSpacing.desktopSidebarWidth,
+            topPadding: _usesMacOSIntegratedTitleBar
+                ? CueSpacing.macosSidebarTop
+                : CueSpacing.s12,
           ),
           Expanded(child: _buildContent()),
         ],
@@ -134,11 +144,21 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }
 
   Widget _buildMobile() {
-    return MobileCueHome(
+    final home = MobileCueHome(
       userEmail: widget.userEmail,
       onLogout: widget.onLogout,
       serverUrl: widget.serverUrl,
       onConfigureServer: widget.onConfigureServer,
+    );
+    if (!_usesMacOSIntegratedTitleBar) return home;
+
+    return ColoredBox(
+      color: CueColors.canvas,
+      child: Padding(
+        key: const Key('macos-titlebar-safe-area'),
+        padding: const EdgeInsets.only(top: CueSpacing.macosTitleBarHeight),
+        child: home,
+      ),
     );
   }
 
@@ -150,7 +170,9 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             _view == CueView.board) {
           return Padding(
             key: const Key('desktop-page-padding'),
-            padding: CueInsets.desktopFixedPage,
+            padding: _usesMacOSIntegratedTitleBar
+                ? CueInsets.macosDesktopFixedPage
+                : CueInsets.desktopFixedPage,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -186,7 +208,9 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Padding(
               key: const Key('desktop-page-padding'),
-              padding: CueInsets.desktopScrollablePage,
+              padding: _usesMacOSIntegratedTitleBar
+                  ? CueInsets.macosDesktopScrollablePage
+                  : CueInsets.desktopScrollablePage,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -409,6 +433,8 @@ class _Sidebar extends StatelessWidget {
     required this.serverUrl,
     required this.onConfigureServer,
     required this.onSync,
+    required this.width,
+    required this.topPadding,
   });
 
   final TaskStore store;
@@ -419,15 +445,17 @@ class _Sidebar extends StatelessWidget {
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
   final Future<bool> Function() onSync;
+  final double width;
+  final double topPadding;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       key: const Key('desktop-sidebar'),
-      width: 68,
-      padding: const EdgeInsets.fromLTRB(
+      width: width,
+      padding: EdgeInsets.fromLTRB(
         CueSpacing.s12,
-        CueSpacing.s12,
+        topPadding,
         CueSpacing.s12,
         CueSpacing.s16,
       ),

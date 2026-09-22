@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -425,9 +426,100 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byKey(const Key('desktop-sidebar'))).width, 68);
+    final expectedWidth = defaultTargetPlatform == TargetPlatform.macOS
+        ? CueSpacing.macosSidebarWidth
+        : CueSpacing.desktopSidebarWidth;
+    expect(
+      tester.getSize(find.byKey(const Key('desktop-sidebar'))).width,
+      expectedWidth,
+    );
     expect(find.text('Cue'), findsNothing);
     expect(find.byTooltip('Today'), findsOneWidget);
+  });
+
+  testWidgets('macOS sidebar reserves the native traffic-light area', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    try {
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+
+      final sidebar = tester.widget<Container>(
+        find.byKey(const Key('desktop-sidebar')),
+      );
+      final page = tester.widget<Padding>(
+        find.byKey(const Key('desktop-page-padding')),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('desktop-sidebar'))).width,
+        CueSpacing.macosSidebarWidth,
+      );
+      expect(
+        sidebar.padding,
+        const EdgeInsets.fromLTRB(
+          CueSpacing.s12,
+          CueSpacing.macosSidebarTop,
+          CueSpacing.s12,
+          CueSpacing.s16,
+        ),
+      );
+      expect(page.padding, CueInsets.macosDesktopScrollablePage);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('non-macOS sidebar keeps its original top inset', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    try {
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+
+      final sidebar = tester.widget<Container>(
+        find.byKey(const Key('desktop-sidebar')),
+      );
+      final page = tester.widget<Padding>(
+        find.byKey(const Key('desktop-page-padding')),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('desktop-sidebar'))).width,
+        CueSpacing.desktopSidebarWidth,
+      );
+      expect(sidebar.padding, const EdgeInsets.fromLTRB(12, 12, 12, 16));
+      expect(page.padding, CueInsets.desktopScrollablePage);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('macOS compact layout stays below the traffic lights', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    try {
+      await tester.pumpWidget(const CueApp.demo());
+      await tester.pumpAndSettle();
+
+      final safeArea = tester.widget<Padding>(
+        find.byKey(const Key('macos-titlebar-safe-area')),
+      );
+      expect(
+        safeArea.padding,
+        const EdgeInsets.only(top: CueSpacing.macosTitleBarHeight),
+      );
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('manual sync rotates for at least two seconds', (tester) async {
@@ -569,30 +661,40 @@ void main() {
                 .padding
             as EdgeInsets;
 
-    expect(pagePadding(), CueInsets.desktopScrollablePage);
+    final fixedPageInsets = defaultTargetPlatform == TargetPlatform.macOS
+        ? CueInsets.macosDesktopFixedPage
+        : CueInsets.desktopFixedPage;
+    final scrollablePageInsets = defaultTargetPlatform == TargetPlatform.macOS
+        ? CueInsets.macosDesktopScrollablePage
+        : CueInsets.desktopScrollablePage;
+    final expectedPageTop = defaultTargetPlatform == TargetPlatform.macOS
+        ? CueSpacing.macosDesktopPageTop
+        : CueSpacing.desktopPageTop;
+
+    expect(pagePadding(), scrollablePageInsets);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
-    expect(pagePadding().top, CueSpacing.desktopPageTop);
+    expect(pagePadding().top, expectedPageTop);
 
     await tester.tap(find.byKey(const Key('sidebar-inbox')));
     await tester.pumpAndSettle();
 
-    expect(pagePadding(), CueInsets.desktopFixedPage);
+    expect(pagePadding(), fixedPageInsets);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
-    expect(pagePadding().top, CueSpacing.desktopPageTop);
+    expect(pagePadding().top, expectedPageTop);
 
     await tester.tap(find.byKey(const Key('sidebar-upcoming')));
     await tester.pumpAndSettle();
 
-    expect(pagePadding(), CueInsets.desktopScrollablePage);
+    expect(pagePadding(), scrollablePageInsets);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
-    expect(pagePadding().top, CueSpacing.desktopPageTop);
+    expect(pagePadding().top, expectedPageTop);
 
     await tester.tap(find.byKey(const Key('sidebar-calendar')));
     await tester.pumpAndSettle();
 
-    expect(pagePadding(), CueInsets.desktopFixedPage);
+    expect(pagePadding(), fixedPageInsets);
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
-    expect(pagePadding().top, CueSpacing.desktopPageTop);
+    expect(pagePadding().top, expectedPageTop);
   });
 
   testWidgets('task list switch keeps quick capture top-aligned', (

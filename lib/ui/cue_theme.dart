@@ -21,8 +21,13 @@ abstract final class CueSpacing {
   static const double s48 = 48;
 
   static const double mobilePageGutter = s20;
+  static const double desktopSidebarWidth = 68;
   static const double desktopPageGutter = s32;
   static const double desktopPageTop = s32;
+  static const double macosSidebarWidth = 76;
+  static const double macosTitleBarHeight = s28;
+  static const double macosSidebarTop = macosTitleBarHeight + s12;
+  static const double macosDesktopPageTop = s24;
 
   // Includes the floating mobile navigation bar and its safe breathing room.
   static const double mobileNavigationClearance = 92;
@@ -39,6 +44,18 @@ abstract final class CueInsets {
   static const desktopScrollablePage = EdgeInsets.fromLTRB(
     CueSpacing.desktopPageGutter,
     CueSpacing.desktopPageTop,
+    CueSpacing.desktopPageGutter,
+    CueSpacing.s48,
+  );
+  static const macosDesktopFixedPage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.macosDesktopPageTop,
+    CueSpacing.desktopPageGutter,
+    CueSpacing.s24,
+  );
+  static const macosDesktopScrollablePage = EdgeInsets.fromLTRB(
+    CueSpacing.desktopPageGutter,
+    CueSpacing.macosDesktopPageTop,
     CueSpacing.desktopPageGutter,
     CueSpacing.s48,
   );

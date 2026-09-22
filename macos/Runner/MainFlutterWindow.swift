@@ -28,6 +28,14 @@ class MainFlutterWindow: NSWindow {
     localStorageChannel = channel
 
     super.awakeFromNib()
+
+    // Let Flutter paint the full window while keeping the native traffic-light
+    // controls. Apply this after nib initialization so AppKit does not restore
+    // the standard title-bar presentation over these values.
+    self.titleVisibility = .hidden
+    self.titlebarAppearsTransparent = true
+    self.titlebarSeparatorStyle = .none
+    self.styleMask.insert(.fullSizeContentView)
   }
 
   private func handleLocalStorage(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
