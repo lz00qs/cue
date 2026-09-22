@@ -678,6 +678,7 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
     with SingleTickerProviderStateMixin {
   static const _minimumAnimationDuration = Duration(seconds: 2);
   late final AnimationController _rotationController;
+  late final Animation<double> _rotationAnimation;
   bool _hovered = false;
   bool _manualSyncing = false;
   bool? _manualFailureOverride;
@@ -692,6 +693,10 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
       vsync: this,
       duration: const Duration(seconds: 1),
     );
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: -1.0,
+    ).animate(_rotationController);
     _updateRotation();
   }
 
@@ -797,7 +802,7 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
                       )
                     : RotationTransition(
                         key: const Key('sidebar-sync-rotation'),
-                        turns: _rotationController,
+                        turns: _rotationAnimation,
                         child: Icon(
                           Icons.sync_rounded,
                           key: const Key('sidebar-sync-icon'),

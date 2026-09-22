@@ -541,16 +541,17 @@ void main() {
     await tester.tap(find.byKey(const Key('sidebar-sync')));
     await tester.pump();
 
-    AnimationController rotation() =>
+    Animation<double> rotation() =>
         tester
-                .widget<RotationTransition>(
-                  find.byKey(const Key('sidebar-sync-rotation')),
-                )
-                .turns
-            as AnimationController;
+            .widget<RotationTransition>(
+              find.byKey(const Key('sidebar-sync-rotation')),
+            )
+            .turns;
 
     expect(rotation().isAnimating, isTrue);
-    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(rotation().value, lessThan(0));
+    await tester.pump(const Duration(milliseconds: 750));
     expect(rotation().isAnimating, isTrue);
     await tester.pump(const Duration(milliseconds: 1100));
     await tester.pumpAndSettle();
@@ -573,11 +574,10 @@ void main() {
 
     final rotation =
         tester
-                .widget<RotationTransition>(
-                  find.byKey(const Key('sidebar-sync-rotation')),
-                )
-                .turns
-            as AnimationController;
+            .widget<RotationTransition>(
+              find.byKey(const Key('sidebar-sync-rotation')),
+            )
+            .turns;
     expect(rotation.isAnimating, isTrue);
 
     sync.complete(const SyncResult(changes: [], latestRevision: 0));
