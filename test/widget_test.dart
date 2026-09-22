@@ -600,7 +600,7 @@ void main() {
     expect(find.byTooltip('Sync failed · click to retry'), findsOneWidget);
   });
 
-  testWidgets('desktop new task dialog omits status and importance controls', (
+  testWidgets('desktop new task dialog uses the task details popover style', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
@@ -613,8 +613,32 @@ void main() {
     await tester.tap(find.byKey(const Key('calendar-add-task-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('New task'), findsOneWidget);
-    expect(find.text('Priority'), findsOneWidget);
+    final dialogFinder = find.byKey(const Key('desktop-new-task-dialog'));
+    expect(dialogFinder, findsOneWidget);
+    final dialog = tester.widget<Dialog>(dialogFinder);
+    expect(dialog.elevation, 24);
+    expect(dialog.backgroundColor, CueColors.popover);
+    expect(dialog.insetPadding, CueInsets.dialog);
+    expect(dialog.clipBehavior, Clip.antiAlias);
+    expect(
+      dialog.shape,
+      RoundedRectangleBorder(
+        side: BorderSide(color: CueColors.strongBorder),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+    expect(
+      find.byKey(const Key('desktop-new-task-title-field')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('desktop-new-task-priority-picker')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('desktop-new-task-group-picker')),
+      findsOneWidget,
+    );
     expect(find.text('Status'), findsNothing);
     expect(find.text('To do'), findsNothing);
     expect(find.text('Doing'), findsNothing);

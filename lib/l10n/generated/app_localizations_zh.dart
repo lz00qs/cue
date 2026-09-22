@@ -170,7 +170,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get taskTitle => '任务标题';
 
   @override
-  String get taskTitleHint => '接下来需要推进什么？';
+  String get taskTitleHint => '接下来需要做什么';
 
   @override
   String get note => '备注';

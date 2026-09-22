@@ -340,6 +340,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }) async {
     await showDialog<void>(
       context: context,
+      barrierColor: CueColors.modalBarrier,
       builder: (dialogContext) => _AddTaskDialog(
         store: _store,
         onRunOperation: _runTaskOperation,
@@ -1596,19 +1597,25 @@ class _AddTaskDialog extends StatefulWidget {
 class _AddTaskDialogState extends State<_AddTaskDialog> {
   late final TextEditingController _titleController;
   late final TextEditingController _noteController;
+  late final FocusNode _titleFocusNode;
   late int _priority;
   late String _group;
   DateTime? _dueAt;
   String? _reminder;
   String? _recurrence;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController();
     _noteController = TextEditingController();
+    _titleFocusNode = FocusNode();
     _priority = widget.prefilledPriority ?? 2;
-    _group = widget.prefilledGroup ?? TaskStore.defaultUngrouped;
+    final initialGroup = widget.prefilledGroup ?? TaskStore.defaultUngrouped;
+    _group = widget.store.groups.contains(initialGroup)
+        ? initialGroup
+        : TaskStore.defaultUngrouped;
     final today = widget.store.today;
     _dueAt = widget.prefilledDate == null
         ? DateTime(today.year, today.month, today.day, 18)
@@ -1624,6 +1631,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   void dispose() {
     _titleController.dispose();
     _noteController.dispose();
+    _titleFocusNode.dispose();
     super.dispose();
   }
 
@@ -1649,140 +1657,349 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     });
   }
 
+  Future<void> _submit() async {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      _titleFocusNode.requestFocus();
+      return;
+    }
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    final succeeded = await widget.onRunOperation(
+      () => widget.store.addTask(
+        title: title,
+        note: _noteController.text,
+        priority: _priority,
+        dueAt: _dueAt,
+        reminder: _reminder,
+        recurrence: _recurrence,
+        group: _group == TaskStore.defaultUngrouped ? null : _group,
+      ),
+    );
+    if (!mounted) return;
+    if (succeeded) {
+      Navigator.pop(context);
+      return;
+    }
+    setState(() => _isSubmitting = false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      titlePadding: const EdgeInsets.fromLTRB(
-        CueSpacing.s24,
-        CueSpacing.s24,
-        CueSpacing.s24,
-        0,
+    return Dialog(
+      key: const Key('desktop-new-task-dialog'),
+      alignment: Alignment.center,
+      insetPadding: CueInsets.dialog,
+      elevation: 24,
+      shadowColor: CueColors.shadow.withValues(alpha: 0.72),
+      backgroundColor: CueColors.popover,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: CueColors.strongBorder),
+        borderRadius: BorderRadius.circular(16),
       ),
-      contentPadding: const EdgeInsets.fromLTRB(
-        CueSpacing.s24,
-        CueSpacing.s20,
-        CueSpacing.s24,
-        CueSpacing.s8,
-      ),
-      actionsPadding: const EdgeInsets.fromLTRB(
-        CueSpacing.s24,
-        CueSpacing.s12,
-        CueSpacing.s24,
-        CueSpacing.s24,
-      ),
-      title: Text(
-        context.l10n.newTask,
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w600,
-          color: CueColors.primary,
-        ),
-      ),
-      content: SizedBox(
-        width: 420,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _titleController,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: context.l10n.taskTitle,
-                  hintText: context.l10n.taskTitleHint,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _noteController,
-                maxLines: 3,
-                decoration: InputDecoration(labelText: context.l10n.note),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: _priority,
-                decoration: InputDecoration(labelText: context.l10n.priority),
-                items: List.generate(
-                  4,
-                  (index) =>
-                      DropdownMenuItem(value: index, child: Text('P$index')),
-                ),
-                onChanged: (value) => setState(() => _priority = value ?? 2),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: widget.store.groups.contains(_group)
-                    ? _group
-                    : TaskStore.defaultUngrouped,
-                decoration: InputDecoration(labelText: context.l10n.group),
-                items: widget.store.groups.map((g) {
-                  return DropdownMenuItem<String>(value: g, child: Text(g));
-                }).toList(),
-                onChanged: (value) => setState(
-                  () => _group = value ?? TaskStore.defaultUngrouped,
-                ),
-              ),
-              const SizedBox(height: 12),
-              InkWell(
-                key: const Key('desktop-new-task-duedate-picker'),
-                onTap: _pickDueDate,
-                borderRadius: BorderRadius.circular(8),
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: context.l10n.dueDate,
-                    suffixIcon: const Icon(Icons.calendar_month_outlined),
-                  ),
-                  child: Text(
-                    cueDueDateTimeLabel(
-                      context,
-                      _dueAt,
-                      today: widget.store.today,
-                    ),
-                    style: TextStyle(
-                      color: _dueAt == null
-                          ? CueColors.secondary
-                          : CueColors.primary,
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 440,
+        height: 420,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 56,
+              child: Row(
+                children: [
+                  const SizedBox(width: 20),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: InkWell(
+                        key: const Key('desktop-new-task-duedate-picker'),
+                        onTap: _pickDueDate,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: CueSpacing.s8,
+                            vertical: CueSpacing.s4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: CueColors.subtle,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 13,
+                                color: _dueAt == null
+                                    ? CueColors.secondary
+                                    : CueColors.accent,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  cueDueDateTimeLabel(
+                                    context,
+                                    _dueAt,
+                                    today: widget.store.today,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: _dueAt == null
+                                            ? CueColors.secondary
+                                            : CueColors.primary,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                size: 14,
+                                color: CueColors.secondary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  PopupMenuButton<int>(
+                    key: const Key('desktop-new-task-priority-picker'),
+                    tooltip: context.l10n.priority,
+                    offset: const Offset(0, 32),
+                    color: CueColors.card,
+                    shape: RoundedRectangleBorder(
+                      side: BorderSide(color: CueColors.border),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    onSelected: (priority) =>
+                        setState(() => _priority = priority),
+                    itemBuilder: (context) => [
+                      for (var priority = 0; priority < 4; priority++)
+                        PopupMenuItem<int>(
+                          value: priority,
+                          child: Row(
+                            children: [
+                              CuePriorityBadge(priority: priority),
+                              const SizedBox(width: 10),
+                              Text(
+                                'P$priority',
+                                style: TextStyle(
+                                  color: priority == _priority
+                                      ? CueColors.accent
+                                      : CueColors.primary,
+                                  fontWeight: priority == _priority
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: CuePriorityBadge(priority: _priority),
+                    ),
+                  ),
+                  IconButton(
+                    key: const Key('desktop-new-task-close'),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 18),
+                    color: CueColors.secondary,
+                    tooltip: context.l10n.close,
+                  ),
+                  const SizedBox(width: 4),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(context.l10n.cancel),
-        ),
-        FilledButton(
-          onPressed: () async {
-            if (_titleController.text.trim().isEmpty) return;
-            final succeeded = await widget.onRunOperation(
-              () => widget.store.addTask(
-                title: _titleController.text,
-                note: _noteController.text,
-                priority: _priority,
-                dueAt: _dueAt,
-                reminder: _reminder,
-                recurrence: _recurrence,
-                group: _group == TaskStore.defaultUngrouped ? null : _group,
-              ),
-            );
-            if (succeeded && context.mounted) {
-              Navigator.pop(context);
-            }
-          },
-          style: FilledButton.styleFrom(
-            backgroundColor: CueColors.accent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-          child: Text(context.l10n.addTask),
+            const Divider(height: 1, thickness: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  CueSpacing.s24,
+                  CueSpacing.s18,
+                  CueSpacing.s24,
+                  CueSpacing.s16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      key: const Key('desktop-new-task-title-field'),
+                      controller: _titleController,
+                      focusNode: _titleFocusNode,
+                      autofocus: true,
+                      maxLines: 2,
+                      minLines: 1,
+                      textInputAction: TextInputAction.next,
+                      style: TextStyle(
+                        color: CueColors.primary,
+                        fontSize: 20,
+                        height: 25 / 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: context.l10n.taskTitleHint,
+                        hintStyle: TextStyle(
+                          color: CueColors.secondary,
+                          fontSize: 20,
+                          height: 25 / 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        filled: false,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: CueSpacing.s4,
+                          horizontal: CueSpacing.s4,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    PopupMenuButton<String>(
+                      key: const Key('desktop-new-task-group-picker'),
+                      tooltip: context.l10n.group,
+                      offset: const Offset(0, 24),
+                      color: CueColors.card,
+                      shape: RoundedRectangleBorder(
+                        side: BorderSide(color: CueColors.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      onSelected: (group) => setState(() => _group = group),
+                      itemBuilder: (context) => [
+                        for (final group in widget.store.groups)
+                          PopupMenuItem<String>(
+                            value: group,
+                            child: Text(
+                              group,
+                              style: TextStyle(
+                                color: group == _group
+                                    ? CueColors.accent
+                                    : CueColors.primary,
+                                fontWeight: group == _group
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CueSpacing.s8,
+                          vertical: CueSpacing.s4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: CueColors.subtle,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.folder_outlined,
+                              size: 13,
+                              color: CueColors.secondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _group,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: CueColors.primary),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.arrow_drop_down,
+                              size: 14,
+                              color: CueColors.secondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      key: const Key('desktop-new-task-note-field'),
+                      controller: _noteController,
+                      minLines: 4,
+                      maxLines: 6,
+                      style: TextStyle(
+                        color: CueColors.primary,
+                        fontSize: 15,
+                        height: 21 / 15,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: context.l10n.note,
+                        hintStyle: TextStyle(color: CueColors.secondary),
+                        filled: false,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: CueSpacing.s4,
+                          horizontal: CueSpacing.s4,
+                        ),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s16),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: CueColors.border)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isSubmitting
+                        ? null
+                        : () => Navigator.pop(context),
+                    child: Text(context.l10n.cancel),
+                  ),
+                  const SizedBox(width: CueSpacing.s8),
+                  FilledButton(
+                    key: const Key('desktop-new-task-submit'),
+                    onPressed:
+                        _titleController.text.trim().isEmpty || _isSubmitting
+                        ? null
+                        : _submit,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: CueColors.accent,
+                      foregroundColor: CueColors.onAccent,
+                      disabledBackgroundColor: CueColors.subtle,
+                      disabledForegroundColor: CueColors.tertiary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isSubmitting
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: CueColors.onAccent,
+                            ),
+                          )
+                        : Text(context.l10n.addTask),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
