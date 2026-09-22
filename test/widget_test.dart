@@ -322,6 +322,21 @@ void main() {
     expect(find.textContaining('DONE ·'), findsNothing);
   });
 
+  testWidgets('desktop sidebar title uses balanced top and left inset', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('Cue')),
+      const Offset(CueSpacing.s16, CueSpacing.s16),
+    );
+  });
+
   testWidgets('desktop new task dialog omits status and importance controls', (
     tester,
   ) async {

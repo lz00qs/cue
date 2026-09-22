@@ -425,7 +425,7 @@ class _Sidebar extends StatelessWidget {
       width: 252,
       padding: const EdgeInsets.fromLTRB(
         CueSpacing.s16,
-        CueSpacing.s28,
+        CueSpacing.s16,
         CueSpacing.s4,
         CueSpacing.s24,
       ),
