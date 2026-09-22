@@ -83,6 +83,14 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     ref.watch(taskRevisionProvider);
     ref.watch(cueHomeUiProvider);
     ref.watch(mobileUiProvider);
+    final pendingTaskId = ref.watch(
+      appControllerProvider.select((s) => s.pendingReminderTaskId),
+    );
+    if (pendingTaskId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handlePendingReminderTask(pendingTaskId);
+      });
+    }
     return Shortcuts(
       shortcuts: const {
         SingleActivator(LogicalKeyboardKey.keyK, meta: true):
@@ -349,6 +357,18 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         prefilledPriority: prefilledPriority,
       ),
     );
+  }
+
+  void _handlePendingReminderTask(String taskId) {
+    ref.read(appControllerProvider.notifier).consumePendingReminderTask();
+    if (!mounted) return;
+    final task = _store.tasks.cast<CueTask?>().firstWhere(
+      (item) => item?.id == taskId,
+      orElse: () => null,
+    );
+    if (task != null) {
+      _showTaskDetails(task);
+    }
   }
 
   Future<void> _showTaskDetails(CueTask initialTask) async {

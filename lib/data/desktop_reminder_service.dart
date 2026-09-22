@@ -6,16 +6,15 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../models/cue_task.dart';
 import 'reminder_planner.dart';
 import 'task_store.dart';
 
 class DesktopReminderService {
   DesktopReminderService({
     FlutterLocalNotificationsPlugin? notifications,
-    ReminderPlanner planner = const ReminderPlanner(),
-  }) : _notifications = notifications ?? FlutterLocalNotificationsPlugin(),
-       _planner = planner;
+    this._planner = const ReminderPlanner(),
+    this.onNotificationTap,
+  }) : _notifications = notifications ?? FlutterLocalNotificationsPlugin();
 
   static const _payloadPrefix = 'cue-task:';
   static const _windowsGuid = 'b19ecf99-bf3f-48de-8090-d5354c8c9a83';
@@ -23,6 +22,8 @@ class DesktopReminderService {
   final FlutterLocalNotificationsPlugin _notifications;
   final ReminderPlanner _planner;
   final Map<int, Timer> _linuxTimers = {};
+
+  void Function(String taskId)? onNotificationTap;
 
   TaskStore? _store;
   Timer? _debounce;
@@ -39,6 +40,19 @@ class DesktopReminderService {
       (defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.linux);
+
+  bool get isPermissionGranted => _permissionGranted;
+
+  static String? parseTaskIdFromPayload(String? payload) {
+    if (payload == null || !payload.startsWith(_payloadPrefix)) return null;
+    final rest = payload.substring(_payloadPrefix.length);
+    final colonIndex = rest.indexOf(':');
+    if (colonIndex == -1) {
+      return rest.isNotEmpty ? rest : null;
+    }
+    final id = rest.substring(0, colonIndex);
+    return id.isNotEmpty ? id : null;
+  }
 
   void bind(TaskStore store, {String? languageCode}) {
     if (!isSupportedDesktop || _disposed) return;
@@ -126,9 +140,36 @@ class DesktopReminderService {
         guid: _windowsGuid,
       ),
     );
-    await _notifications.initialize(settings: settings);
+
+    await _notifications.initialize(
+      settings: settings,
+      onDidReceiveNotificationResponse: (response) {
+        final taskId = parseTaskIdFromPayload(response.payload);
+        if (taskId != null) {
+          onNotificationTap?.call(taskId);
+        }
+      },
+    );
+
     _initialized = true;
     _permissionGranted = defaultTargetPlatform != TargetPlatform.macOS;
+
+    try {
+      final launchDetails =
+          await _notifications.getNotificationAppLaunchDetails();
+      if (launchDetails != null &&
+          launchDetails.didNotificationLaunchApp &&
+          launchDetails.notificationResponse != null) {
+        final taskId = parseTaskIdFromPayload(
+          launchDetails.notificationResponse?.payload,
+        );
+        if (taskId != null) {
+          onNotificationTap?.call(taskId);
+        }
+      }
+    } catch (error) {
+      debugPrint('Error checking notification app launch details: $error');
+    }
   }
 
   Future<void> _reconcile() async {
@@ -152,10 +193,13 @@ class DesktopReminderService {
     await _syncSystemSchedule(occurrences);
   }
 
-  Future<bool> _ensurePermission() async {
-    if (_permissionGranted) return true;
-    if (defaultTargetPlatform != TargetPlatform.macOS) return true;
-    if (_permissionRequested) return false;
+  Future<bool> requestPermission() async {
+    if (!isSupportedDesktop || _disposed) return false;
+    await _ensureInitialized();
+    if (defaultTargetPlatform != TargetPlatform.macOS) {
+      _permissionGranted = true;
+      return true;
+    }
     _permissionRequested = true;
     _permissionGranted =
         await _notifications
@@ -164,7 +208,17 @@ class DesktopReminderService {
             >()
             ?.requestPermissions(alert: true, badge: false, sound: true) ??
         false;
+    if (_permissionGranted) {
+      _queueReconcile();
+    }
     return _permissionGranted;
+  }
+
+  Future<bool> _ensurePermission() async {
+    if (_permissionGranted) return true;
+    if (defaultTargetPlatform != TargetPlatform.macOS) return true;
+    if (_permissionRequested) return false;
+    return requestPermission();
   }
 
   Future<void> _syncSystemSchedule(
@@ -257,11 +311,18 @@ class DesktopReminderService {
         '${due.day.toString().padLeft(2, '0')} '
         '${due.hour.toString().padLeft(2, '0')}:'
         '${due.minute.toString().padLeft(2, '0')}';
-    final prefix = _languageCode == 'zh' ? '到期时间' : 'Due';
+    final isZh = _languageCode.toLowerCase().startsWith('zh');
+    final prefix = isZh ? '到期时间：' : 'Due: ';
+    final dueLine = '$prefix$date';
+    final note = occurrence.task.note.trim();
+    final body = note.isNotEmpty
+        ? '$dueLine\n${note.length > 80 ? '${note.substring(0, 80)}...' : note}'
+        : dueLine;
+
     return _DesiredNotification(
       id: id,
       title: occurrence.task.title,
-      body: '$prefix：$date',
+      body: body,
       scheduledAt: occurrence.scheduledAt,
       payload:
           '$_payloadPrefix${occurrence.task.id}:'

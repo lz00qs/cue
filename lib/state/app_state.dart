@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api_client.dart';
+import '../data/desktop_reminder_service.dart';
 import '../data/locale_store.dart';
 import '../data/server_config_store.dart';
 import '../data/startup_view_store.dart';
@@ -14,6 +15,12 @@ import '../data/token_store.dart';
 import '../ui/cue_theme.dart';
 
 final demoModeProvider = Provider<bool>((ref) => false);
+
+final desktopReminderServiceProvider = Provider<DesktopReminderService>((ref) {
+  final service = DesktopReminderService();
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 final appControllerProvider = NotifierProvider<AppController, AppState>(
   AppController.new,
@@ -48,6 +55,7 @@ class AppState {
     this.locale,
     this.themeMode = ThemeMode.system,
     this.startupView = StartupView.today,
+    this.pendingReminderTaskId,
   });
 
   final TaskStore? store;
@@ -59,6 +67,7 @@ class AppState {
   final Locale? locale;
   final ThemeMode themeMode;
   final StartupView startupView;
+  final String? pendingReminderTaskId;
 
   static const _unchanged = Object();
 
@@ -72,6 +81,7 @@ class AppState {
     Object? locale = _unchanged,
     ThemeMode? themeMode,
     StartupView? startupView,
+    Object? pendingReminderTaskId = _unchanged,
   }) => AppState(
     store: identical(store, _unchanged) ? this.store : store as TaskStore?,
     email: identical(email, _unchanged) ? this.email : email as String?,
@@ -86,6 +96,9 @@ class AppState {
     locale: identical(locale, _unchanged) ? this.locale : locale as Locale?,
     themeMode: themeMode ?? this.themeMode,
     startupView: startupView ?? this.startupView,
+    pendingReminderTaskId: identical(pendingReminderTaskId, _unchanged)
+        ? this.pendingReminderTaskId
+        : pendingReminderTaskId as String?,
   );
 }
 
@@ -97,12 +110,17 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
   ServerConfigStore? _serverConfig;
   ApiClient? _api;
   TaskStore? _activeStore;
+  DesktopReminderService? _reminderService;
 
   bool get _isNativePlatform => !kIsWeb;
+  DesktopReminderService? get reminderService => _reminderService;
 
   @override
   AppState build() {
     WidgetsBinding.instance.addObserver(this);
+    _reminderService = ref.watch(desktopReminderServiceProvider);
+    _reminderService?.onNotificationTap = _onNotificationTapped;
+
     ref.onDispose(() {
       WidgetsBinding.instance.removeObserver(this);
       _activeStore?.dispose();
@@ -113,6 +131,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
 
     if (ref.read(demoModeProvider)) {
       _activeStore = TaskStore.demo();
+      _reminderService?.bind(_activeStore!);
       return AppState(
         store: _activeStore,
         email: 'demo@cue.local',
@@ -137,6 +156,23 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
         state = state.copyWith();
       }
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _reminderService?.refresh();
+    }
+  }
+
+  void _onNotificationTapped(String taskId) {
+    if (!ref.mounted) return;
+    state = state.copyWith(pendingReminderTaskId: taskId);
+  }
+
+  void consumePendingReminderTask() {
+    if (state.pendingReminderTaskId == null) return;
+    state = state.copyWith(pendingReminderTaskId: null);
   }
 
   static ThemeMode _parseThemeMode(String value) {
@@ -198,6 +234,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       final languageCode = await _localeStore!.languageCode;
       if (languageCode != null && ref.mounted) {
         state = state.copyWith(locale: Locale(languageCode));
+        _reminderService?.setLanguageCode(languageCode);
       }
     } catch (_) {
       // A locale preference should never prevent the app from starting.
@@ -242,6 +279,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
 
   void changeLocale(Locale? locale) {
     state = state.copyWith(locale: locale);
+    _reminderService?.setLanguageCode(locale?.languageCode);
     final store = _localeStore;
     if (store != null) {
       unawaited(store.save(locale?.languageCode).catchError((_) {}));
@@ -295,6 +333,10 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     }
     _activeStore?.dispose();
     _activeStore = store;
+    _reminderService?.bind(
+      store,
+      languageCode: state.locale?.languageCode,
+    );
     state = state.copyWith(
       store: store,
       email: email,
@@ -305,6 +347,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
 
   Future<void> logout() async {
     await _api?.logout();
+    await _reminderService?.clear();
     if (!ref.mounted) return;
     _activeStore?.dispose();
     _activeStore = null;
@@ -330,6 +373,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       return;
     }
     await _tokens!.clear();
+    await _reminderService?.clear();
     if (!ref.mounted) return;
     _activeStore?.dispose();
     _activeStore = null;

@@ -79,7 +79,7 @@ class ReminderPlanner {
     }
 
     final result = <ReminderOccurrence>[];
-    final horizonEnd = now.add(horizon);
+    final horizonEnd = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).add(horizon);
     final scanEnd = now.add(const Duration(days: 366 * 5));
     var day = _dateOnly(now);
     final firstDay = _dateOnly(dueAt);
