@@ -7,6 +7,8 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "migrate": "node dist/database/migrate.js",
+    "demo:seed": "node dist/database/demo-tasks.js seed",
+    "demo:clear": "node dist/database/demo-tasks.js clear",
     "reset-password": "node dist/auth/reset-password.js",
     "test": "npm run build && node --test test/*.test.mjs"
   },

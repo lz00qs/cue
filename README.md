@@ -8,7 +8,7 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 - 提供服务端 CLI 密码重置工具，支持在忘记密码时快速重置
 - 15 分钟 Access Token、30 天 Refresh Token 与客户端自动刷新
 - Web、桌面端与移动端均可在账户设置中修改登录邮箱和密码，修改时需验证当前密码
-- PostgreSQL 持久化、启动时自动迁移和首次示例数据
+- PostgreSQL 持久化与启动时自动迁移，全新数据库默认不写入示例任务
 - 任务新增、读取、状态/优先级更新、软删除；仅 P0 视为重要
 - 乐观并发控制：每条任务包含 `version`
 - 增量同步基础：全局 `revision` 与删除 tombstone
@@ -44,7 +44,7 @@ docker compose exec cue-api npm run reset-password -- <新密码>
 # docker compose exec cue-api npm run reset-password -- <新密码> <新邮箱>
 ```
 
-任务种子数据和 PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时可在 `.env` 修改。
+PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时可在 `.env` 修改。
 
 ## Docker 部署
 
@@ -129,7 +129,39 @@ macOS 版将登录令牌、服务器地址、语言和外观偏好保存在应�
 
 移动端允许连接可信局域网内的 HTTP 服务；公网部署应使用 HTTPS。只要移动端、Web 和桌面端使用同一 API 与数据库，任务提交后 PostgreSQL 会通知各 API 进程，再通过 SSE 唤醒客户端按全局 `revision` 增量同步；断线时客户端重连并每分钟轮询兜底。每条任务的 `version` 检测并发写入。
 
-后端位于 `server/`。容器启动时先执行 `server/migrations/001_initial.sql`，再启动 API。
+后端位于 `server/`。容器启动时会按文件名顺序执行 `server/migrations/` 下的 SQL，再启动 API。
+
+### 批量测试数据
+
+正式启动和数据库迁移不会自动创建演示任务。需要检查四象限、日历、排序或大数据量界面时，可以显式生成一批可追踪的随机任务：
+
+```bash
+docker compose exec -e CUE_ALLOW_DEMO_DATA=true cue-api \
+  npm run demo:seed -- \
+  --batch ui-test-01 --count 50 --seed 20260923 --days 30
+```
+
+- `--batch` 是必填的批次名，只能使用字母、数字、`_` 和 `-`；每次生成应使用新名称。
+- `--count` 默认为 40，最多 500。
+- `--seed` 控制可重复的随机分布；省略时由批次名确定。
+- `--days` 默认为 30，到期时间会分布在当天前后该天数内，并混合 P0–P3、无日期和已完成任务。
+- 需要固定截图或回归测试时，可加 `--reference-date 2026-09-23T12:00:00+08:00`。
+
+按批次删除测试数据：
+
+```bash
+docker compose exec -e CUE_ALLOW_DEMO_DATA=true cue-api \
+  npm run demo:clear -- --batch ui-test-01
+```
+
+删除所有由该工具生成且尚未删除的任务：
+
+```bash
+docker compose exec -e CUE_ALLOW_DEMO_DATA=true cue-api \
+  npm run demo:clear -- --all
+```
+
+测试任务的 ID 带有 `demo:<batch>:` 标记，清理命令只按该标记匹配，不会根据标题或日期模糊删除。清理使用软删除并生成新的同步 `revision`，已连接的其他客户端也会收到变化。容器中 `NODE_ENV=production`，因此每次执行都必须仅为当前命令显式传入 `CUE_ALLOW_DEMO_DATA=true`。
 
 界面翻译位于 `lib/l10n/app_en.arb` 与 `lib/l10n/app_zh.arb`。修改 ARB 后运行 `flutter gen-l10n` 重新生成本地化代码。
 
