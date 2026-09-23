@@ -770,34 +770,10 @@ class _MobileQuadrantsPage extends ConsumerWidget {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
     final panels = [
-      (
-        context.l10n.doNow,
-        context.l10n.importantUrgent,
-        CueColors.dangerBackground,
-        store.tasksForPriority(0),
-        0,
-      ),
-      (
-        context.l10n.schedule,
-        context.l10n.importantLater,
-        CueColors.orangeBackground,
-        store.tasksForPriority(1),
-        1,
-      ),
-      (
-        context.l10n.batch,
-        context.l10n.urgentLowerValue,
-        CueColors.prioritySelected,
-        store.tasksForPriority(2),
-        2,
-      ),
-      (
-        context.l10n.reconsider,
-        context.l10n.neither,
-        CueColors.subtle,
-        store.tasksForPriority(3),
-        3,
-      ),
+      (context.l10n.doNow, store.tasksForPriority(0), 0),
+      (context.l10n.schedule, store.tasksForPriority(1), 1),
+      (context.l10n.batch, store.tasksForPriority(2), 2),
+      (context.l10n.reconsider, store.tasksForPriority(3), 3),
     ];
     return RefreshIndicator(
       color: CueColors.accent,
@@ -820,18 +796,16 @@ class _MobileQuadrantsPage extends ConsumerWidget {
             itemCount: panels.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 12,
+              crossAxisSpacing: CueQuadrantTokens.panelGap,
+              mainAxisSpacing: CueQuadrantTokens.panelGap,
               childAspectRatio: 170 / 270,
             ),
             itemBuilder: (context, index) {
               final panel = panels[index];
               return _MobileQuadrant(
                 title: panel.$1,
-                rule: panel.$2,
-                color: panel.$3,
-                tasks: panel.$4,
-                priority: panel.$5,
+                tasks: panel.$2,
+                priority: panel.$3,
                 onOpenTask: onOpenTask,
               );
             },
@@ -1438,27 +1412,26 @@ class _CalendarDay extends StatelessWidget {
 class _MobileQuadrant extends StatelessWidget {
   const _MobileQuadrant({
     required this.title,
-    required this.rule,
-    required this.color,
     required this.tasks,
     required this.priority,
     required this.onOpenTask,
   });
 
   final String title;
-  final String rule;
-  final Color color;
   final List<CueTask> tasks;
   final int priority;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = CueQuadrantTokens.accentForPriority(priority);
     return Container(
-      padding: CueInsets.card,
+      key: ValueKey('mobile-quadrant-panel-$priority'),
+      padding: CueQuadrantTokens.panelPadding,
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
+        color: CueQuadrantTokens.panelBackground,
+        border: Border.all(color: CueQuadrantTokens.panelBorder),
+        borderRadius: BorderRadius.circular(CueQuadrantTokens.panelRadius),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1468,33 +1441,21 @@ class _MobileQuadrant extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
+                  key: ValueKey('mobile-quadrant-title-$priority'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: CueColors.primary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(color: accentColor),
                 ),
               ),
               Text(
                 'P$priority',
-                style: TextStyle(
-                  color: CueColors.secondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
+                key: ValueKey('mobile-quadrant-priority-$priority'),
+                style: CueQuadrantTokens.priorityLabelStyle,
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            rule,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: CueColors.secondary, fontSize: 10),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CueQuadrantTokens.headerToTasksGap),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -1504,29 +1465,29 @@ class _MobileQuadrant extends StatelessWidget {
                   GestureDetector(
                     onTap: () => onOpenTask(task),
                     child: Container(
+                      key: ValueKey('mobile-quadrant-task-${task.id}'),
                       width: double.infinity,
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: CueSpacing.s10,
-                      ),
+                      height: CueQuadrantTokens.taskHeight,
+                      padding: CueQuadrantTokens.taskPadding,
                       alignment: Alignment.centerLeft,
                       decoration: BoxDecoration(
-                        color: CueColors.card,
-                        borderRadius: BorderRadius.circular(8),
+                        color: CueQuadrantTokens.taskBackground,
+                        border: Border.all(color: CueQuadrantTokens.taskBorder),
+                        borderRadius: BorderRadius.circular(
+                          CueQuadrantTokens.taskRadius,
+                        ),
                       ),
                       child: Text(
                         task.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: CueQuadrantTokens.taskTitleStyle.copyWith(
                           color: CueColors.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: CueQuadrantTokens.taskGap),
                 ],
               ],
             ),

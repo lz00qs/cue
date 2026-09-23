@@ -23,18 +23,10 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     final panels = [
-      _panel(title: context.l10n.doNow, color: CueColors.danger, priority: 0),
-      _panel(
-        title: context.l10n.schedule,
-        color: CueColors.orange,
-        priority: 1,
-      ),
-      _panel(title: context.l10n.batch, color: CueColors.accent, priority: 2),
-      _panel(
-        title: context.l10n.reconsider,
-        color: CueColors.green,
-        priority: 3,
-      ),
+      _panel(title: context.l10n.doNow, priority: 0),
+      _panel(title: context.l10n.schedule, priority: 1),
+      _panel(title: context.l10n.batch, priority: 2),
+      _panel(title: context.l10n.reconsider, priority: 3),
     ];
     return Column(
       children: [
@@ -42,17 +34,17 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
           child: Row(
             children: [
               Expanded(child: panels[0]),
-              const SizedBox(width: 16),
+              const SizedBox(width: CueQuadrantTokens.panelGap),
               Expanded(child: panels[1]),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: CueQuadrantTokens.panelGap),
         Expanded(
           child: Row(
             children: [
               Expanded(child: panels[2]),
-              const SizedBox(width: 16),
+              const SizedBox(width: CueQuadrantTokens.panelGap),
               Expanded(child: panels[3]),
             ],
           ),
@@ -61,16 +53,11 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
     );
   }
 
-  Widget _panel({
-    required String title,
-    required Color color,
-    required int priority,
-  }) {
+  Widget _panel({required String title, required int priority}) {
     final tasks = _store.tasksForPriority(priority).toList();
     return _QuadrantPanel(
       key: ValueKey('quadrant-panel-$priority'),
       title: title,
-      color: color,
       priority: priority,
       tasks: tasks,
       onOpenTask: widget.onOpenTask,
@@ -96,7 +83,6 @@ class _QuadrantPanel extends StatelessWidget {
   const _QuadrantPanel({
     super.key,
     required this.title,
-    required this.color,
     required this.priority,
     required this.tasks,
     required this.onOpenTask,
@@ -105,7 +91,6 @@ class _QuadrantPanel extends StatelessWidget {
   });
 
   final String title;
-  final Color color;
   final int priority;
   final List<CueTask> tasks;
   final ValueChanged<CueTask> onOpenTask;
@@ -114,6 +99,7 @@ class _QuadrantPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accentColor = CueQuadrantTokens.accentForPriority(priority);
     return DragTarget<CueTask>(
       onWillAcceptWithDetails: (details) => details.data.priority != priority,
       onAcceptWithDetails: (details) => onMoveTask(details.data),
@@ -121,11 +107,13 @@ class _QuadrantPanel extends StatelessWidget {
         final isDropTarget = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.all(CueSpacing.s16),
+          padding: CueQuadrantTokens.panelPadding,
           decoration: BoxDecoration(
-            color: CueColors.quadrantSurface,
-            border: Border.all(color: isDropTarget ? color : CueColors.border),
-            borderRadius: BorderRadius.circular(16),
+            color: CueQuadrantTokens.panelBackground,
+            border: Border.all(
+              color: isDropTarget ? accentColor : CueQuadrantTokens.panelBorder,
+            ),
+            borderRadius: BorderRadius.circular(CueQuadrantTokens.panelRadius),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,22 +124,17 @@ class _QuadrantPanel extends StatelessWidget {
                     child: Text(
                       title,
                       style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(color: color),
+                          ?.copyWith(color: accentColor),
                     ),
                   ),
                   Text(
                     'P$priority',
                     key: ValueKey('quadrant-priority-$priority'),
-                    style: const TextStyle(
-                      color: CueColors.tertiary,
-                      fontSize: 12,
-                      height: 16 / 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: CueQuadrantTokens.priorityLabelStyle,
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: CueQuadrantTokens.headerToTasksGap),
               Expanded(
                 child: tasks.isEmpty
                     ? const _EmptyQuadrant()
@@ -162,13 +145,14 @@ class _QuadrantPanel extends StatelessWidget {
                           padding: EdgeInsets.zero,
                           primary: false,
                           itemCount: tasks.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: CueQuadrantTokens.taskGap),
                           itemBuilder: (context, index) {
                             final task = tasks[index];
                             return _QuadrantTaskTile(
                               key: ValueKey('quadrant-task-${task.id}'),
                               task: task,
-                              accentColor: color,
+                              accentColor: accentColor,
                               onOpen: () => onOpenTask(task),
                               onToggle: () => onToggleTask(task),
                             );
@@ -216,14 +200,18 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s12),
+          height: CueQuadrantTokens.taskHeight,
+          padding: CueQuadrantTokens.taskPadding,
           decoration: BoxDecoration(
-            color: _hovered ? CueColors.hover : CueColors.card,
+            color: _hovered
+                ? CueQuadrantTokens.taskHoverBackground
+                : CueQuadrantTokens.taskBackground,
             border: Border.all(
-              color: _hovered ? CueColors.strongBorder : CueColors.border,
+              color: _hovered
+                  ? CueQuadrantTokens.taskHoverBorder
+                  : CueQuadrantTokens.taskBorder,
             ),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(CueQuadrantTokens.taskRadius),
           ),
           child: Row(
             children: [
@@ -248,11 +236,8 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
                   widget.task.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: CueQuadrantTokens.taskTitleStyle.copyWith(
                     color: CueColors.primary,
-                    fontSize: 14,
-                    height: 20 / 14,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

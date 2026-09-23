@@ -161,6 +161,51 @@ abstract final class CueColors {
       isDark ? const Color(0xFF17181C) : const Color(0xFFEDEEF2);
 }
 
+/// Shared visual tokens for the priority-quadrant experience.
+///
+/// Desktop and mobile intentionally use different layout widgets, but their
+/// surfaces, borders, type, and spacing come from this single token set.
+abstract final class CueQuadrantTokens {
+  static const double panelRadius = 16;
+  static const double panelGap = CueSpacing.s16;
+  static const EdgeInsets panelPadding = EdgeInsets.all(CueSpacing.s16);
+
+  static const double headerToTasksGap = CueSpacing.s12;
+  static const double taskGap = CueSpacing.s8;
+  static const double taskHeight = 48;
+  static const double taskRadius = 10;
+  static const EdgeInsets taskPadding = EdgeInsets.symmetric(
+    horizontal: CueSpacing.s12,
+  );
+
+  static const TextStyle priorityLabelStyle = TextStyle(
+    color: CueColors.tertiary,
+    fontSize: 12,
+    height: 16 / 12,
+    fontWeight: FontWeight.w500,
+  );
+
+  static const TextStyle taskTitleStyle = TextStyle(
+    fontSize: 14,
+    height: 20 / 14,
+    fontWeight: FontWeight.w500,
+  );
+
+  static Color get panelBackground => CueColors.quadrantSurface;
+  static Color get panelBorder => CueColors.border;
+  static Color get taskBackground => CueColors.card;
+  static Color get taskBorder => CueColors.border;
+  static Color get taskHoverBackground => CueColors.hover;
+  static Color get taskHoverBorder => CueColors.strongBorder;
+
+  static Color accentForPriority(int priority) => switch (priority) {
+    0 => CueColors.danger,
+    1 => CueColors.orange,
+    2 => CueColors.accent,
+    _ => CueColors.green,
+  };
+}
+
 abstract final class CueTheme {
   static ThemeData get active {
     final brightness = CueColors.isDark ? Brightness.dark : Brightness.light;

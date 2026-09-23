@@ -136,6 +136,48 @@ void main() {
     );
   });
 
+  testWidgets('mobile quadrants use the shared desktop design tokens', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Quadrants'));
+    await tester.pumpAndSettle();
+
+    for (var priority = 0; priority < 4; priority++) {
+      final panel = tester.widget<Container>(
+        find.byKey(ValueKey('mobile-quadrant-panel-$priority')),
+      );
+      final decoration = panel.decoration! as BoxDecoration;
+      expect(decoration.color, CueQuadrantTokens.panelBackground);
+      expect(decoration.border!.top.color, CueQuadrantTokens.panelBorder);
+      expect(
+        decoration.borderRadius,
+        BorderRadius.circular(CueQuadrantTokens.panelRadius),
+      );
+
+      final title = tester.widget<Text>(
+        find.byKey(ValueKey('mobile-quadrant-title-$priority')),
+      );
+      expect(title.style!.color, CueQuadrantTokens.accentForPriority(priority));
+    }
+
+    final task = tester.widget<Container>(
+      find.byKey(const ValueKey('mobile-quadrant-task-design-handoff')),
+    );
+    final taskDecoration = task.decoration! as BoxDecoration;
+    expect(task.constraints!.maxHeight, CueQuadrantTokens.taskHeight);
+    expect(taskDecoration.color, CueQuadrantTokens.taskBackground);
+    expect(taskDecoration.border!.top.color, CueQuadrantTokens.taskBorder);
+    expect(
+      taskDecoration.borderRadius,
+      BorderRadius.circular(CueQuadrantTokens.taskRadius),
+    );
+  });
+
   testWidgets('desktop app views share the canvas background token', (
     tester,
   ) async {
