@@ -454,12 +454,14 @@ String normalizeServerUrl(String input, {bool allowEmpty = false}) {
 }
 
 final _emailRegex = RegExp(
-  r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,63}$",
+  r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,63}$",
 );
 
 bool isValidEmail(String? value) {
   if (value == null) return false;
   final trimmed = value.trim();
   if (trimmed.isEmpty || trimmed.length > 254) return false;
+  final separator = trimmed.indexOf('@');
+  if (separator <= 0 || separator > 64) return false;
   return _emailRegex.hasMatch(trimmed);
 }

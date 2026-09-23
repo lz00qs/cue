@@ -28,7 +28,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController(text: 'admin@cue.local');
+  final _email = TextEditingController();
   final _password = TextEditingController();
   bool get _submitting => ref.read(loginUiProvider).submitting;
   bool get _obscurePassword => ref.read(loginUiProvider).obscurePassword;
@@ -153,25 +153,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextFormField(
                     key: const Key('login-email'),
                     controller: _email,
+                    enabled: !_submitting,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.username],
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [
+                      AutofillHints.email,
+                      AutofillHints.username,
+                    ],
                     decoration: InputDecoration(labelText: context.l10n.email),
-                    validator: (value) =>
-                        isValidEmail(value) ? null : context.l10n.enterValidEmail,
+                    validator: (value) => isValidEmail(value)
+                        ? null
+                        : context.l10n.enterValidEmail,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
                     key: const Key('login-password'),
                     controller: _password,
+                    enabled: !_submitting,
                     obscureText: _obscurePassword,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     autofillHints: const [AutofillHints.password],
+                    textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: context.l10n.password,
                       suffixIcon: IconButton(
-                        onPressed: () => ref
-                            .read(loginUiProvider.notifier)
-                            .togglePasswordVisibility(),
+                        onPressed: _submitting
+                            ? null
+                            : () => ref
+                                  .read(loginUiProvider.notifier)
+                                  .togglePasswordVisibility(),
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_outlined
