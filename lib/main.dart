@@ -16,6 +16,9 @@ void main() {
   runApp(const CueApp());
 }
 
+bool shouldShowAdminSetup({required bool isWeb, required bool isInitialized}) =>
+    isWeb && !isInitialized;
+
 class CueApp extends StatelessWidget {
   const CueApp({super.key}) : demoMode = false;
   const CueApp.demo({super.key}) : demoMode = true;
@@ -49,7 +52,7 @@ class _CueAppView extends ConsumerWidget {
                 ? null
                 : controller.cancelServerConfiguration,
           )
-        : !app.isInitialized
+        : shouldShowAdminSetup(isWeb: kIsWeb, isInitialized: app.isInitialized)
         ? SetupAdminScreen(
             onSetup: controller.setupAdmin,
             initialError: app.initialError,
