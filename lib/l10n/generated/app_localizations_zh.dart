@@ -502,44 +502,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get light => '浅色';
 
   @override
-  String get dateAndTime => '日期与时间';
-
-  @override
-  String get system => '系统';
-
-  @override
-  String get reminders => '提醒';
-
-  @override
-  String get minutesBefore => '提前 15 分钟';
-
-  @override
-  String get widgets => '小组件';
-
-  @override
-  String get activeWidgetCount => '2 个启用';
-
-  @override
-  String get aiFeatures => 'AI 功能';
-
-  @override
-  String get on => '开启';
-
-  @override
   String get accountAndData => '账户与数据';
 
   @override
   String get importAndSync => '导入与同步';
 
   @override
-  String get helpAndGuide => '帮助与指南';
-
-  @override
   String get multiDeviceSync => '多设备同步';
 
   @override
-  String get syncDescription =>
-      '更改会同步到移动端、网页端和桌面端的同一个 Cue 工作区。连接时自动接收更新，应用恢复时也会同步。';
+  String get syncDescription => '更改会同步到登录同一账户的移动端、网页端和桌面端。连接时自动接收更新，应用恢复时也会同步。';
 
   @override
   String get revision => '版本';
@@ -560,7 +532,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get changeServer => '更改服务器';
 
   @override
-  String get cueWorkspace => 'Cue 工作区';
+  String get cueWorkspace => '我的 Cue';
 
   @override
   String get focusStreak => '已连续专注 12 天';

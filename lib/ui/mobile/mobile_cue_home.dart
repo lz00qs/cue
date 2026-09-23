@@ -927,30 +927,6 @@ class _MobileSettingsPage extends ConsumerWidget {
           },
           onTap: () => showAppearancePicker(context, mobile: true),
         ),
-        const SizedBox(height: 8),
-        _SettingsRow(
-          icon: Icons.schedule_outlined,
-          label: context.l10n.dateAndTime,
-          detail: context.l10n.system,
-        ),
-        const SizedBox(height: 8),
-        _SettingsRow(
-          icon: Icons.notifications_none_rounded,
-          label: context.l10n.reminders,
-          detail: context.l10n.minutesBefore,
-        ),
-        const SizedBox(height: 8),
-        _SettingsRow(
-          icon: Icons.grid_view_rounded,
-          label: context.l10n.widgets,
-          detail: context.l10n.activeWidgetCount,
-        ),
-        const SizedBox(height: 8),
-        _SettingsRow(
-          icon: Icons.auto_awesome_outlined,
-          label: context.l10n.aiFeatures,
-          detail: context.l10n.on,
-        ),
         const SizedBox(height: 16),
         Text(context.l10n.accountAndData, style: _mobileSectionStyle),
         const SizedBox(height: 16),
@@ -983,11 +959,6 @@ class _MobileSettingsPage extends ConsumerWidget {
                 )
               : null,
           onTap: store.isRemote ? () => _showSyncSheet(context) : null,
-        ),
-        const SizedBox(height: 8),
-        _SettingsRow(
-          icon: Icons.help_outline_rounded,
-          label: context.l10n.helpAndGuide,
         ),
       ],
     );

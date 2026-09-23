@@ -525,44 +525,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get light => 'Light';
 
   @override
-  String get dateAndTime => 'Date & time';
-
-  @override
-  String get system => 'System';
-
-  @override
-  String get reminders => 'Reminders';
-
-  @override
-  String get minutesBefore => '15 min before';
-
-  @override
-  String get widgets => 'Widgets';
-
-  @override
-  String get activeWidgetCount => '2 active';
-
-  @override
-  String get aiFeatures => 'AI features';
-
-  @override
-  String get on => 'On';
-
-  @override
   String get accountAndData => 'ACCOUNT & DATA';
 
   @override
   String get importAndSync => 'Import & sync';
 
   @override
-  String get helpAndGuide => 'Help & guide';
-
-  @override
   String get multiDeviceSync => 'Multi-device sync';
 
   @override
   String get syncDescription =>
-      'Changes use the same Cue workspace on mobile, web, and desktop. Updates arrive automatically while connected; Cue also syncs when the app resumes.';
+      'Changes sync across mobile, web, and desktop devices signed in to the same account. Updates arrive automatically while connected; Cue also syncs when the app resumes.';
 
   @override
   String get revision => 'Revision';
@@ -583,7 +556,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get changeServer => 'Change server';
 
   @override
-  String get cueWorkspace => 'Cue workspace';
+  String get cueWorkspace => 'My Cue';
 
   @override
   String get focusStreak => 'Focus streak · 12 days';

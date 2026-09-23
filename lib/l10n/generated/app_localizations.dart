@@ -1034,54 +1034,6 @@ abstract class AppLocalizations {
   /// **'Light'**
   String get light;
 
-  /// No description provided for @dateAndTime.
-  ///
-  /// In en, this message translates to:
-  /// **'Date & time'**
-  String get dateAndTime;
-
-  /// No description provided for @system.
-  ///
-  /// In en, this message translates to:
-  /// **'System'**
-  String get system;
-
-  /// No description provided for @reminders.
-  ///
-  /// In en, this message translates to:
-  /// **'Reminders'**
-  String get reminders;
-
-  /// No description provided for @minutesBefore.
-  ///
-  /// In en, this message translates to:
-  /// **'15 min before'**
-  String get minutesBefore;
-
-  /// No description provided for @widgets.
-  ///
-  /// In en, this message translates to:
-  /// **'Widgets'**
-  String get widgets;
-
-  /// No description provided for @activeWidgetCount.
-  ///
-  /// In en, this message translates to:
-  /// **'2 active'**
-  String get activeWidgetCount;
-
-  /// No description provided for @aiFeatures.
-  ///
-  /// In en, this message translates to:
-  /// **'AI features'**
-  String get aiFeatures;
-
-  /// No description provided for @on.
-  ///
-  /// In en, this message translates to:
-  /// **'On'**
-  String get on;
-
   /// No description provided for @accountAndData.
   ///
   /// In en, this message translates to:
@@ -1094,12 +1046,6 @@ abstract class AppLocalizations {
   /// **'Import & sync'**
   String get importAndSync;
 
-  /// No description provided for @helpAndGuide.
-  ///
-  /// In en, this message translates to:
-  /// **'Help & guide'**
-  String get helpAndGuide;
-
   /// No description provided for @multiDeviceSync.
   ///
   /// In en, this message translates to:
@@ -1109,7 +1055,7 @@ abstract class AppLocalizations {
   /// No description provided for @syncDescription.
   ///
   /// In en, this message translates to:
-  /// **'Changes use the same Cue workspace on mobile, web, and desktop. Updates arrive automatically while connected; Cue also syncs when the app resumes.'**
+  /// **'Changes sync across mobile, web, and desktop devices signed in to the same account. Updates arrive automatically while connected; Cue also syncs when the app resumes.'**
   String get syncDescription;
 
   /// No description provided for @revision.
@@ -1151,7 +1097,7 @@ abstract class AppLocalizations {
   /// No description provided for @cueWorkspace.
   ///
   /// In en, this message translates to:
-  /// **'Cue workspace'**
+  /// **'My Cue'**
   String get cueWorkspace;
 
   /// No description provided for @focusStreak.

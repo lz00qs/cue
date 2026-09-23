@@ -1244,9 +1244,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
+    expect(find.text('My Cue'), findsOneWidget);
     expect(find.text('System default'), findsNWidgets(2));
+    expect(find.text('Language'), findsOneWidget);
+    expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Import & sync'), findsOneWidget);
     expect(find.text('Local demo'), findsOneWidget);
+    expect(find.text('Date & time'), findsNothing);
+    expect(find.text('Reminders'), findsNothing);
+    expect(find.text('Widgets'), findsNothing);
+    expect(find.text('AI features'), findsNothing);
+    expect(find.text('Help & guide'), findsNothing);
   });
 
   testWidgets('mobile new task sheet opens the custom due date picker', (
@@ -1364,6 +1372,7 @@ void main() {
 
     expect(find.text('设置'), findsWidgets);
     expect(find.text('让 Cue 更适合你的工作方式'), findsOneWidget);
+    expect(find.text('我的 Cue'), findsOneWidget);
     expect(find.text('导入与同步'), findsOneWidget);
   });
 
