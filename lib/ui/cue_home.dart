@@ -1424,17 +1424,6 @@ class _QuickCapture extends StatelessWidget {
               ),
             ),
           ),
-          if (MediaQuery.sizeOf(context).width >= 720) ...[
-            const Text(
-              '⌘ K',
-              style: TextStyle(
-                color: CueColors.tertiary,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
           CueActionButton(label: context.l10n.add, onPressed: onAdd),
         ],
       ),

@@ -780,6 +780,7 @@ void main() {
     void expectQuickAddOnly() {
       expect(find.text('Add task'), findsNothing);
       expect(find.byKey(const Key('quick-add-field')), findsOneWidget);
+      expect(find.text('⌘ K'), findsNothing);
       expect(find.text('Add'), findsOneWidget);
     }
 
