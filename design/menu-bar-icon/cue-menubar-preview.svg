@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360">
+  <rect width="960" height="360" rx="36" fill="#eceef2" />
+  <g transform="translate(56 92)">
+    <rect width="392" height="176" rx="24" fill="#fafafa" />
+    <rect x="24" y="24" width="344" height="38" rx="11" fill="#e5e7ea" />
+    <g transform="translate(44 33) scale(.83)" fill="none" stroke="#202124" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 5.2,8.2 L 5,3.4 L 9,5.8 C 10.9,5.1 13.1,5.1 15,5.8 L 19,3.4 L 18.8,8.2 C 20.1,9.6 20.75,11.2 20.75,13 C 20.75,17.35 17.1,20.55 12,20.55 C 6.9,20.55 3.25,17.35 3.25,13 C 3.25,11.2 3.9,9.6 5.2,8.2 Z" fill="none" stroke="#202124" stroke-width="1.9" />
+      <path d="M 7.8,12.5 L 10.5,15.15 L 16.3,9.35" fill="none" stroke="#202124" stroke-width="2.15" />
+    </g>
+    <g transform="translate(116 82) scale(3.2)" fill="none" stroke="#202124" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 5.2,8.2 L 5,3.4 L 9,5.8 C 10.9,5.1 13.1,5.1 15,5.8 L 19,3.4 L 18.8,8.2 C 20.1,9.6 20.75,11.2 20.75,13 C 20.75,17.35 17.1,20.55 12,20.55 C 6.9,20.55 3.25,17.35 3.25,13 C 3.25,11.2 3.9,9.6 5.2,8.2 Z" fill="none" stroke="#202124" stroke-width="1.9" />
+      <path d="M 7.8,12.5 L 10.5,15.15 L 16.3,9.35" fill="none" stroke="#202124" stroke-width="2.15" />
+    </g>
+  </g>
+
+  <g transform="translate(512 92)">
+    <rect width="392" height="176" rx="24" fill="#242529" />
+    <rect x="24" y="24" width="344" height="38" rx="11" fill="#34363b" />
+    <g transform="translate(44 33) scale(.83)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 5.2,8.2 L 5,3.4 L 9,5.8 C 10.9,5.1 13.1,5.1 15,5.8 L 19,3.4 L 18.8,8.2 C 20.1,9.6 20.75,11.2 20.75,13 C 20.75,17.35 17.1,20.55 12,20.55 C 6.9,20.55 3.25,17.35 3.25,13 C 3.25,11.2 3.9,9.6 5.2,8.2 Z" fill="none" stroke="#fff" stroke-width="1.9" />
+      <path d="M 7.8,12.5 L 10.5,15.15 L 16.3,9.35" fill="none" stroke="#fff" stroke-width="2.15" />
+    </g>
+    <g transform="translate(116 82) scale(3.2)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M 5.2,8.2 L 5,3.4 L 9,5.8 C 10.9,5.1 13.1,5.1 15,5.8 L 19,3.4 L 18.8,8.2 C 20.1,9.6 20.75,11.2 20.75,13 C 20.75,17.35 17.1,20.55 12,20.55 C 6.9,20.55 3.25,17.35 3.25,13 C 3.25,11.2 3.9,9.6 5.2,8.2 Z" fill="none" stroke="#fff" stroke-width="1.9" />
+      <path d="M 7.8,12.5 L 10.5,15.15 L 16.3,9.35" fill="none" stroke="#fff" stroke-width="2.15" />
+    </g>
+  </g>
+</svg>
