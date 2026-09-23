@@ -176,86 +176,49 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }
 
   Widget _buildContent() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_view == CueView.calendar ||
-            _view == CueView.inbox ||
-            _view == CueView.board) {
-          return Padding(
-            key: const Key('desktop-page-padding'),
-            padding: _view == CueView.inbox || _view == CueView.board
-                ? (_usesMacOSIntegratedTitleBar
-                      ? CueInsets.macosDesktopBoardPage
-                      : CueInsets.desktopBoardPage)
-                : (_usesMacOSIntegratedTitleBar
-                      ? CueInsets.macosDesktopFixedPage
-                      : CueInsets.desktopFixedPage),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _PageHeader(
-                  title: _pageTitle,
-                  subtitle: _pageSubtitle,
-                  onTitleTap: _view == CueView.calendar
-                      ? _showMonthPickerPopover
-                      : null,
-                  extraActions: _view == CueView.calendar
-                      ? const _CalendarMonthHeaderNavigation()
-                      : null,
-                  actionLabel: context.l10n.addTask,
-                  onAction: () => _showAddTaskDialog(),
-                  useIconButton: true,
-                  showAction: _view == CueView.calendar,
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    layoutBuilder: _topAlignedSwitcherLayout,
-                    child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
+    final isBoard = _view == CueView.inbox || _view == CueView.board;
+    final isCalendar = _view == CueView.calendar;
+    final pageInsets = isBoard
+        ? (_usesMacOSIntegratedTitleBar
+              ? CueInsets.macosDesktopBoardPage
+              : CueInsets.desktopBoardPage)
+        : isCalendar
+        ? (_usesMacOSIntegratedTitleBar
+              ? CueInsets.macosDesktopFixedPage
+              : CueInsets.desktopFixedPage)
+        : (_usesMacOSIntegratedTitleBar
+              ? CueInsets.macosDesktopScrollablePage
+              : CueInsets.desktopScrollablePage);
 
-        return SingleChildScrollView(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: constraints.maxHeight),
-            child: Padding(
-              key: const Key('desktop-page-padding'),
-              padding: _usesMacOSIntegratedTitleBar
-                  ? CueInsets.macosDesktopScrollablePage
-                  : CueInsets.desktopScrollablePage,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _PageHeader(
-                    title: _pageTitle,
-                    subtitle: _pageSubtitle,
-                    onTitleTap: _view == CueView.calendar
-                        ? _showMonthPickerPopover
-                        : null,
-                    extraActions: _view == CueView.calendar
-                        ? const _CalendarMonthHeaderNavigation()
-                        : null,
-                    actionLabel: context.l10n.addTask,
-                    onAction: () => _showAddTaskDialog(),
-                    showAction: _view == CueView.quadrants,
-                  ),
-                  const SizedBox(height: 24),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    layoutBuilder: _topAlignedSwitcherLayout,
-                    child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
-                  ),
-                ],
-              ),
+    return Padding(
+      key: const Key('desktop-page-padding'),
+      padding: pageInsets,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PageHeader(
+            key: const Key('desktop-page-header'),
+            title: _pageTitle,
+            subtitle: _pageSubtitle,
+            onTitleTap: isCalendar ? _showMonthPickerPopover : null,
+            extraActions: isCalendar
+                ? const _CalendarMonthHeaderNavigation()
+                : null,
+            actionLabel: context.l10n.addTask,
+            onAction: () => _showAddTaskDialog(),
+            useIconButton: isCalendar,
+            showAction: isCalendar || _view == CueView.quadrants,
+          ),
+          SizedBox(height: isBoard || isCalendar ? 16 : 24),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              layoutBuilder: _topAlignedSwitcherLayout,
+              child: KeyedSubtree(key: ValueKey(_view), child: _pageBody),
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -1085,6 +1048,7 @@ class _SettingsMenuItem extends StatelessWidget {
 
 class _PageHeader extends StatelessWidget {
   const _PageHeader({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.actionLabel,
@@ -1310,10 +1274,13 @@ class _TaskListView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _QuickCapture(
-          controller: quickAddController,
-          focusNode: quickAddFocus,
-          onAdd: onQuickAdd,
+        KeyedSubtree(
+          key: const Key('desktop-quick-capture'),
+          child: _QuickCapture(
+            controller: quickAddController,
+            focusNode: quickAddFocus,
+            onAdd: onQuickAdd,
+          ),
         ),
         const SizedBox(height: 24),
         if (showFilters) ...[
@@ -1343,41 +1310,54 @@ class _TaskListView extends StatelessWidget {
           ),
           const SizedBox(height: 24),
         ],
-        Text(
-          view == CueView.today
-              ? context.l10n.focusForToday
-              : _sectionTitle(context, view, tasks.length),
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: CueColors.secondary),
+        KeyedSubtree(
+          key: const Key('desktop-task-list-header'),
+          child: Text(
+            view == CueView.today
+                ? context.l10n.focusForToday
+                : _sectionTitle(context, view, tasks.length),
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: CueColors.secondary),
+          ),
         ),
         const SizedBox(height: 12),
-        if (tasks.isEmpty)
-          const _EmptyTaskList()
-        else
-          ...tasks.map(
-            (task) => Padding(
-              padding: const EdgeInsets.only(bottom: CueSpacing.s12),
-              child: CueTaskRow(
-                key: ValueKey(task.id),
-                task: task,
-                referenceDate: store.today,
-                metaOverride:
-                    view == CueView.today &&
-                        filter == CueListFilter.today &&
-                        task.id == 'lab-calibration'
-                    ? '${context.l10n.noTime} · ${context.l10n.operations}'
-                    : null,
-                onToggle: () async {
-                  try {
-                    await store.toggleComplete(task);
-                  } catch (_) {
-                    // The store rolls the optimistic change back on failure.
-                  }
-                },
-                onOpen: () => onOpenTask(task),
-              ),
-            ),
-          ),
+        Expanded(
+          child: tasks.isEmpty
+              ? const Align(
+                  alignment: Alignment.topCenter,
+                  child: _EmptyTaskList(),
+                )
+              : ListView.separated(
+                  key: const Key('desktop-task-list-scroll'),
+                  primary: false,
+                  padding: const EdgeInsets.only(bottom: CueSpacing.s12),
+                  itemCount: tasks.length,
+                  separatorBuilder: (_, _) =>
+                      const SizedBox(height: CueSpacing.s12),
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return CueTaskRow(
+                      key: ValueKey(task.id),
+                      task: task,
+                      referenceDate: store.today,
+                      metaOverride:
+                          view == CueView.today &&
+                              filter == CueListFilter.today &&
+                              task.id == 'lab-calibration'
+                          ? '${context.l10n.noTime} · ${context.l10n.operations}'
+                          : null,
+                      onToggle: () async {
+                        try {
+                          await store.toggleComplete(task);
+                        } catch (_) {
+                          // The store rolls the optimistic change back on failure.
+                        }
+                      },
+                      onOpen: () => onOpenTask(task),
+                    );
+                  },
+                ),
+        ),
       ],
     );
   }

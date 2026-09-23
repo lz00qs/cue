@@ -38,8 +38,7 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
     ];
     return Column(
       children: [
-        SizedBox(
-          height: 336,
+        Expanded(
           child: Row(
             children: [
               Expanded(child: panels[0]),
@@ -49,8 +48,7 @@ class _QuadrantsViewState extends ConsumerState<QuadrantsView> {
           ),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 336,
+        Expanded(
           child: Row(
             children: [
               Expanded(child: panels[2]),
@@ -123,7 +121,6 @@ class _QuadrantPanel extends StatelessWidget {
         final isDropTarget = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          height: 336,
           padding: const EdgeInsets.all(CueSpacing.s16),
           decoration: BoxDecoration(
             color: CueColors.quadrantSurface,

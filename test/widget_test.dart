@@ -883,6 +883,70 @@ void main() {
     expect(tester.getTopLeft(quickCaptureFor(CueView.upcoming)).dy, initialTop);
   });
 
+  testWidgets('desktop page headers stay outside scrolling content', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    void expectFixedHeader() {
+      expect(find.byKey(const Key('desktop-page-header')), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('desktop-page-header')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
+    }
+
+    expectFixedHeader();
+    for (final key in [
+      'sidebar-inbox',
+      'sidebar-upcoming',
+      'sidebar-list',
+      'sidebar-calendar',
+      'sidebar-quadrants',
+    ]) {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pumpAndSettle();
+      expectFixedHeader();
+    }
+  });
+
+  testWidgets('desktop task pages scroll only the task rows', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sidebar-list')));
+    await tester.pumpAndSettle();
+
+    final pageHeader = find.byKey(const Key('desktop-page-header'));
+    final quickCapture = find.byKey(const Key('desktop-quick-capture'));
+    final listHeader = find.byKey(const Key('desktop-task-list-header'));
+    final taskList = find.byKey(const Key('desktop-task-list-scroll'));
+    final headerTop = tester.getTopLeft(pageHeader).dy;
+    final quickCaptureTop = tester.getTopLeft(quickCapture).dy;
+    final listHeaderTop = tester.getTopLeft(listHeader).dy;
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: taskList, matching: find.byType(Scrollable)),
+    );
+
+    expect(scrollable.position.pixels, 0);
+    await tester.drag(taskList, const Offset(0, -360));
+    await tester.pumpAndSettle();
+
+    expect(scrollable.position.pixels, greaterThan(0));
+    expect(tester.getTopLeft(pageHeader).dy, headerTop);
+    expect(tester.getTopLeft(quickCapture).dy, quickCaptureTop);
+    expect(tester.getTopLeft(listHeader).dy, listHeaderTop);
+  });
+
   testWidgets('desktop inbox renames a group inline', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
