@@ -25,7 +25,7 @@
   "passwordsDoNotMatch": "Passwords do not match",
   "confirmPasswordRequired": "Please confirm your password",
   "createAndSignIn": "Create Account & Sign In",
-  "credentialsSecurityNote": "Credentials are encrypted and saved securely in the database. No plaintext password is stored in .env.",
+  "credentialsSecurityNote": "Your password is securely hashed in the database. No plaintext password is stored in .env.",
   "connectToCue": "Connect to Cue",
   "enterServerAddress": "Enter the address of your Cue server",
   "serverUrl": "Server URL",

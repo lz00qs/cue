@@ -251,7 +251,7 @@ abstract class AppLocalizations {
   /// No description provided for @credentialsSecurityNote.
   ///
   /// In en, this message translates to:
-  /// **'Credentials are encrypted and saved securely in the database. No plaintext password is stored in .env.'**
+  /// **'Your password is securely hashed in the database. No plaintext password is stored in .env.'**
   String get credentialsSecurityNote;
 
   /// No description provided for @connectToCue.

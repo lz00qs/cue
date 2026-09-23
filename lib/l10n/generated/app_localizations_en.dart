@@ -88,7 +88,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get credentialsSecurityNote =>
-      'Credentials are encrypted and saved securely in the database. No plaintext password is stored in .env.';
+      'Your password is securely hashed in the database. No plaintext password is stored in .env.';
 
   @override
   String get connectToCue => 'Connect to Cue';
