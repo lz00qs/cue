@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const require = createRequire(import.meta.url);
 require('reflect-metadata');
-const { compare } = require('bcryptjs');
+const { compare, hash } = require('bcryptjs');
 
 test('AuthService unit test suite', async (t) => {
   // We can test after build dist is generated, or test dynamic logic
@@ -82,7 +82,6 @@ test('AuthService unit test suite', async (t) => {
   });
 
   await t.test('login verifies password from database', { skip: !AuthService }, async () => {
-    const { hash } = require('bcryptjs');
     const passwordHash = await hash('ValidPassword123', 10);
     const mockDb = {
       query: async (sql, params) => {
@@ -115,6 +114,52 @@ test('AuthService unit test suite', async (t) => {
     await assert.rejects(
       () => service.login('unknown@cue.local', 'ValidPassword123'),
       /Invalid email or password/,
+    );
+  });
+
+  await t.test('updateAccount verifies the current password and replaces credentials', { skip: !AuthService }, async () => {
+    const passwordHash = await hash('CurrentPassword123', 10);
+    let updated;
+    const mockDb = {
+      query: async (sql, params) => {
+        if (sql.includes('ORDER BY created_at')) {
+          return {
+            rows: [{
+              id: 'admin',
+              email: 'admin@cue.local',
+              password_hash: passwordHash,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE users')) {
+          updated = {
+            email: params[0],
+            passwordHash: params[1],
+            id: params[2],
+          };
+        }
+        return { rows: [] };
+      },
+    };
+    const mockJwt = {
+      signAsync: async (payload) => `token-${payload.kind}-${payload.email}`,
+    };
+    const service = new AuthService(mockDb, mockJwt);
+
+    const result = await service.updateAccount(
+      'CurrentPassword123',
+      'NEW@Cue.Local',
+      'ReplacementPassword123',
+    );
+    assert.equal(result.user.email, 'new@cue.local');
+    assert.equal(updated.email, 'new@cue.local');
+    assert.equal(updated.id, 'admin');
+    assert.ok(await compare('ReplacementPassword123', updated.passwordHash));
+    assert.match(result.refreshToken, /new@cue\.local/);
+
+    await assert.rejects(
+      () => service.updateAccount('WrongPassword123', 'other@cue.local'),
+      /Current password is incorrect/,
     );
   });
 });

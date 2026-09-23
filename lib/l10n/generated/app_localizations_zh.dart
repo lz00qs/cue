@@ -46,6 +46,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get password => '密码';
 
   @override
+  String get accountSettings => '账户设置';
+
+  @override
+  String get accountSettingsDescription => '修改登录邮箱，或设置一个新密码。';
+
+  @override
+  String get loginEmail => '登录邮箱';
+
+  @override
+  String get currentPassword => '当前密码';
+
+  @override
+  String get currentPasswordRequired => '请输入当前密码';
+
+  @override
+  String get changePassword => '修改密码';
+
+  @override
+  String get newPassword => '新密码';
+
+  @override
+  String get newPasswordOptional => '如不修改密码，请将以下两项留空。';
+
+  @override
+  String get confirmNewPassword => '确认新密码';
+
+  @override
+  String get saveChanges => '保存更改';
+
+  @override
+  String get accountUpdated => '账户信息已更新';
+
+  @override
+  String get noAccountChanges => '请修改邮箱或输入新密码。';
+
+  @override
   String get enterValidEmail => '请输入有效的邮箱地址';
 
   @override

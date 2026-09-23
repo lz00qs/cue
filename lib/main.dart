@@ -74,6 +74,9 @@ class _CueAppView extends ConsumerWidget {
             child: CueHome(
               userEmail: app.email,
               onLogout: ref.read(demoModeProvider) ? null : controller.logout,
+              onUpdateAccount: ref.read(demoModeProvider)
+                  ? null
+                  : controller.updateAccount,
               serverUrl: isNativePlatform ? app.serverUrl : null,
               onConfigureServer: isNativePlatform
                   ? controller.beginServerConfiguration

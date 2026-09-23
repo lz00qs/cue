@@ -10,6 +10,7 @@ import '../state/page_state.dart';
 import '../data/sync_coordinator.dart';
 import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
+import 'account_settings.dart';
 import 'cue_theme.dart';
 import 'appearance_menu.dart';
 import 'cue_date_picker.dart';
@@ -27,12 +28,14 @@ class CueHome extends ConsumerStatefulWidget {
     super.key,
     this.userEmail,
     this.onLogout,
+    this.onUpdateAccount,
     this.serverUrl,
     this.onConfigureServer,
   });
 
   final String? userEmail;
   final Future<void> Function()? onLogout;
+  final AccountUpdater? onUpdateAccount;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
 
@@ -135,6 +138,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
             onSelect: _selectView,
             userEmail: widget.userEmail,
             onLogout: widget.onLogout,
+            onUpdateAccount: widget.onUpdateAccount,
             serverUrl: widget.serverUrl,
             onConfigureServer: widget.onConfigureServer,
             onSync: () => _runTaskOperation(_store.sync),
@@ -155,6 +159,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     final home = MobileCueHome(
       userEmail: widget.userEmail,
       onLogout: widget.onLogout,
+      onUpdateAccount: widget.onUpdateAccount,
       serverUrl: widget.serverUrl,
       onConfigureServer: widget.onConfigureServer,
     );
@@ -457,6 +462,7 @@ class _Sidebar extends StatelessWidget {
     required this.onSelect,
     required this.userEmail,
     required this.onLogout,
+    required this.onUpdateAccount,
     required this.serverUrl,
     required this.onConfigureServer,
     required this.onSync,
@@ -469,6 +475,7 @@ class _Sidebar extends StatelessWidget {
   final ValueChanged<CueView> onSelect;
   final String? userEmail;
   final Future<void> Function()? onLogout;
+  final AccountUpdater? onUpdateAccount;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
   final Future<bool> Function() onSync;
@@ -564,6 +571,7 @@ class _Sidebar extends StatelessWidget {
             serverUrl: serverUrl,
             onConfigureServer: onConfigureServer,
             onLogout: onLogout,
+            onUpdateAccount: onUpdateAccount,
           ),
         ],
       ),
@@ -841,7 +849,14 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
   }
 }
 
-enum _SidebarAction { defaultView, appearance, language, server, signOut }
+enum _SidebarAction {
+  account,
+  defaultView,
+  appearance,
+  language,
+  server,
+  signOut,
+}
 
 class _SidebarSettingsMenu extends StatelessWidget {
   const _SidebarSettingsMenu({
@@ -850,6 +865,7 @@ class _SidebarSettingsMenu extends StatelessWidget {
     required this.serverUrl,
     required this.onConfigureServer,
     required this.onLogout,
+    required this.onUpdateAccount,
   });
 
   final TaskStore store;
@@ -857,6 +873,7 @@ class _SidebarSettingsMenu extends StatelessWidget {
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
   final Future<void> Function()? onLogout;
+  final AccountUpdater? onUpdateAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -932,6 +949,14 @@ class _SidebarSettingsMenu extends StatelessWidget {
           ),
         ),
         const PopupMenuDivider(height: 1),
+        if (onUpdateAccount != null && userEmail != null)
+          PopupMenuItem<_SidebarAction>(
+            value: _SidebarAction.account,
+            child: _SettingsMenuItem(
+              icon: Icons.manage_accounts_outlined,
+              label: context.l10n.accountSettings,
+            ),
+          ),
         PopupMenuItem<_SidebarAction>(
           value: _SidebarAction.defaultView,
           child: _SettingsMenuItem(
@@ -1011,6 +1036,15 @@ class _SidebarSettingsMenu extends StatelessWidget {
 
   void _handleAction(BuildContext context, _SidebarAction action) {
     switch (action) {
+      case _SidebarAction.account:
+        if (onUpdateAccount != null && userEmail != null) {
+          showAccountSettings(
+            context,
+            email: userEmail!,
+            onSave: onUpdateAccount!,
+            mobile: false,
+          );
+        }
       case _SidebarAction.defaultView:
         showDefaultViewPicker(context);
       case _SidebarAction.appearance:

@@ -147,6 +147,36 @@ class ApiClient {
 
   Future<void> logout() => _tokens.clear();
 
+  Future<String> updateAccount({
+    required String currentPassword,
+    String? email,
+    String? newPassword,
+  }) async {
+    try {
+      final response = await _authorized<Map<String, dynamic>>(
+        (options) => _dio.patch<Map<String, dynamic>>(
+          _url('/auth/account'),
+          data: {
+            'currentPassword': currentPassword,
+            if (email != null) 'email': email.trim(),
+            'newPassword': ?newPassword,
+          },
+          options: options,
+        ),
+      );
+      final data = response.data!;
+      final normalizedEmail = _extractEmail(data);
+      await _tokens.save(
+        accessToken: _extractString(data, 'accessToken'),
+        refreshToken: _extractString(data, 'refreshToken'),
+        email: normalizedEmail,
+      );
+      return normalizedEmail;
+    } on DioException catch (error) {
+      throw _mapError(error);
+    }
+  }
+
   Future<List<CueTask>> fetchTasks() async {
     final response = await _authorized<List<dynamic>>(
       (options) => _dio.get<List<dynamic>>(_url('/tasks'), options: options),

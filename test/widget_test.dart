@@ -310,6 +310,123 @@ void main() {
     expect(find.text('Focus for today'), findsOneWidget);
   });
 
+  testWidgets('desktop account settings update email and password', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = TaskStore.demo();
+    addTearDown(store.dispose);
+    String? savedCurrentPassword;
+    String? savedEmail;
+    String? savedPassword;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [taskStoreProvider.overrideWithValue(store)],
+        child: MaterialApp(
+          theme: CueTheme.active,
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: CueHome(
+            userEmail: 'admin@cue.local',
+            onUpdateAccount:
+                ({required currentPassword, email, newPassword}) async {
+                  savedCurrentPassword = currentPassword;
+                  savedEmail = email;
+                  savedPassword = newPassword;
+                },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Account settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byKey(const Key('account-email')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('account-email')),
+      'new@cue.local',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('account-current-password')),
+        matching: find.byType(TextFormField),
+      ),
+      'CurrentPassword123',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('account-new-password')),
+        matching: find.byType(TextFormField),
+      ),
+      'ReplacementPassword123',
+    );
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('account-confirm-password')),
+        matching: find.byType(TextFormField),
+      ),
+      'ReplacementPassword123',
+    );
+    await tester.tap(find.byKey(const Key('account-save')));
+    await tester.pumpAndSettle();
+
+    expect(savedCurrentPassword, 'CurrentPassword123');
+    expect(savedEmail, 'new@cue.local');
+    expect(savedPassword, 'ReplacementPassword123');
+    expect(find.text('Account updated'), findsOneWidget);
+  });
+
+  testWidgets('mobile exposes account settings as a bottom sheet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = TaskStore.demo();
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [taskStoreProvider.overrideWithValue(store)],
+        child: MaterialApp(
+          theme: CueTheme.active,
+          locale: const Locale('en'),
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: CueHome(
+            userEmail: 'admin@cue.local',
+            onUpdateAccount: ({
+              required currentPassword,
+              email,
+              newPassword,
+            }) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Account settings'),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Account settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byKey(const Key('account-email')), findsOneWidget);
+    expect(find.text('Change password'), findsOneWidget);
+  });
+
   testWidgets('desktop opens on the configured default view', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));

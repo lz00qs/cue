@@ -170,6 +170,78 @@ abstract class AppLocalizations {
   /// **'Password'**
   String get password;
 
+  /// No description provided for @accountSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Account settings'**
+  String get accountSettings;
+
+  /// No description provided for @accountSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Update the email you use to sign in or choose a new password.'**
+  String get accountSettingsDescription;
+
+  /// No description provided for @loginEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in email'**
+  String get loginEmail;
+
+  /// No description provided for @currentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get currentPassword;
+
+  /// No description provided for @currentPasswordRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your current password'**
+  String get currentPasswordRequired;
+
+  /// No description provided for @changePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Change password'**
+  String get changePassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get newPassword;
+
+  /// No description provided for @newPasswordOptional.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave these fields blank to keep your current password.'**
+  String get newPasswordOptional;
+
+  /// No description provided for @confirmNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get confirmNewPassword;
+
+  /// No description provided for @saveChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get saveChanges;
+
+  /// No description provided for @accountUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Account updated'**
+  String get accountUpdated;
+
+  /// No description provided for @noAccountChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Change your email or enter a new password.'**
+  String get noAccountChanges;
+
   /// No description provided for @enterValidEmail.
   ///
   /// In en, this message translates to:

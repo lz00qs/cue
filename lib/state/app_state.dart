@@ -378,6 +378,20 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     state = state.copyWith(store: null, email: null, initialError: null);
   }
 
+  Future<void> updateAccount({
+    required String currentPassword,
+    String? email,
+    String? newPassword,
+  }) async {
+    final normalizedEmail = await _api!.updateAccount(
+      currentPassword: currentPassword,
+      email: email,
+      newPassword: newPassword,
+    );
+    if (!ref.mounted) return;
+    state = state.copyWith(email: normalizedEmail);
+  }
+
   void beginServerConfiguration() {
     state = state.copyWith(configuringServer: true, initialError: null);
   }

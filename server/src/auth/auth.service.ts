@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   OnModuleInit,
   UnauthorizedException,
@@ -110,6 +112,55 @@ export class AuthService implements OnModuleInit {
     }
 
     return this.issueTokens(user.email);
+  }
+
+  async updateAccount(
+    currentPassword: string,
+    email?: string,
+    newPassword?: string,
+  ) {
+    const result = await this.db.query<{
+      id: string;
+      email: string;
+      password_hash: string;
+    }>(
+      'SELECT id, email, password_hash FROM users ORDER BY created_at ASC LIMIT 1;',
+    );
+    const user = result.rows[0];
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists');
+    }
+
+    const validPassword = await compare(currentPassword, user.password_hash);
+    if (!validPassword) {
+      throw new ForbiddenException('Current password is incorrect');
+    }
+
+    const cleanEmail = email?.trim().toLowerCase();
+    const emailChanged =
+      cleanEmail != null && cleanEmail !== user.email.toLowerCase();
+    const passwordChanged = newPassword != null && newPassword.length > 0;
+    if (!emailChanged && !passwordChanged) {
+      throw new BadRequestException('Enter a new email or password');
+    }
+    if (newPassword != null && newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const nextEmail = emailChanged ? cleanEmail! : user.email;
+    const nextPasswordHash = passwordChanged
+      ? await hash(newPassword!, 12)
+      : user.password_hash;
+    await this.db.query(
+      `UPDATE users
+       SET email = $1, password_hash = $2, updated_at = NOW()
+       WHERE id = $3;`,
+      [nextEmail, nextPasswordHash, user.id],
+    );
+
+    // The login email is embedded in both token types. Returning a fresh pair
+    // keeps this device signed in after an email change.
+    return this.issueTokens(nextEmail);
   }
 
   async refresh(refreshToken: string) {

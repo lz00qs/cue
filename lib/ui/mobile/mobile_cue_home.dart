@@ -9,6 +9,7 @@ import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_date_picker.dart';
 import '../cue_theme.dart';
+import '../account_settings.dart';
 import '../appearance_menu.dart';
 import '../language_menu.dart';
 
@@ -17,12 +18,14 @@ class MobileCueHome extends ConsumerStatefulWidget {
     super.key,
     this.userEmail,
     this.onLogout,
+    this.onUpdateAccount,
     this.serverUrl,
     this.onConfigureServer,
   });
 
   final String? userEmail;
   final Future<void> Function()? onLogout;
+  final AccountUpdater? onUpdateAccount;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
 
@@ -103,6 +106,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
         email: widget.userEmail,
         onSync: _syncNow,
         onLogout: widget.onLogout,
+        onUpdateAccount: widget.onUpdateAccount,
         serverUrl: widget.serverUrl,
         onConfigureServer: widget.onConfigureServer,
       ),
@@ -839,6 +843,7 @@ class _MobileSettingsPage extends ConsumerWidget {
     required this.email,
     required this.onSync,
     required this.onLogout,
+    required this.onUpdateAccount,
     required this.serverUrl,
     required this.onConfigureServer,
   });
@@ -846,6 +851,7 @@ class _MobileSettingsPage extends ConsumerWidget {
   final String? email;
   final Future<void> Function() onSync;
   final Future<void> Function()? onLogout;
+  final AccountUpdater? onUpdateAccount;
   final String? serverUrl;
   final VoidCallback? onConfigureServer;
 
@@ -892,9 +898,14 @@ class _MobileSettingsPage extends ConsumerWidget {
         const SizedBox(height: 16),
         _ProfileSummary(
           email: email,
-          onTap: onLogout == null
+          onTap: onLogout == null && onUpdateAccount == null
               ? null
-              : () => _showAccountSheet(context, email, onLogout!),
+              : () => _showAccountSheet(
+                  context,
+                  email,
+                  onUpdateAccount,
+                  onLogout,
+                ),
         ),
         const SizedBox(height: 16),
         Text(context.l10n.preferences, style: _mobileSectionStyle),
@@ -943,6 +954,20 @@ class _MobileSettingsPage extends ConsumerWidget {
         const SizedBox(height: 16),
         Text(context.l10n.accountAndData, style: _mobileSectionStyle),
         const SizedBox(height: 16),
+        if (onUpdateAccount != null && email != null) ...[
+          _SettingsRow(
+            icon: Icons.manage_accounts_outlined,
+            label: context.l10n.accountSettings,
+            detail: email,
+            onTap: () => showAccountSettings(
+              context,
+              email: email!,
+              onSave: onUpdateAccount!,
+              mobile: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         _SettingsRow(
           icon: Icons.sync_rounded,
           label: context.l10n.importAndSync,
@@ -1077,7 +1102,8 @@ class _MobileSettingsPage extends ConsumerWidget {
   static Future<void> _showAccountSheet(
     BuildContext context,
     String? email,
-    Future<void> Function() onLogout,
+    AccountUpdater? onUpdateAccount,
+    Future<void> Function()? onLogout,
   ) {
     return showModalBottomSheet<void>(
       context: context,
@@ -1102,19 +1128,42 @@ class _MobileSettingsPage extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: CueColors.danger,
-                side: BorderSide(color: CueColors.border),
-                minimumSize: const Size.fromHeight(48),
+            if (onUpdateAccount != null && email != null) ...[
+              FilledButton.icon(
+                key: const Key('mobile-account-settings'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: CueColors.accent,
+                  foregroundColor: CueColors.onAccent,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  showAccountSettings(
+                    context,
+                    email: email,
+                    onSave: onUpdateAccount,
+                    mobile: true,
+                  );
+                },
+                icon: const Icon(Icons.manage_accounts_outlined, size: 18),
+                label: Text(context.l10n.accountSettings),
               ),
-              onPressed: () async {
-                Navigator.pop(sheetContext);
-                await onLogout();
-              },
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: Text(context.l10n.signOut),
-            ),
+              const SizedBox(height: 8),
+            ],
+            if (onLogout != null)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: CueColors.danger,
+                  side: BorderSide(color: CueColors.border),
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                onPressed: () async {
+                  Navigator.pop(sheetContext);
+                  await onLogout();
+                },
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: Text(context.l10n.signOut),
+              ),
           ],
         ),
       ),

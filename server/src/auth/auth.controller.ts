@@ -1,11 +1,26 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { LoginDto, RefreshDto, SetupDto } from './auth.dto';
+import {
+  LoginDto,
+  RefreshDto,
+  SetupDto,
+  UpdateAccountDto,
+} from './auth.dto';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import { Public } from './public.decorator';
 
 @ApiTags('auth')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
@@ -33,5 +48,14 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() input: RefreshDto) {
     return this.auth.refresh(input.refreshToken);
+  }
+
+  @Patch('account')
+  updateAccount(@Body() input: UpdateAccountDto) {
+    return this.auth.updateAccount(
+      input.currentPassword,
+      input.email,
+      input.newPassword,
+    );
   }
 }
