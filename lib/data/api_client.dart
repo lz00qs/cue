@@ -32,21 +32,26 @@ class SyncResult {
 }
 
 class ApiClient {
-  ApiClient(this._tokens, {Dio? dio, String? baseUrl})
-    : _baseUrl = normalizeServerUrl(
-        baseUrl ?? configuredBaseUrl,
-        allowEmpty: true,
-      ),
-      _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 15),
-              sendTimeout: const Duration(seconds: 15),
-              headers: const {'accept': 'application/json'},
-            ),
-          );
+  ApiClient(
+    this._tokens, {
+    Dio? dio,
+    String? baseUrl,
+    http.Client Function()? sseClientFactory,
+  }) : _sseClientFactory = sseClientFactory ?? (() => http.Client()),
+       _baseUrl = normalizeServerUrl(
+         baseUrl ?? configuredBaseUrl,
+         allowEmpty: true,
+       ),
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(seconds: 15),
+               sendTimeout: const Duration(seconds: 15),
+               headers: const {'accept': 'application/json'},
+             ),
+           );
 
   static const configuredBaseUrl = String.fromEnvironment(
     'CUE_API_URL',
@@ -56,6 +61,7 @@ class ApiClient {
   final TokenStore _tokens;
   final Dio _dio;
   final String _baseUrl;
+  final http.Client Function() _sseClientFactory;
   Future<void>? _refreshing;
 
   String get serverUrl => _baseUrl;
@@ -237,7 +243,7 @@ class ApiClient {
   }
 
   Stream<int> watchRevisions() async* {
-    final client = http.Client();
+    final client = _sseClientFactory();
     try {
       Future<http.StreamedResponse> connect() async {
         final accessToken = await _tokens.accessToken;
@@ -275,7 +281,15 @@ class ApiClient {
 
       // Catch changes between the initial task load and opening the stream.
       yield 0;
-      yield* parseSseRevisions(response.stream);
+      try {
+        await for (final revision in parseSseRevisions(response.stream)) {
+          yield revision;
+        }
+      } on http.ClientException {
+        // An SSE connection is allowed to disappear at any time. Complete this
+        // subscription normally so SyncCoordinator can reconnect without the
+        // transport error escaping into Flutter's global error handler.
+      }
     } finally {
       client.close();
     }

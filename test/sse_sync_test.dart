@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:cue/data/api_client.dart';
+import 'package:cue/data/app_storage.dart';
 import 'package:cue/data/sync_coordinator.dart';
 import 'package:cue/data/task_store.dart';
 import 'package:cue/data/token_store.dart';
@@ -25,6 +28,42 @@ void main() {
       ]);
     },
   );
+
+  test('treats an interrupted SSE response as a reconnectable close', () async {
+    final body = StreamController<List<int>>();
+    final storage = _MemoryStorage();
+    final tokens = TokenStore(storage: storage);
+    await tokens.save(
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      email: 'admin@cue.local',
+    );
+    final api = ApiClient(
+      tokens,
+      baseUrl: 'http://cue.test',
+      sseClientFactory: () => MockClient.streaming((request, bodyStream) async {
+        expect(request.url.path, '/api/sync/events');
+        return http.StreamedResponse(
+          body.stream,
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        );
+      }),
+    );
+
+    final revisions = api.watchRevisions().toList();
+    await Future<void>.delayed(Duration.zero);
+    body.add(utf8.encode('event: change\ndata: {"revision":7}\n\n'));
+    body.addError(
+      http.ClientException(
+        'Connection closed while receiving data',
+        Uri.parse('http://cue.test/api/sync/events'),
+      ),
+    );
+    await body.close();
+
+    expect(await revisions, [0, 7]);
+  });
 
   test('SSE revision triggers incremental sync only when newer', () async {
     final api = _EventApiClient();
@@ -106,6 +145,38 @@ void main() {
     await api.reconnected.future.timeout(const Duration(seconds: 2));
     expect(api.watchCalls, 2);
   });
+
+  test('does not leak a subscription cancellation error', () async {
+    final api = _CancelFailureApiClient();
+    final store = TaskStore.remote(api);
+    final coordinator = SyncCoordinator(store);
+    addTearDown(() async {
+      coordinator.dispose();
+      await api.events.close();
+      store.dispose();
+    });
+
+    coordinator.start();
+    coordinator.pause();
+    await Future<void>.delayed(Duration.zero);
+  });
+}
+
+class _MemoryStorage implements AppStorage {
+  final values = <String, String>{};
+
+  @override
+  Future<void> delete({required String key}) async {
+    values.remove(key);
+  }
+
+  @override
+  Future<String?> read({required String key}) async => values[key];
+
+  @override
+  Future<void> write({required String key, required String value}) async {
+    values[key] = value;
+  }
 }
 
 class _EventApiClient extends ApiClient {
@@ -168,4 +239,15 @@ class _ReconnectingApiClient extends ApiClient {
   @override
   Future<SyncResult> sync(int since) async =>
       SyncResult(changes: const [], latestRevision: since);
+}
+
+class _CancelFailureApiClient extends ApiClient {
+  _CancelFailureApiClient() : super(TokenStore());
+
+  late final StreamController<int> events = StreamController<int>(
+    onCancel: () async => throw StateError('simulated socket close race'),
+  );
+
+  @override
+  Stream<int> watchRevisions() => events.stream;
 }

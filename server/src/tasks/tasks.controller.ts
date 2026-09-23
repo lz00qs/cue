@@ -14,7 +14,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { interval, Observable, takeUntil, timer } from 'rxjs';
+import { interval, Observable } from 'rxjs';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateTaskDto, DeleteTaskDto, UpdateTaskDto } from './task.dto';
@@ -75,6 +75,6 @@ export class TasksController {
         changes.unsubscribe();
         heartbeat.unsubscribe();
       };
-    }).pipe(takeUntil(timer(10 * 60 * 1000)));
+    });
   }
 }

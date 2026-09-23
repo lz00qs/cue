@@ -46,7 +46,7 @@ class SyncCoordinator {
     _reconnectTimer = null;
     final events = _events;
     _events = null;
-    if (events != null) unawaited(events.cancel());
+    _cancel(events);
   }
 
   void dispose() {
@@ -56,7 +56,7 @@ class SyncCoordinator {
     _reconnectTimer?.cancel();
     final events = _events;
     _events = null;
-    if (events != null) unawaited(events.cancel());
+    _cancel(events);
   }
 
   void _connect() {
@@ -80,7 +80,7 @@ class SyncCoordinator {
   void _disconnected() {
     final events = _events;
     _events = null;
-    if (events != null) unawaited(events.cancel());
+    _cancel(events);
     if (_disposed || _paused || _reconnectTimer != null) return;
     final delay = _reconnectDelay;
     _reconnectDelay = Duration(
@@ -93,6 +93,20 @@ class SyncCoordinator {
       _reconnectTimer = null;
       _connect();
     });
+  }
+
+  void _cancel(StreamSubscription<int>? events) {
+    if (events == null) return;
+    unawaited(_cancelSafely(events));
+  }
+
+  Future<void> _cancelSafely(StreamSubscription<int> events) async {
+    try {
+      await events.cancel();
+    } catch (_) {
+      // Closing an active HTTP response can race with a socket error. The
+      // subscription is already detached, so there is nothing left to report.
+    }
   }
 
   Future<void> _syncSilently({int? requiredRevision}) async {
