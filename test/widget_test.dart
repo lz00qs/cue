@@ -1257,6 +1257,50 @@ void main() {
     expect(find.text('Help & guide'), findsNothing);
   });
 
+  testWidgets('all mobile pages respect the top system safe area', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    tester.view.padding = const FakeViewPadding(top: 48);
+    addTearDown(() {
+      tester.binding.setSurfaceSize(null);
+      tester.view.resetPadding();
+    });
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    final safeTop = tester.view.padding.top / tester.view.devicePixelRatio;
+    expect(safeTop, greaterThan(0));
+
+    void expectSafePage() {
+      final safeArea = tester.widget<SafeArea>(
+        find.byKey(const Key('mobile-content-safe-area')),
+      );
+      expect(safeArea.top, isTrue);
+      expect(safeArea.left, isTrue);
+      expect(safeArea.right, isTrue);
+      expect(safeArea.bottom, isFalse);
+      expect(
+        tester.getTopLeft(find.byType(ListView).first).dy,
+        greaterThanOrEqualTo(safeTop),
+      );
+    }
+
+    expectSafePage();
+
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Board'));
+    await tester.pumpAndSettle();
+    expectSafePage();
+
+    for (final destination in ['Calendar', 'Quadrants', 'Settings']) {
+      await tester.tap(find.text(destination));
+      await tester.pumpAndSettle();
+      expectSafePage();
+    }
+  });
+
   testWidgets('mobile new task sheet opens the custom due date picker', (
     tester,
   ) async {

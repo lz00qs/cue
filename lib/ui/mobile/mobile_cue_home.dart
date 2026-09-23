@@ -44,16 +44,20 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     ref.watch(mobileUiProvider);
     return Scaffold(
       backgroundColor: CueColors.canvas,
-      body: Stack(
-        children: [
-          Positioned.fill(child: _buildPage()),
-          if (_destination != MobileDestination.settings)
-            Positioned(
-              right: 20,
-              bottom: 16,
-              child: _QuickAddButton(onTap: _showAddTaskSheet),
-            ),
-        ],
+      body: SafeArea(
+        key: const Key('mobile-content-safe-area'),
+        bottom: false,
+        child: Stack(
+          children: [
+            Positioned.fill(child: _buildPage()),
+            if (_destination != MobileDestination.settings)
+              Positioned(
+                right: 20,
+                bottom: 16,
+                child: _QuickAddButton(onTap: _showAddTaskSheet),
+              ),
+          ],
+        ),
       ),
       bottomNavigationBar: _MobileBottomNavigation(
         destination: _destination,
