@@ -50,7 +50,7 @@ void main() {
     expectTheme();
     await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpAndSettle();
-    expect(find.text('CUE'), findsOneWidget);
+    expect(find.text('CUE'), findsNothing);
     expectTheme();
   });
 
@@ -1233,7 +1233,7 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    expect(find.text('CUE'), findsOneWidget);
+    expect(find.text('CUE'), findsNothing);
     expect(find.text('Sunday, September 13'), findsOneWidget);
     expect(find.text('Review PCB layout'), findsOneWidget);
     expect(find.text('Calendar'), findsOneWidget);

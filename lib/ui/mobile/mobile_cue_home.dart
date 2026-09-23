@@ -1164,25 +1164,12 @@ class _MobileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 78,
+      height: 62,
       child: Stack(
         children: [
           Positioned(
             left: 0,
             top: 0,
-            child: Text(
-              'CUE',
-              style: TextStyle(
-                color: CueColors.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.44,
-              ),
-            ),
-          ),
-          Positioned(
-            left: 0,
-            top: 16,
             child: Text(
               title,
               style: TextStyle(
@@ -1194,7 +1181,7 @@ class _MobileHeader extends StatelessWidget {
           ),
           Positioned(
             left: 0,
-            top: 52,
+            top: 36,
             child: Text(
               subtitle,
               style: TextStyle(color: CueColors.secondary, fontSize: 12),
