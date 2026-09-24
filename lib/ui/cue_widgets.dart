@@ -239,6 +239,15 @@ class _CueTaskCardState extends State<CueTaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    final task = widget.task;
+    final isOverdue = !task.isCompleted &&
+        task.dueAt != null &&
+        TaskStore.dateOnly(task.dueAt!).isBefore(
+          widget.referenceDate != null
+              ? TaskStore.dateOnly(widget.referenceDate!)
+              : TaskStore.dateOnly(DateTime.now()),
+        );
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -285,15 +294,32 @@ class _CueTaskCardState extends State<CueTaskCard> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      cueCompactTaskMeta(
-                        context,
-                        widget.task,
-                        today: widget.referenceDate,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isOverdue) ...[
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 11,
+                            color: CueColors.danger,
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        Flexible(
+                          child: Text(
+                            cueCompactTaskMeta(
+                              context,
+                              widget.task,
+                              today: widget.referenceDate,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isOverdue ? CueColors.danger : null,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -318,6 +344,9 @@ String cueTaskMeta(BuildContext context, CueTask task, {DateTime? today}) {
   if (TaskStore.isSameDay(task.dueAt!, reference)) {
     return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''} · ${cueTaskArea(context, task)}';
   }
+  if (!task.isCompleted && TaskStore.dateOnly(task.dueAt!).isBefore(reference)) {
+    return '${formatShortYearMonthDay(context, task.dueAt!)} · ${cueTaskArea(context, task)}';
+  }
   return '${formatShortMonthDay(context, task.dueAt!)} · ${cueTaskArea(context, task)}';
 }
 
@@ -340,6 +369,9 @@ String cueCompactTaskMeta(
     reference.add(const Duration(days: 1)),
   )) {
     return l10n.tomorrow;
+  }
+  if (!task.isCompleted && TaskStore.dateOnly(task.dueAt!).isBefore(reference)) {
+    return formatShortYearMonthDay(context, task.dueAt!);
   }
   return formatShortMonthDay(context, task.dueAt!);
 }

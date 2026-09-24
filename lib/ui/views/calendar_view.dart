@@ -153,6 +153,7 @@ class _MonthGrid extends StatelessWidget {
               return Expanded(
                 child: _CalendarCell(
                   day: day,
+                  today: store.today,
                   tasks: tasks,
                   currentMonth: day.month == month.month,
                   selected: TaskStore.isSameDay(day, store.today),
@@ -177,6 +178,7 @@ class _MonthGrid extends StatelessWidget {
 class _CalendarCell extends StatefulWidget {
   const _CalendarCell({
     required this.day,
+    required this.today,
     required this.tasks,
     required this.currentMonth,
     required this.selected,
@@ -185,6 +187,7 @@ class _CalendarCell extends StatefulWidget {
   });
 
   final DateTime day;
+  final DateTime today;
   final List<CueTask> tasks;
   final bool currentMonth;
   final bool selected;
@@ -291,10 +294,17 @@ class _CalendarCellState extends State<_CalendarCell> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               for (final task in visibleTasks) ...[
-                                _TaskPill(
-                                  task: task,
-                                  onTap: () => widget.onOpenTask(task),
-                                ),
+                                () {
+                                  final isOverdue = !task.isCompleted &&
+                                      TaskStore.dateOnly(widget.day).isBefore(
+                                        TaskStore.dateOnly(widget.today),
+                                      );
+                                  return _TaskPill(
+                                    task: task,
+                                    isOverdue: isOverdue,
+                                    onTap: () => widget.onOpenTask(task),
+                                  );
+                                }(),
                                 const SizedBox(height: gap),
                               ],
                               if (showMore && moreCount > 0)
@@ -319,9 +329,10 @@ class _CalendarCellState extends State<_CalendarCell> {
 }
 
 class _TaskPill extends StatelessWidget {
-  const _TaskPill({required this.task, required this.onTap});
+  const _TaskPill({required this.task, this.isOverdue = false, required this.onTap});
 
   final CueTask task;
+  final bool isOverdue;
   final VoidCallback onTap;
 
   @override
@@ -338,21 +349,28 @@ class _TaskPill extends StatelessWidget {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: CueSpacing.s6),
           decoration: BoxDecoration(
-            color: task.isCompleted ? CueColors.subtle : CueColors.selected,
+            color: task.isCompleted ? CueColors.subtle : (isOverdue ? CueColors.danger.withValues(alpha: 0.15) : CueColors.selected),
             borderRadius: BorderRadius.circular(4),
           ),
           child: Row(
             children: [
-              Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: task.isCompleted
-                      ? CueColors.tertiary
-                      : CueColors.accent,
-                  shape: BoxShape.circle,
+              if (isOverdue && !task.isCompleted)
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 10,
+                  color: CueColors.danger,
+                )
+              else
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: task.isCompleted
+                        ? CueColors.tertiary
+                        : CueColors.accent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
               const SizedBox(width: 5),
               Expanded(
                 child: Text(
@@ -362,7 +380,7 @@ class _TaskPill extends StatelessWidget {
                   style: TextStyle(
                     color: task.isCompleted
                         ? CueColors.tertiary
-                        : CueColors.accent,
+                        : (isOverdue ? CueColors.danger : CueColors.accent),
                     fontSize: 11,
                     height: 13 / 11,
                     fontWeight: FontWeight.w500,

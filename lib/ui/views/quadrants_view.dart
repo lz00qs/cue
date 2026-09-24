@@ -191,6 +191,11 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
 
   @override
   Widget build(BuildContext context) {
+    final isOverdue = !widget.task.isCompleted &&
+        widget.task.dueAt != null &&
+        TaskStore.dateOnly(widget.task.dueAt!)
+            .isBefore(TaskStore.dateOnly(DateTime.now()));
+
     final cardContent = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -241,6 +246,23 @@ class _QuadrantTaskTileState extends State<_QuadrantTaskTile> {
                   ),
                 ),
               ),
+              if (isOverdue) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 14,
+                  color: CueColors.danger,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  formatShortYearMonthDay(context, widget.task.dueAt!),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: CueColors.danger,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

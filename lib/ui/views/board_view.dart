@@ -936,6 +936,9 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
   Widget build(BuildContext context) {
     final task = widget.task;
     final priorityColor = _priorityColor(task.priority);
+    final isOverdue = !task.isCompleted &&
+        task.dueAt != null &&
+        TaskStore.dateOnly(task.dueAt!).isBefore(widget.store.today);
     final cardContent = MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -1019,12 +1022,27 @@ class _TickTickTaskCardState extends State<_TickTickTaskCard> {
                     ),
                     if (task.dueAt != null) ...[
                       const SizedBox(height: 3),
-                      Text(
-                        formatShortMonthDay(context, task.dueAt!),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: CueColors.tertiary,
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isOverdue) ...[
+                            Icon(
+                              Icons.error_outline_rounded,
+                              size: 11,
+                              color: CueColors.danger,
+                            ),
+                            const SizedBox(width: 3),
+                          ],
+                          Text(
+                            isOverdue
+                                ? formatShortYearMonthDay(context, task.dueAt!)
+                                : formatShortMonthDay(context, task.dueAt!),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isOverdue ? CueColors.danger : CueColors.tertiary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ],
