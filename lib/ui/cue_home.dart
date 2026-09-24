@@ -1273,14 +1273,16 @@ class _TaskListView extends StatelessWidget {
     final tasks = switch (view) {
       CueView.inbox => store.activeTasks.toList(),
       CueView.upcoming => store.upcomingTasks,
-      CueView.list =>
-        store.tasks.where((task) => task.deletedAt == null).toList(),
-      _ => switch (filter) {
-        CueListFilter.today => store.todayTasks,
-        CueListFilter.upcoming => store.upcomingTasks,
+      CueView.today => store.todayTasks,
+      CueView.list => switch (filter) {
         CueListFilter.completed => store.completedTasks.toList(),
+        CueListFilter.upcoming => store.upcomingTasks,
+        CueListFilter.overdue => store.overdueTasks,
+        _ => store.tasks.where((task) => task.deletedAt == null).toList(),
       },
+      _ => store.activeTasks.toList(),
     };
+    final showFilters = view == CueView.list;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1293,6 +1295,39 @@ class _TaskListView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
+        if (showFilters) ...[
+          SizedBox(
+            height: 44,
+            child: Row(
+              children: [
+                CueViewTab(
+                  label: context.l10n.allTasks,
+                  selected: filter == CueListFilter.all,
+                  onTap: () => onFilterChanged(CueListFilter.all),
+                ),
+                const SizedBox(width: 8),
+                CueViewTab(
+                  label: context.l10n.completed,
+                  selected: filter == CueListFilter.completed,
+                  onTap: () => onFilterChanged(CueListFilter.completed),
+                ),
+                const SizedBox(width: 8),
+                CueViewTab(
+                  label: context.l10n.upcoming,
+                  selected: filter == CueListFilter.upcoming,
+                  onTap: () => onFilterChanged(CueListFilter.upcoming),
+                ),
+                const SizedBox(width: 8),
+                CueViewTab(
+                  label: context.l10n.overdue,
+                  selected: filter == CueListFilter.overdue,
+                  onTap: () => onFilterChanged(CueListFilter.overdue),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         KeyedSubtree(
           key: const Key('desktop-task-list-header'),
           child: Text(

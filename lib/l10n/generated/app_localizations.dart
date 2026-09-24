@@ -794,6 +794,12 @@ abstract class AppLocalizations {
   /// **'Completed'**
   String get completed;
 
+  /// No description provided for @overdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get overdue;
+
   /// No description provided for @quickAddHint.
   ///
   /// In en, this message translates to:

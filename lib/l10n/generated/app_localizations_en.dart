@@ -402,6 +402,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get completed => 'Completed';
 
   @override
+  String get overdue => 'Overdue';
+
+  @override
   String get quickAddHint => 'Add a task…  try “PCB review tomorrow 10:30”';
 
   @override

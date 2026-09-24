@@ -126,6 +126,7 @@
   "tasksLabel": "Tasks · {count}",
   "@tasksLabel": {"placeholders": {"count": {"type": "int"}}},
   "completed": "Completed",
+  "overdue": "Overdue",
   "quickAddHint": "Add a task…  try “PCB review tomorrow 10:30”",
   "add": "Add",
   "emptyList": "Nothing here — enjoy the space.",

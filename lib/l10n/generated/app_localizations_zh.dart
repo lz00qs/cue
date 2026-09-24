@@ -379,6 +379,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get completed => '已完成';
 
   @override
+  String get overdue => '已逾期';
+
+  @override
   String get quickAddHint => '添加任务… 例如“明天 10:30 评审 PCB”';
 
   @override

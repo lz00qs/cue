@@ -432,6 +432,16 @@ class TaskStore extends ChangeNotifier {
     return result;
   }
 
+  List<CueTask> get overdueTasks {
+    final startOfToday = TaskStore.dateOnly(today);
+    final result = activeTasks
+        .where((task) =>
+            task.dueAt != null && task.dueAt!.isBefore(startOfToday))
+        .toList();
+    result.sort(_taskSort);
+    return result;
+  }
+
   List<CueTask> tasksForDay(DateTime day) {
     final result = _tasks.where((task) => isTaskOnDay(task, day)).toList();
     result.sort(_taskSort);

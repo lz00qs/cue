@@ -116,6 +116,7 @@
   "allTasksLabel": "所有任务 · {count}",
   "tasksLabel": "任务 · {count}",
   "completed": "已完成",
+  "overdue": "已逾期",
   "quickAddHint": "添加任务… 例如“明天 10:30 评审 PCB”",
   "add": "添加",
   "emptyList": "这里空空如也，享受片刻清闲吧。",

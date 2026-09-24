@@ -5,7 +5,7 @@ import 'app_state.dart';
 
 enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
 
-enum CueListFilter { today, upcoming, completed }
+enum CueListFilter { all, today, upcoming, completed, overdue }
 
 class CueHomeUiState {
   const CueHomeUiState(this.view, this.filter);
@@ -37,6 +37,7 @@ class CueHomeUi extends Notifier<CueHomeUiState> {
     final filter = switch (view) {
       CueView.today => CueListFilter.today,
       CueView.upcoming => CueListFilter.upcoming,
+      CueView.list => CueListFilter.all,
       _ => state.filter,
     };
     state = CueHomeUiState(view, filter);

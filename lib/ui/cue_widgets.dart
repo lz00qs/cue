@@ -201,7 +201,14 @@ class _CueTaskRowState extends State<CueTaskRow> {
                           ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: !task.isCompleted &&
+                                    task.dueAt != null &&
+                                    task.dueAt!.isBefore(TaskStore.dateOnly(
+                                        widget.referenceDate ?? DateTime.now()))
+                                ? CueColors.danger
+                                : null,
+                          ),
                     ),
                   ],
                 ),
