@@ -1007,12 +1007,14 @@ class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage>
         itemBuilder: (context, index) {
           final day = days[index];
           final tasks = store.tasksForDay(day);
+          final hasOverdueTasks = TaskStore.dateOnly(day).isBefore(TaskStore.dateOnly(store.today)) && tasks.any((t) => !t.isCompleted);
           return _CalendarDay(
             day: day,
             inMonth: day.month == month.month,
             selected: isInteractive && TaskStore.isSameDay(day, _selectedDay),
             isToday: TaskStore.isSameDay(day, store.today),
             hasTasks: tasks.isNotEmpty,
+            hasOverdueTasks: hasOverdueTasks,
             onTap: isInteractive ? () => _selectDay(day) : null,
           );
         },
@@ -1420,6 +1422,7 @@ class _MobileQuadrantsPage extends ConsumerWidget {
                 title: panel.$1,
                 tasks: panel.$2,
                 priority: panel.$3,
+                today: store.today,
                 onOpenTask: onOpenTask,
               );
             },
@@ -2039,6 +2042,10 @@ class _MobileTaskRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOverdue = !task.isCompleted &&
+        task.dueAt != null &&
+        TaskStore.dateOnly(task.dueAt!).isBefore(TaskStore.dateOnly(today));
+
     return GestureDetector(
       onTap: onOpen,
       behavior: HitTestBehavior.opaque,
@@ -2087,15 +2094,30 @@ class _MobileTaskRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    _mobileTaskMeta(context, task, today),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: CueColors.secondary,
-                      fontSize: 13,
-                      height: 18 / 13,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isOverdue) ...[
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: 13,
+                          color: CueColors.danger,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Flexible(
+                        child: Text(
+                          _mobileTaskMeta(context, task, today),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isOverdue ? CueColors.danger : CueColors.secondary,
+                            fontSize: 13,
+                            height: 18 / 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -2145,6 +2167,7 @@ class _CalendarDay extends StatelessWidget {
     required this.selected,
     required this.isToday,
     required this.hasTasks,
+    this.hasOverdueTasks = false,
     this.onTap,
   });
 
@@ -2153,6 +2176,7 @@ class _CalendarDay extends StatelessWidget {
   final bool selected;
   final bool isToday;
   final bool hasTasks;
+  final bool hasOverdueTasks;
   final VoidCallback? onTap;
 
   @override
@@ -2210,7 +2234,11 @@ class _CalendarDay extends StatelessWidget {
               height: 4,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: hasTasks ? CueColors.accent : Colors.transparent,
+                  color: hasOverdueTasks
+                      ? CueColors.danger
+                      : hasTasks
+                          ? CueColors.accent
+                          : Colors.transparent,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -2227,12 +2255,14 @@ class _MobileQuadrant extends StatelessWidget {
     required this.title,
     required this.tasks,
     required this.priority,
+    required this.today,
     required this.onOpenTask,
   });
 
   final String title;
   final List<CueTask> tasks;
   final int priority;
+  final DateTime today;
   final ValueChanged<CueTask> onOpenTask;
 
   @override
@@ -2275,30 +2305,44 @@ class _MobileQuadrant extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 for (final task in tasks.take(3)) ...[
-                  GestureDetector(
-                    onTap: () => onOpenTask(task),
-                    child: Container(
-                      key: ValueKey('mobile-quadrant-task-${task.id}'),
-                      width: double.infinity,
-                      height: CueQuadrantTokens.taskHeight,
-                      padding: CueQuadrantTokens.taskPadding,
-                      alignment: Alignment.centerLeft,
-                      decoration: BoxDecoration(
-                        color: CueQuadrantTokens.taskBackground,
-                        border: Border.all(color: CueQuadrantTokens.taskBorder),
-                        borderRadius: BorderRadius.circular(
-                          CueQuadrantTokens.taskRadius,
+                  Builder(
+                    builder: (context) {
+                      final isOverdue = !task.isCompleted &&
+                          task.dueAt != null &&
+                          TaskStore.dateOnly(task.dueAt!).isBefore(TaskStore.dateOnly(today));
+
+                      return GestureDetector(
+                        onTap: () => onOpenTask(task),
+                        child: Container(
+                          key: ValueKey('mobile-quadrant-task-${task.id}'),
+                          width: double.infinity,
+                          height: CueQuadrantTokens.taskHeight,
+                          padding: CueQuadrantTokens.taskPadding,
+                          alignment: Alignment.centerLeft,
+                          decoration: BoxDecoration(
+                            color: isOverdue 
+                                ? CueColors.danger.withValues(alpha: 0.05) 
+                                : CueQuadrantTokens.taskBackground,
+                            border: Border.all(
+                              color: isOverdue 
+                                  ? CueColors.danger.withValues(alpha: 0.2) 
+                                  : CueQuadrantTokens.taskBorder,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              CueQuadrantTokens.taskRadius,
+                            ),
+                          ),
+                          child: Text(
+                            task.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: CueQuadrantTokens.taskTitleStyle.copyWith(
+                              color: isOverdue ? CueColors.danger : CueColors.primary,
+                            ),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        task.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: CueQuadrantTokens.taskTitleStyle.copyWith(
-                          color: CueColors.primary,
-                        ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: CueQuadrantTokens.taskGap),
                 ],
@@ -3141,6 +3185,9 @@ String _mobileTaskMeta(BuildContext context, CueTask task, DateTime today) {
   final time = _hasTime(task.dueAt!) ? _time(task.dueAt!) : null;
   if (TaskStore.isSameDay(task.dueAt!, today)) {
     return '${time ?? l10n.today} · ${_area(context, task)}';
+  }
+  if (!task.isCompleted && TaskStore.dateOnly(task.dueAt!).isBefore(TaskStore.dateOnly(today))) {
+    return '${formatShortYearMonthDay(context, task.dueAt!)} · ${_area(context, task)}';
   }
   return '${formatShortMonthDay(context, task.dueAt!)} · ${_area(context, task)}';
 }
