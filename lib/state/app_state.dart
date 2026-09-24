@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/api_client.dart';
-import '../data/desktop_reminder_service.dart';
+import '../data/app_reminder_service.dart';
 import '../data/locale_store.dart';
 import '../data/server_config_store.dart';
 import '../data/startup_view_store.dart';
@@ -16,8 +16,8 @@ import '../ui/cue_theme.dart';
 
 final demoModeProvider = Provider<bool>((ref) => false);
 
-final desktopReminderServiceProvider = Provider<DesktopReminderService>((ref) {
-  final service = DesktopReminderService();
+final appReminderServiceProvider = Provider<AppReminderService>((ref) {
+  final service = AppReminderService();
   ref.onDispose(service.dispose);
   return service;
 });
@@ -114,15 +114,15 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
   ServerConfigStore? _serverConfig;
   ApiClient? _api;
   TaskStore? _activeStore;
-  DesktopReminderService? _reminderService;
+  AppReminderService? _reminderService;
 
   bool get _isNativePlatform => !kIsWeb;
-  DesktopReminderService? get reminderService => _reminderService;
+  AppReminderService? get reminderService => _reminderService;
 
   @override
   AppState build() {
     WidgetsBinding.instance.addObserver(this);
-    _reminderService = ref.watch(desktopReminderServiceProvider);
+    _reminderService = ref.watch(appReminderServiceProvider);
     _reminderService?.onNotificationTap = _onNotificationTapped;
 
     ref.onDispose(() {

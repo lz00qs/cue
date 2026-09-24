@@ -1,4 +1,4 @@
-import 'package:cue/data/desktop_reminder_service.dart';
+import 'package:cue/data/app_reminder_service.dart';
 import 'package:cue/data/task_store.dart';
 import 'package:cue/models/cue_task.dart';
 import 'package:flutter/foundation.dart';
@@ -101,30 +101,30 @@ void main() {
     tz_data.initializeTimeZones();
   });
 
-  group('DesktopReminderService payload parsing', () {
+  group('AppReminderService payload parsing', () {
     test('extracts taskId from valid cue-task payload', () {
       expect(
-        DesktopReminderService.parseTaskIdFromPayload('cue-task:task-123:1727000000000'),
+        AppReminderService.parseTaskIdFromPayload('cue-task:task-123:1727000000000'),
         'task-123',
       );
       expect(
-        DesktopReminderService.parseTaskIdFromPayload('cue-task:abc-def'),
+        AppReminderService.parseTaskIdFromPayload('cue-task:abc-def'),
         'abc-def',
       );
     });
 
     test('returns null for invalid payloads', () {
-      expect(DesktopReminderService.parseTaskIdFromPayload(null), isNull);
-      expect(DesktopReminderService.parseTaskIdFromPayload(''), isNull);
+      expect(AppReminderService.parseTaskIdFromPayload(null), isNull);
+      expect(AppReminderService.parseTaskIdFromPayload(''), isNull);
       expect(
-        DesktopReminderService.parseTaskIdFromPayload('other-plugin:123'),
+        AppReminderService.parseTaskIdFromPayload('other-plugin:123'),
         isNull,
       );
-      expect(DesktopReminderService.parseTaskIdFromPayload('cue-task:'), isNull);
+      expect(AppReminderService.parseTaskIdFromPayload('cue-task:'), isNull);
     });
   });
 
-  group('DesktopReminderService lifecycle and scheduling', () {
+  group('AppReminderService lifecycle and scheduling', () {
     setUp(() {
       debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     });
@@ -136,7 +136,7 @@ void main() {
     test('invokes onNotificationTap callback on notification response', () async {
       final fake = FakeLocalNotificationsPlugin();
       String? tappedTaskId;
-      final service = DesktopReminderService(
+      final service = AppReminderService(
         notifications: fake,
         onNotificationTap: (id) => tappedTaskId = id,
       );
@@ -164,7 +164,7 @@ void main() {
 
     test('reconciles and schedules pending reminders from TaskStore', () async {
       final fake = FakeLocalNotificationsPlugin();
-      final service = DesktopReminderService(notifications: fake);
+      final service = AppReminderService(notifications: fake);
 
       final futureDue = DateTime.now().add(const Duration(hours: 3));
       final taskWithReminder = _createTask(

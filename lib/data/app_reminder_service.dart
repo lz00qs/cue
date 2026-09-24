@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,8 +10,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'reminder_planner.dart';
 import 'task_store.dart';
 
-class DesktopReminderService {
-  DesktopReminderService({
+class AppReminderService {
+  AppReminderService({
     FlutterLocalNotificationsPlugin? notifications,
     this._planner = const ReminderPlanner(),
     this.onNotificationTap,
@@ -35,11 +36,8 @@ class DesktopReminderService {
   bool _permissionGranted = false;
   String _languageCode = 'en';
 
-  static bool get isSupportedDesktop =>
-      !kIsWeb &&
-      (defaultTargetPlatform == TargetPlatform.macOS ||
-          defaultTargetPlatform == TargetPlatform.windows ||
-          defaultTargetPlatform == TargetPlatform.linux);
+  static bool get isSupportedPlatform =>
+      !kIsWeb;
 
   bool get isPermissionGranted => _permissionGranted;
 
@@ -55,7 +53,7 @@ class DesktopReminderService {
   }
 
   void bind(TaskStore store, {String? languageCode}) {
-    if (!isSupportedDesktop || _disposed) return;
+    if (!isSupportedPlatform || _disposed) return;
     _store?.removeListener(_onStoreChanged);
     _store = store;
     _languageCode = languageCode ?? _languageCode;
@@ -77,7 +75,7 @@ class DesktopReminderService {
     _store = null;
     _debounce?.cancel();
     _cancelLinuxTimers();
-    if (!isSupportedDesktop || _disposed) return;
+    if (!isSupportedPlatform || _disposed) return;
     await _ensureInitialized();
     await _removeCueNotifications();
   }
@@ -97,7 +95,7 @@ class DesktopReminderService {
   }
 
   void _queueReconcile() {
-    if (_disposed || !isSupportedDesktop) return;
+    if (_disposed || !isSupportedPlatform) return;
     _operation = _operation.then((_) => _reconcile()).catchError((Object error) {
       debugPrint('Unable to schedule Cue reminders: $error');
     });
@@ -127,6 +125,12 @@ class DesktopReminderService {
     }
 
     const settings = InitializationSettings(
+      android: AndroidInitializationSettings('ic_notification'),
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
       macOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -152,7 +156,9 @@ class DesktopReminderService {
     );
 
     _initialized = true;
-    _permissionGranted = defaultTargetPlatform != TargetPlatform.macOS;
+    _permissionGranted = defaultTargetPlatform != TargetPlatform.macOS &&
+        defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.android;
 
     try {
       final launchDetails =
@@ -194,20 +200,28 @@ class DesktopReminderService {
   }
 
   Future<bool> requestPermission() async {
-    if (!isSupportedDesktop || _disposed) return false;
+    if (!isSupportedPlatform || _disposed) return false;
     await _ensureInitialized();
-    if (defaultTargetPlatform != TargetPlatform.macOS) {
-      _permissionGranted = true;
-      return true;
-    }
     _permissionRequested = true;
-    _permissionGranted =
-        await _notifications
-            .resolvePlatformSpecificImplementation<
-              MacOSFlutterLocalNotificationsPlugin
-            >()
-            ?.requestPermissions(alert: true, badge: false, sound: true) ??
-        false;
+    if (defaultTargetPlatform == TargetPlatform.macOS) {
+      _permissionGranted = await _notifications
+          .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: false, sound: true) ?? false;
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _permissionGranted = await _notifications
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: false, sound: true) ?? false;
+    } else if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidImplementation = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      final granted = await androidImplementation?.requestNotificationsPermission();
+      _permissionGranted = granted ?? true;
+    } else {
+      _permissionGranted = true;
+    }
+
     if (_permissionGranted) {
       _queueReconcile();
     }
@@ -216,7 +230,9 @@ class DesktopReminderService {
 
   Future<bool> _ensurePermission() async {
     if (_permissionGranted) return true;
-    if (defaultTargetPlatform != TargetPlatform.macOS) return true;
+    if (defaultTargetPlatform != TargetPlatform.macOS &&
+        defaultTargetPlatform != TargetPlatform.iOS &&
+        defaultTargetPlatform != TargetPlatform.android) return true;
     if (_permissionRequested) return false;
     return requestPermission();
   }
@@ -259,6 +275,21 @@ class DesktopReminderService {
         body: notification.body,
         scheduledDate: _asLocalTz(notification.scheduledAt),
         notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'cue_reminders_channel',
+            'Cue Reminders',
+            channelDescription: 'Notifications for upcoming tasks in Cue',
+            importance: Importance.max,
+            priority: Priority.high,
+            color: const Color(0xFF3A63F3),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBanner: true,
+            presentList: true,
+            presentSound: true,
+            threadIdentifier: 'cue-reminders',
+          ),
           macOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBanner: true,
