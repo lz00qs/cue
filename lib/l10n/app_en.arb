@@ -33,6 +33,8 @@
   "initialSetup": "Initial Setup",
   "setupAdminTitle": "Create Administrator Account",
   "setupAdminSubtitle": "Welcome to Cue. Create your administrator account to initialize the workspace.",
+  "setupUnavailableTitle": "Administrator setup is disabled",
+  "setupUnavailableDescription": "This workspace is not initialized. Temporarily enable CUE_ALLOW_SETUP on the server and create the administrator through the local Web port, then disable it again.",
   "confirmPassword": "Confirm password",
   "passwordsDoNotMatch": "Passwords do not match",
   "confirmPasswordRequired": "Please confirm your password",

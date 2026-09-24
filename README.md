@@ -4,7 +4,7 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 
 ## 已实现
 
-- 首次启动 Web 端自动引导创建管理员账户；凭证经 bcrypt 安全哈希后存储于 PostgreSQL，不再写入本地 `.env` 文件
+- 首次建号需在本机临时开启 `CUE_ALLOW_SETUP`；凭证经 bcrypt 安全哈希后存储于 PostgreSQL，不再写入本地 `.env` 文件
 - 提供服务端 CLI 密码重置工具，支持在忘记密码时快速重置
 - 15 分钟 Access Token、30 天 Refresh Token 与客户端自动刷新
 - Web、桌面端与移动端均可在账户设置中修改登录邮箱和密码，修改时需验证当前密码
@@ -30,9 +30,9 @@ Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Androi
 cp .env.example .env
 ```
 
-`.env` 中仅需配置数据库连接密码与两个随机生成的 JWT Secret（至少 32 字符），**无需且不再支持在 `.env` 中存放管理员账号和密码**。
+`.env` 中配置数据库密码、两个随机生成的 JWT Secret（至少 32 字符）和首次建号开关。**不要在 `.env` 中存放管理员账号和密码**；旧版环境变量自动建号功能已移除。
 
-初次部署后打开浏览器访问 Web 端，系统会自动检测并引导您设置管理员邮箱与密码；凭证经 bcrypt 加密哈希后保存在 PostgreSQL 数据库中。
+`CUE_ALLOW_SETUP` 默认为 `false`。全新数据库初始化时，先保持 `CUE_BIND_ADDRESS=127.0.0.1`，临时把它设为 `true`，通过本机 Web 页面创建管理员。完成后立即改回 `false` 并重建 API 容器，再开放公网 HTTPS 入口。未初始化且开关关闭时，Web 页面会说明需要在本机启用建号；有效的建号 API 请求会得到 403。凭证经 bcrypt 哈希后保存在 PostgreSQL 中。
 
 ### 忘记管理员密码
 
@@ -51,6 +51,19 @@ PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时�
 ```bash
 docker compose up --build -d
 ```
+
+首次初始化时，确认 `.env` 中为 `CUE_BIND_ADDRESS=127.0.0.1` 和 `CUE_ALLOW_SETUP=true`，然后在服务器本机打开 [http://localhost:8080](http://localhost:8080) 创建管理员。不要在这一步开放 443 或将 HTTP 端口绑定到公网。
+
+如果服务器没有桌面浏览器，可以从自己的电脑通过 SSH 转发本机端口：`ssh -L 8080:127.0.0.1:8080 user@server`，再打开本机的 `http://localhost:8080`。
+
+创建成功后，将 `CUE_ALLOW_SETUP=false` 写回 `.env`，并执行：
+
+```bash
+docker compose up -d --no-deps --force-recreate cue-api
+curl -fsS http://localhost:8080/api/auth/status
+```
+
+状态应包含 `"initialized":true` 和 `"setupAvailable":false`。即使数据库日后被清空，关闭的建号开关也不会自行重新开放。已有管理员的部署无需再次开启建号。
 
 仅修改后端代码时，可使用项目自带的跨平台一键更新工具。它会重建
 `cue-api` 镜像、替换后端容器、等待健康检查通过，并刷新正在运行的
@@ -109,7 +122,7 @@ docker compose --profile https up --build -d
 curl https://your-domain.example/api/health
 ```
 
-HTTPS 代理会将 `/api` 和同步事件转发给 API，其余请求转发给 Web 容器。客户端服务器地址填写 `https://your-domain.example`；使用非默认端口时在地址末尾加上端口号。`certs/` 已被 Git 忽略。没有证书时继续使用默认的 `docker compose up --build -d` 启动 HTTP 服务。
+HTTPS 代理会将 `/api` 和同步事件转发给 API，但始终拒绝 `/api/auth/setup`；其余请求转发给 Web 容器。客户端服务器地址填写 `https://your-domain.example`；使用非默认端口时在地址末尾加上端口号。`certs/` 已被 Git 忽略。没有证书时继续使用默认的 `docker compose up --build -d` 启动仅绑定本机的 HTTP 服务。
 
 Android Studio 默认模拟器可通过宿主机回环别名 `http://10.0.2.2:8080` 访问，无需放宽监听。只有真机或其他可信局域网设备需要访问时，才在 `.env` 设置 `CUE_BIND_ADDRESS=0.0.0.0` 并重新创建 Web 容器；验证完成后应改回 `127.0.0.1`。
 

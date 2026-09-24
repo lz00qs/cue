@@ -33,6 +33,8 @@
   "initialSetup": "初始设置",
   "setupAdminTitle": "创建管理员账户",
   "setupAdminSubtitle": "欢迎使用 Cue。请创建管理员账号以初始化工作区。",
+  "setupUnavailableTitle": "管理员创建已关闭",
+  "setupUnavailableDescription": "此工作区尚未初始化。请在服务器本机临时启用 CUE_ALLOW_SETUP，创建管理员后再次关闭该开关。",
   "confirmPassword": "确认密码",
   "passwordsDoNotMatch": "两次输入的密码不一致",
   "confirmPasswordRequired": "请再次输入密码以确认",

@@ -55,6 +55,7 @@ class _CueAppView extends ConsumerWidget {
         : shouldShowAdminSetup(isWeb: kIsWeb, isInitialized: app.isInitialized)
         ? SetupAdminScreen(
             onSetup: controller.setupAdmin,
+            setupAvailable: app.setupAvailable,
             initialError: app.initialError,
             serverUrl: isNativePlatform ? app.serverUrl : null,
             onChangeServer: isNativePlatform

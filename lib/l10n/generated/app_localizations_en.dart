@@ -113,6 +113,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Welcome to Cue. Create your administrator account to initialize the workspace.';
 
   @override
+  String get setupUnavailableTitle => 'Administrator setup is disabled';
+
+  @override
+  String get setupUnavailableDescription =>
+      'This workspace is not initialized. Temporarily enable CUE_ALLOW_SETUP on the server and create the administrator through the local Web port, then disable it again.';
+
+  @override
   String get confirmPassword => 'Confirm password';
 
   @override

@@ -24,6 +24,7 @@ export class AuthService implements OnModuleInit {
   private readonly jwtSecret = process.env.CUE_JWT_SECRET ?? '';
   private readonly refreshSecret =
     process.env.CUE_REFRESH_SECRET ?? this.jwtSecret;
+  private readonly allowSetup = process.env.CUE_ALLOW_SETUP === 'true';
 
   constructor(
     private readonly db: DatabaseService,
@@ -34,32 +35,10 @@ export class AuthService implements OnModuleInit {
     if (this.jwtSecret.length < 32) {
       throw new Error('CUE_JWT_SECRET must contain at least 32 characters');
     }
+  }
 
-    // Optional backward-compatibility migration: if environment credentials exist
-    // and database is empty, seed the admin account once.
-    try {
-      const initialized = await this.isInitialized();
-      if (!initialized) {
-        const envEmail = process.env.CUE_ADMIN_EMAIL?.trim().toLowerCase();
-        let envHash = process.env.CUE_ADMIN_PASSWORD_HASH?.trim();
-        const envPassword = process.env.CUE_ADMIN_PASSWORD;
-
-        if (envEmail && !envHash && envPassword && envPassword.length >= 8) {
-          envHash = await hash(envPassword, 12);
-        }
-
-        if (envEmail && envHash) {
-          await this.db.query(
-            `INSERT INTO users (id, email, password_hash, created_at, updated_at)
-             VALUES ($1, $2, $3, NOW(), NOW())
-             ON CONFLICT (id) DO NOTHING;`,
-            ['admin', envEmail, envHash],
-          );
-        }
-      }
-    } catch {
-      // Database might not be ready yet if migrations are still running.
-    }
+  isSetupAvailable(initialized: boolean) {
+    return this.allowSetup && !initialized;
   }
 
   async isInitialized(): Promise<boolean> {
@@ -70,6 +49,9 @@ export class AuthService implements OnModuleInit {
   }
 
   async setup(email: string, password: string) {
+    if (!this.allowSetup) {
+      throw new ForbiddenException('Admin setup is disabled');
+    }
     const initialized = await this.isInitialized();
     if (initialized) {
       throw new ConflictException('Admin account has already been set up');
@@ -81,11 +63,16 @@ export class AuthService implements OnModuleInit {
     }
 
     const passwordHash = await hash(password, 12);
-    await this.db.query(
+    const result = await this.db.query(
       `INSERT INTO users (id, email, password_hash, created_at, updated_at)
-       VALUES ($1, $2, $3, NOW(), NOW());`,
+       VALUES ($1, $2, $3, NOW(), NOW())
+       ON CONFLICT (id) DO NOTHING
+       RETURNING id;`,
       ['admin', cleanEmail, passwordHash],
     );
+    if (result.rowCount !== 1) {
+      throw new ConflictException('Admin account has already been set up');
+    }
 
     return this.issueTokens(cleanEmail);
   }

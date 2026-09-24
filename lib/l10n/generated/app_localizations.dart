@@ -296,6 +296,18 @@ abstract class AppLocalizations {
   /// **'Welcome to Cue. Create your administrator account to initialize the workspace.'**
   String get setupAdminSubtitle;
 
+  /// No description provided for @setupUnavailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Administrator setup is disabled'**
+  String get setupUnavailableTitle;
+
+  /// No description provided for @setupUnavailableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This workspace is not initialized. Temporarily enable CUE_ALLOW_SETUP on the server and create the administrator through the local Web port, then disable it again.'**
+  String get setupUnavailableDescription;
+
   /// No description provided for @confirmPassword.
   ///
   /// In en, this message translates to:

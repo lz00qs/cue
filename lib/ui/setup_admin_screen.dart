@@ -11,12 +11,14 @@ class SetupAdminScreen extends ConsumerStatefulWidget {
   const SetupAdminScreen({
     super.key,
     required this.onSetup,
+    this.setupAvailable = true,
     this.initialError,
     this.serverUrl,
     this.onChangeServer,
   });
 
   final Future<void> Function(String email, String password) onSetup;
+  final bool setupAvailable;
   final String? initialError;
   final String? serverUrl;
   final VoidCallback? onChangeServer;
@@ -119,11 +121,17 @@ class _SetupAdminScreenState extends ConsumerState<SetupAdminScreen> {
                                     width: 348,
                                     child: _SetupBrandPanel(),
                                   ),
-                                  Expanded(child: _buildForm(compact: false)),
+                                  Expanded(
+                                    child: widget.setupAvailable
+                                        ? _buildForm(compact: false)
+                                        : _buildUnavailable(compact: false),
+                                  ),
                                 ],
                               ),
                             )
-                          : _buildForm(compact: true),
+                          : widget.setupAvailable
+                          ? _buildForm(compact: true)
+                          : _buildUnavailable(compact: true),
                     ),
                   ),
                 ),
@@ -131,6 +139,52 @@ class _SetupAdminScreenState extends ConsumerState<SetupAdminScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildUnavailable({required bool compact}) {
+    final horizontalPadding = compact ? CueSpacing.s24 : CueSpacing.s40;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        compact ? CueSpacing.s24 : CueSpacing.s32,
+        horizontalPadding,
+        compact ? CueSpacing.s28 : CueSpacing.s36,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (compact) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [const _CompactBrand(), const LanguageMenuButton()],
+            ),
+            const SizedBox(height: CueSpacing.s24),
+          ] else
+            Align(
+              alignment: Alignment.centerRight,
+              child: const LanguageMenuButton(),
+            ),
+          Text(
+            context.l10n.setupUnavailableTitle,
+            style: TextStyle(
+              color: CueColors.primary,
+              fontSize: compact ? 25 : 28,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: CueSpacing.s12),
+          Text(
+            context.l10n.setupUnavailableDescription,
+            style: TextStyle(
+              color: CueColors.secondary,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }

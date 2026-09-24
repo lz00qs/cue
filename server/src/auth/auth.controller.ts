@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  Headers,
   Patch,
   Post,
   UseGuards,
@@ -25,16 +27,35 @@ import { Public } from './public.decorator';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  private isHttps(forwardedProto?: string): boolean {
+    return (
+      forwardedProto
+        ?.split(',')
+        .some((value) => value.trim().toLowerCase() === 'https') ?? false
+    );
+  }
+
   @Public()
   @Get('status')
-  async status() {
+  async status(@Headers('x-forwarded-proto') forwardedProto?: string) {
     const initialized = await this.auth.isInitialized();
-    return { initialized };
+    return {
+      initialized,
+      setupAvailable:
+        !this.isHttps(forwardedProto) &&
+        this.auth.isSetupAvailable(initialized),
+    };
   }
 
   @Public()
   @Post('setup')
-  setup(@Body() input: SetupDto) {
+  setup(
+    @Body() input: SetupDto,
+    @Headers('x-forwarded-proto') forwardedProto?: string,
+  ) {
+    if (this.isHttps(forwardedProto)) {
+      throw new ForbiddenException('Admin setup is unavailable over HTTPS');
+    }
     return this.auth.setup(input.email, input.password);
   }
 

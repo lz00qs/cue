@@ -109,6 +109,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get setupAdminSubtitle => '欢迎使用 Cue。请创建管理员账号以初始化工作区。';
 
   @override
+  String get setupUnavailableTitle => '管理员创建已关闭';
+
+  @override
+  String get setupUnavailableDescription =>
+      '此工作区尚未初始化。请在服务器本机临时启用 CUE_ALLOW_SETUP，创建管理员后再次关闭该开关。';
+
+  @override
   String get confirmPassword => '确认密码';
 
   @override

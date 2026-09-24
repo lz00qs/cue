@@ -31,6 +31,16 @@ class SyncResult {
   final int latestRevision;
 }
 
+class AdminSetupStatus {
+  const AdminSetupStatus({
+    required this.initialized,
+    required this.setupAvailable,
+  });
+
+  final bool initialized;
+  final bool setupAvailable;
+}
+
 class ApiClient {
   ApiClient(
     this._tokens, {
@@ -91,14 +101,19 @@ class ApiClient {
     }
   }
 
-  Future<bool> checkInitStatus() async {
+  Future<AdminSetupStatus> checkInitStatus() async {
     try {
-      final response = await _dio.get<Map<String, dynamic>>(_url('/auth/status'));
+      final response = await _dio.get<Map<String, dynamic>>(
+        _url('/auth/status'),
+      );
       final data = response.data;
       if (data != null && data['initialized'] is bool) {
-        return data['initialized'] as bool;
+        return AdminSetupStatus(
+          initialized: data['initialized'] as bool,
+          setupAvailable: data['setupAvailable'] == true,
+        );
       }
-      return true;
+      return const AdminSetupStatus(initialized: true, setupAvailable: false);
     } on DioException catch (error) {
       throw _mapError(error);
     }

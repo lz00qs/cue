@@ -53,6 +53,7 @@ class AppState {
     this.booting = true,
     this.configuringServer = false,
     this.isInitialized = true,
+    this.setupAvailable = false,
     this.locale,
     this.themeMode = ThemeMode.system,
     this.startupView = StartupView.today,
@@ -66,6 +67,7 @@ class AppState {
   final bool booting;
   final bool configuringServer;
   final bool isInitialized;
+  final bool setupAvailable;
   final Locale? locale;
   final ThemeMode themeMode;
   final StartupView startupView;
@@ -81,6 +83,7 @@ class AppState {
     bool? booting,
     bool? configuringServer,
     bool? isInitialized,
+    bool? setupAvailable,
     Object? locale = _unchanged,
     ThemeMode? themeMode,
     StartupView? startupView,
@@ -97,6 +100,7 @@ class AppState {
     booting: booting ?? this.booting,
     configuringServer: configuringServer ?? this.configuringServer,
     isInitialized: isInitialized ?? this.isInitialized,
+    setupAvailable: setupAvailable ?? this.setupAvailable,
     locale: identical(locale, _unchanged) ? this.locale : locale as Locale?,
     themeMode: themeMode ?? this.themeMode,
     startupView: startupView ?? this.startupView,
@@ -305,8 +309,11 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     } catch (error) {
       if (!ref.mounted) return;
       var isInitialized = true;
+      var setupAvailable = false;
       try {
-        isInitialized = await _api!.checkInitStatus();
+        final status = await _api!.checkInitStatus();
+        isInitialized = status.initialized;
+        setupAvailable = status.setupAvailable;
       } catch (_) {
         // If status check fails, fallback to default initialized state
       }
@@ -314,6 +321,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       state = state.copyWith(
         booting: false,
         isInitialized: isInitialized,
+        setupAvailable: setupAvailable,
         initialError: error is ApiException && error.statusCode != 401
             ? error.message
             : null,
@@ -326,7 +334,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     try {
       await _openWorkspace(normalizedEmail);
       if (!ref.mounted) return;
-      state = state.copyWith(isInitialized: true);
+      state = state.copyWith(isInitialized: true, setupAvailable: false);
     } catch (error) {
       await _api!.logout();
       rethrow;
@@ -357,10 +365,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     }
     _activeStore?.dispose();
     _activeStore = store;
-    _reminderService?.bind(
-      store,
-      languageCode: state.locale?.languageCode,
-    );
+    _reminderService?.bind(store, languageCode: state.locale?.languageCode);
     state = state.copyWith(
       store: store,
       email: email,
@@ -405,8 +410,11 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
     final candidate = ApiClient(_tokens!, baseUrl: serverUrl);
     await candidate.checkConnection();
     bool isInitialized = true;
+    bool setupAvailable = false;
     try {
-      isInitialized = await candidate.checkInitStatus();
+      final status = await candidate.checkInitStatus();
+      isInitialized = status.initialized;
+      setupAvailable = status.setupAvailable;
     } catch (_) {}
     await _serverConfig!.save(serverUrl);
     if (serverUrl == state.serverUrl) {
@@ -414,6 +422,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       state = state.copyWith(
         configuringServer: false,
         isInitialized: isInitialized,
+        setupAvailable: setupAvailable,
         initialError: null,
       );
       return;
@@ -430,6 +439,7 @@ class AppController extends Notifier<AppState> with WidgetsBindingObserver {
       serverUrl: serverUrl,
       configuringServer: false,
       isInitialized: isInitialized,
+      setupAvailable: setupAvailable,
       initialError: null,
       booting: false,
     );

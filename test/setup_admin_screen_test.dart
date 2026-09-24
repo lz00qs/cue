@@ -10,6 +10,27 @@ import 'package:cue/ui/setup_admin_screen.dart';
 
 void main() {
   testWidgets(
+    'shows setup instructions without a registration form when disabled',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _localizedApp(
+          home: SetupAdminScreen(
+            onSetup: (_, _) async {},
+            setupAvailable: false,
+          ),
+        ),
+      );
+
+      expect(find.text('Administrator setup is disabled'), findsOneWidget);
+      expect(find.byKey(const Key('setup-email')), findsNothing);
+      expect(find.byKey(const Key('setup-submit')), findsNothing);
+    },
+  );
+
+  testWidgets(
     'renders SetupAdminScreen with all elements and localized strings',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 900));

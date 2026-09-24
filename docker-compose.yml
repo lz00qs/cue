@@ -33,6 +33,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       CUE_JWT_SECRET: ${CUE_JWT_SECRET:?Set CUE_JWT_SECRET in .env}
       CUE_REFRESH_SECRET: ${CUE_REFRESH_SECRET:?Set CUE_REFRESH_SECRET in .env}
+      CUE_ALLOW_SETUP: ${CUE_ALLOW_SETUP:-false}
     depends_on:
       cue-db:
         condition: service_healthy

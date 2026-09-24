@@ -9,12 +9,38 @@ const { compare, hash } = require('bcryptjs');
 test('AuthService unit test suite', async (t) => {
   // We can test after build dist is generated, or test dynamic logic
   let AuthService;
+  let AuthController;
   try {
     const authModule = await import('../dist/auth/auth.service.js');
     AuthService = authModule.AuthService;
+    const controllerModule = await import('../dist/auth/auth.controller.js');
+    AuthController = controllerModule.AuthController;
   } catch {
     // If not built yet, skip or load directly if possible
   }
+
+  await t.test('setup status is unavailable through the HTTPS entry', { skip: !AuthController }, async () => {
+    const controller = new AuthController({
+      isInitialized: async () => false,
+      isSetupAvailable: () => true,
+    });
+    assert.deepEqual(await controller.status('https'), {
+      initialized: false,
+      setupAvailable: false,
+    });
+    assert.deepEqual(await controller.status('http'), {
+      initialized: false,
+      setupAvailable: true,
+    });
+    assert.deepEqual(await controller.status('http, HTTPS'), {
+      initialized: false,
+      setupAvailable: false,
+    });
+    assert.throws(
+      () => controller.setup({ email: 'admin@cue.local', password: 'password-123' }, 'https'),
+      /Admin setup is unavailable over HTTPS/,
+    );
+  });
 
   await t.test('isInitialized returns false when users table is empty', { skip: !AuthService }, async () => {
     const mockDb = {
@@ -49,36 +75,94 @@ test('AuthService unit test suite', async (t) => {
   });
 
   await t.test('setup hashes password, inserts user, and issues tokens', { skip: !AuthService }, async () => {
-    let inserted;
-    const mockDb = {
-      query: async (sql, params) => {
-        if (sql.includes('COUNT(*)')) {
-          return { rows: [{ count: inserted ? '1' : '0' }] };
-        }
-        if (sql.includes('INSERT INTO users')) {
-          inserted = { id: params[0], email: params[1], passwordHash: params[2] };
+    const previousAllowSetup = process.env.CUE_ALLOW_SETUP;
+    process.env.CUE_ALLOW_SETUP = 'true';
+    try {
+      let inserted;
+      const mockDb = {
+        query: async (sql, params) => {
+          if (sql.includes('COUNT(*)')) {
+            return { rows: [{ count: inserted ? '1' : '0' }] };
+          }
+          if (sql.includes('INSERT INTO users')) {
+            inserted = { id: params[0], email: params[1], passwordHash: params[2] };
+            return { rows: [{ id: 'admin' }], rowCount: 1 };
+          }
           return { rows: [] };
-        }
-        return { rows: [] };
-      },
-    };
-    const mockJwt = {
-      signAsync: async (payload) => `signed-${payload.kind}-${payload.email}`,
-    };
-    const service = new AuthService(mockDb, mockJwt);
+        },
+      };
+      const mockJwt = {
+        signAsync: async (payload) => `signed-${payload.kind}-${payload.email}`,
+      };
+      const service = new AuthService(mockDb, mockJwt);
 
-    const result = await service.setup('Admin@Cue.local', 'Secret-Password-123');
-    assert.equal(result.user.email, 'admin@cue.local');
-    assert.ok(result.accessToken.includes('access'));
-    assert.ok(result.refreshToken.includes('refresh'));
-    assert.equal(inserted.email, 'admin@cue.local');
-    assert.ok(await compare('Secret-Password-123', inserted.passwordHash));
+      const result = await service.setup('Admin@Cue.local', 'Secret-Password-123');
+      assert.equal(result.user.email, 'admin@cue.local');
+      assert.ok(result.accessToken.includes('access'));
+      assert.ok(result.refreshToken.includes('refresh'));
+      assert.equal(inserted.email, 'admin@cue.local');
+      assert.ok(await compare('Secret-Password-123', inserted.passwordHash));
 
-    // Trying to setup again should fail
-    await assert.rejects(
-      () => service.setup('another@cue.local', 'Another-Password-123'),
-      /Admin account has already been set up/,
-    );
+      // Trying to setup again should fail
+      await assert.rejects(
+        () => service.setup('another@cue.local', 'Another-Password-123'),
+        /Admin account has already been set up/,
+      );
+    } finally {
+      if (previousAllowSetup === undefined) delete process.env.CUE_ALLOW_SETUP;
+      else process.env.CUE_ALLOW_SETUP = previousAllowSetup;
+    }
+  });
+
+  await t.test('setup is disabled by default even with an empty database', { skip: !AuthService }, async () => {
+    const previousAllowSetup = process.env.CUE_ALLOW_SETUP;
+    delete process.env.CUE_ALLOW_SETUP;
+    try {
+      let queries = 0;
+      const service = new AuthService({
+        query: async () => {
+          queries++;
+          return { rows: [{ count: '0' }] };
+        },
+      }, { signAsync: async () => 'test-token' });
+      assert.equal(service.isSetupAvailable(false), false);
+      await assert.rejects(
+        () => service.setup('admin@cue.local', 'Secret-Password-123'),
+        /Admin setup is disabled/,
+      );
+      assert.equal(queries, 0);
+    } finally {
+      if (previousAllowSetup === undefined) delete process.env.CUE_ALLOW_SETUP;
+      else process.env.CUE_ALLOW_SETUP = previousAllowSetup;
+    }
+  });
+
+  await t.test('a concurrent setup cannot receive tokens after losing the insert', { skip: !AuthService }, async () => {
+    const previousAllowSetup = process.env.CUE_ALLOW_SETUP;
+    process.env.CUE_ALLOW_SETUP = 'true';
+    try {
+      let tokensIssued = 0;
+      const service = new AuthService({
+        query: async (sql) => sql.includes('COUNT(*)')
+          ? { rows: [{ count: '0' }] }
+          : { rows: [], rowCount: 0 },
+      }, {
+        signAsync: async () => {
+          tokensIssued++;
+          return 'test-token';
+        },
+      });
+      assert.equal(service.isSetupAvailable(false), true);
+      assert.equal(service.isSetupAvailable(true), false);
+      await assert.rejects(
+        () => service.setup('admin@cue.local', 'Secret-Password-123'),
+        /Admin account has already been set up/,
+      );
+      assert.equal(tokensIssued, 0);
+    } finally {
+      if (previousAllowSetup === undefined) delete process.env.CUE_ALLOW_SETUP;
+      else process.env.CUE_ALLOW_SETUP = previousAllowSetup;
+    }
   });
 
   await t.test('login verifies password from database', { skip: !AuthService }, async () => {
