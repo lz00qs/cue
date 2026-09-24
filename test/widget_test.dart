@@ -1369,6 +1369,32 @@ void main() {
     expect(find.textContaining('UPCOMING ·'), findsNothing);
   });
 
+  testWidgets('mobile pages omit the header overflow action', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    void expectNoOverflowAction() {
+      expect(find.byIcon(Icons.more_vert_rounded), findsNothing);
+    }
+
+    expectNoOverflowAction();
+
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.pumpAndSettle();
+    expectNoOverflowAction();
+
+    for (final destination in ['Calendar', 'Quadrants', 'Settings']) {
+      await tester.tap(find.text(destination));
+      await tester.pumpAndSettle();
+      expectNoOverflowAction();
+    }
+  });
+
   testWidgets('all mobile pages respect the top system safe area', (
     tester,
   ) async {

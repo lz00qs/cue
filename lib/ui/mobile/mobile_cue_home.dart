@@ -110,12 +110,10 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
       MobileDestination.calendar => _MobileCalendarPage(
         onOpenTask: _openTask,
         onSelectEmptyDay: (day) => _showAddTaskSheet(prefilledDate: day),
-        onOpenInbox: _openInbox,
         onSync: _syncNow,
       ),
       MobileDestination.quadrants => _MobileQuadrantsPage(
         onOpenTask: _openTask,
-        onOpenInbox: _openInbox,
         onSync: _syncNow,
       ),
       MobileDestination.settings => _MobileSettingsPage(
@@ -169,10 +167,6 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
 
   void _openDrawer() {
     _scaffoldKey.currentState?.openDrawer();
-  }
-
-  void _openInbox() {
-    navigateToMobileDestination(ref, MobileDestination.inbox);
   }
 
   void _selectPrimaryView(MobileDestination destination) {
@@ -503,7 +497,6 @@ class _MobileTodayPage extends ConsumerWidget {
                 ? context.l10n.planWhatComesNext
                 : formatLongDate(context, store.today),
             onOpenDrawer: onOpenDrawer,
-            onSync: onSync,
           ),
           const SizedBox(height: 20),
           Row(
@@ -622,7 +615,6 @@ class _MobileInboxPage extends ConsumerWidget {
             title: context.l10n.inbox,
             subtitle: context.l10n.openTaskCount(store.activeTasks.length),
             onOpenDrawer: onOpenDrawer,
-            onSync: onSync,
           ),
           const SizedBox(height: CueMobileInboxTokens.headerToGroupsGap),
           _MobileInboxGroupSwitcher(
@@ -793,13 +785,11 @@ class _MobileCalendarPage extends ConsumerWidget {
   const _MobileCalendarPage({
     required this.onOpenTask,
     required this.onSelectEmptyDay,
-    required this.onOpenInbox,
     required this.onSync,
   });
 
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<DateTime> onSelectEmptyDay;
-  final VoidCallback onOpenInbox;
   final Future<void> Function() onSync;
 
   @override
@@ -829,8 +819,6 @@ class _MobileCalendarPage extends ConsumerWidget {
           _MobileHeader(
             title: formatMonthName(context, month),
             subtitle: context.l10n.monthOverview(month.year),
-            onOpenInbox: onOpenInbox,
-            onSync: onSync,
           ),
           const SizedBox(height: 20),
           Row(
@@ -906,14 +894,9 @@ class _MobileCalendarPage extends ConsumerWidget {
 }
 
 class _MobileQuadrantsPage extends ConsumerWidget {
-  const _MobileQuadrantsPage({
-    required this.onOpenTask,
-    required this.onOpenInbox,
-    required this.onSync,
-  });
+  const _MobileQuadrantsPage({required this.onOpenTask, required this.onSync});
 
   final ValueChanged<CueTask> onOpenTask;
-  final VoidCallback onOpenInbox;
   final Future<void> Function() onSync;
 
   @override
@@ -937,8 +920,6 @@ class _MobileQuadrantsPage extends ConsumerWidget {
           _MobileHeader(
             title: context.l10n.quadrants,
             subtitle: context.l10n.importanceUrgency,
-            onOpenInbox: onOpenInbox,
-            onSync: onSync,
           ),
           const SizedBox(height: 20),
           GridView.builder(
@@ -1411,16 +1392,12 @@ class _MobileHeader extends StatelessWidget {
   const _MobileHeader({
     required this.title,
     required this.subtitle,
-    required this.onSync,
     this.onOpenDrawer,
-    this.onOpenInbox,
   });
 
   final String title;
   final String subtitle;
-  final Future<void> Function() onSync;
   final VoidCallback? onOpenDrawer;
-  final VoidCallback? onOpenInbox;
 
   @override
   Widget build(BuildContext context) {
@@ -1474,41 +1451,6 @@ class _MobileHeader extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            color: CueColors.card,
-            tooltip: context.l10n.more,
-            padding: EdgeInsets.zero,
-            onSelected: (value) {
-              if (value == 'inbox') onOpenInbox?.call();
-              if (value == 'sync') onSync();
-            },
-            itemBuilder: (_) => [
-              if (onOpenInbox != null)
-                PopupMenuItem(
-                  value: 'inbox',
-                  child: Text(
-                    context.l10n.inbox,
-                    style: TextStyle(color: CueColors.primary),
-                  ),
-                ),
-              PopupMenuItem(
-                value: 'sync',
-                child: Text(
-                  context.l10n.syncNow,
-                  style: TextStyle(color: CueColors.primary),
-                ),
-              ),
-            ],
-            child: SizedBox(
-              width: CueMobileNavigationTokens.headerActionSize,
-              height: CueMobileNavigationTokens.headerActionSize,
-              child: Icon(
-                Icons.more_vert_rounded,
-                size: CueMobileNavigationTokens.headerIconSize,
-                color: CueMobileNavigationTokens.secondaryForeground,
-              ),
             ),
           ),
         ],
