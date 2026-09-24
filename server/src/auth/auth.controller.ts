@@ -71,6 +71,12 @@ export class AuthController {
     return this.auth.refresh(input.refreshToken);
   }
 
+  @Public()
+  @Post('logout')
+  logout(@Body() input: RefreshDto) {
+    return this.auth.logout(input.refreshToken);
+  }
+
   @Patch('account')
   updateAccount(@Body() input: UpdateAccountDto) {
     return this.auth.updateAccount(

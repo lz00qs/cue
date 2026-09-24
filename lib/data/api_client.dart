@@ -166,7 +166,26 @@ class ApiClient {
     return await _tokens.email ?? 'admin@cue.local';
   }
 
-  Future<void> logout() => _tokens.clear();
+  Future<void> logout() async {
+    try {
+      await _refreshing;
+    } catch (_) {
+      // A failed refresh should not prevent sign-out.
+    }
+    final refreshToken = await _tokens.refreshToken;
+    try {
+      if (refreshToken != null) {
+        await _dio.post<void>(
+          _url('/auth/logout'),
+          data: {'refreshToken': refreshToken},
+        );
+      }
+    } catch (_) {
+      // Local sign-out remains available when the server is unreachable.
+    } finally {
+      await _tokens.clear();
+    }
+  }
 
   Future<String> updateAccount({
     required String currentPassword,

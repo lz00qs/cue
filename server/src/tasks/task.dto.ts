@@ -51,11 +51,13 @@ export class CreateTaskDto {
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
+  @Length(0, 64)
   reminder?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
+  @Length(0, 64)
   recurrence?: string | null;
 
   @ApiPropertyOptional({ nullable: true, maxLength: 100 })
@@ -105,16 +107,19 @@ export class UpdateTaskDto {
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
+  @IsDateString()
   dueAt?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
+  @Length(0, 64)
   reminder?: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsString()
+  @Length(0, 64)
   recurrence?: string | null;
 
   @ApiPropertyOptional({ nullable: true, maxLength: 100 })

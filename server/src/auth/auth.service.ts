@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
 
 import { DatabaseService } from '../database/database.service';
 
@@ -17,7 +18,23 @@ interface CueTokenPayload {
   sub: 'single-user';
   email: string;
   kind: TokenKind;
+  version: number;
+  sessionId: string;
+  refreshId?: string;
 }
+
+interface UserCredentials {
+  id: string;
+  email: string;
+  password_hash: string;
+  token_version: number;
+  failed_login_attempts: number;
+  last_failed_login_at: Date | null;
+  login_locked_until: Date | null;
+}
+
+const loginWindowMs = 15 * 60 * 1000;
+const maxFailedLogins = 5;
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -34,6 +51,14 @@ export class AuthService implements OnModuleInit {
   async onModuleInit() {
     if (this.jwtSecret.length < 32) {
       throw new Error('CUE_JWT_SECRET must contain at least 32 characters');
+    }
+    if (
+      this.refreshSecret.length < 32 ||
+      this.refreshSecret === this.jwtSecret
+    ) {
+      throw new Error(
+        'CUE_REFRESH_SECRET must be distinct and contain at least 32 characters',
+      );
     }
   }
 
@@ -61,6 +86,9 @@ export class AuthService implements OnModuleInit {
     if (password.length < 8) {
       throw new ConflictException('Password must be at least 8 characters');
     }
+    if (Buffer.byteLength(password, 'utf8') > 72) {
+      throw new BadRequestException('Password must be at most 72 UTF-8 bytes');
+    }
 
     const passwordHash = await hash(password, 12);
     const result = await this.db.query(
@@ -74,31 +102,59 @@ export class AuthService implements OnModuleInit {
       throw new ConflictException('Admin account has already been set up');
     }
 
-    return this.issueTokens(cleanEmail);
+    return this.issueTokens(cleanEmail, 0, 'admin');
   }
 
   async login(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    const result = await this.db.query<{
-      id: string;
-      email: string;
-      password_hash: string;
-    }>(
-      'SELECT id, email, password_hash FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1;',
-      [cleanEmail],
+    const authenticated = await this.db.transaction(async (client) => {
+      const result = await client.query<UserCredentials>(
+        `SELECT id, email, password_hash, token_version,
+                failed_login_attempts, last_failed_login_at, login_locked_until
+         FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1 FOR UPDATE;`,
+        [cleanEmail],
+      );
+      const user = result.rows[0];
+      if (!user) return null;
+
+      const now = new Date();
+      if (user.login_locked_until && user.login_locked_until > now) return null;
+
+      if (await compare(password, user.password_hash)) {
+        await client.query(
+          `UPDATE users SET failed_login_attempts = 0,
+                  last_failed_login_at = NULL, login_locked_until = NULL
+           WHERE id = $1;`,
+          [user.id],
+        );
+        return { id: user.id, email: user.email, version: user.token_version };
+      }
+
+      const recentFailure =
+        user.last_failed_login_at != null &&
+        now.getTime() - user.last_failed_login_at.getTime() < loginWindowMs;
+      const failures = recentFailure ? user.failed_login_attempts + 1 : 1;
+      const lockedUntil =
+        failures >= maxFailedLogins
+          ? new Date(now.getTime() + loginWindowMs)
+          : null;
+      await client.query(
+        `UPDATE users SET failed_login_attempts = $2,
+                last_failed_login_at = $3, login_locked_until = $4
+         WHERE id = $1;`,
+        [user.id, failures, now, lockedUntil],
+      );
+      return null;
+    });
+
+    if (!authenticated) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+    return this.issueTokens(
+      authenticated.email,
+      authenticated.version,
+      authenticated.id,
     );
-
-    const user = result.rows[0];
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    const validPassword = await compare(password, user.password_hash);
-    if (!validPassword) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
-
-    return this.issueTokens(user.email);
   }
 
   async updateAccount(
@@ -110,8 +166,9 @@ export class AuthService implements OnModuleInit {
       id: string;
       email: string;
       password_hash: string;
+      token_version: number;
     }>(
-      'SELECT id, email, password_hash FROM users ORDER BY created_at ASC LIMIT 1;',
+      'SELECT id, email, password_hash, token_version FROM users ORDER BY created_at ASC LIMIT 1;',
     );
     const user = result.rows[0];
     if (!user) {
@@ -133,69 +190,180 @@ export class AuthService implements OnModuleInit {
     if (newPassword != null && newPassword.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters');
     }
+    if (newPassword != null && Buffer.byteLength(newPassword, 'utf8') > 72) {
+      throw new BadRequestException('Password must be at most 72 UTF-8 bytes');
+    }
 
     const nextEmail = emailChanged ? cleanEmail! : user.email;
     const nextPasswordHash = passwordChanged
       ? await hash(newPassword!, 12)
       : user.password_hash;
-    await this.db.query(
+    const updated = await this.db.query<{ token_version: number }>(
       `UPDATE users
-       SET email = $1, password_hash = $2, updated_at = NOW()
-       WHERE id = $3;`,
-      [nextEmail, nextPasswordHash, user.id],
+       SET email = $1, password_hash = $2, updated_at = NOW(),
+           token_version = token_version + 1,
+           failed_login_attempts = 0, last_failed_login_at = NULL,
+           login_locked_until = NULL
+       WHERE id = $3 AND token_version = $4 RETURNING token_version;`,
+      [nextEmail, nextPasswordHash, user.id, user.token_version],
     );
+    if (updated.rowCount !== 1) {
+      throw new ConflictException('Account changed before request completed');
+    }
+    await this.db.query('DELETE FROM auth_sessions WHERE user_id = $1;', [
+      user.id,
+    ]);
 
     // The login email is embedded in both token types. Returning a fresh pair
     // keeps this device signed in after an email change.
-    return this.issueTokens(nextEmail);
+    return this.issueTokens(nextEmail, updated.rows[0].token_version, user.id);
   }
 
   async refresh(refreshToken: string) {
+    let payload: CueTokenPayload;
     try {
-      const payload = await this.jwt.verifyAsync<CueTokenPayload>(refreshToken, {
+      payload = await this.jwt.verifyAsync<CueTokenPayload>(refreshToken, {
         secret: this.refreshSecret,
       });
-      if (payload.sub !== 'single-user' || payload.kind !== 'refresh') {
-        throw new Error('Wrong token type');
-      }
-
-      const result = await this.db.query<{ email: string }>(
-        'SELECT email FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1;',
-        [payload.email],
-      );
-      if (result.rows.length === 0) {
-        throw new UnauthorizedException('User no longer exists');
-      }
-
-      return this.issueTokens(result.rows[0].email);
     } catch {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
+    if (
+      payload.sub !== 'single-user' ||
+      payload.kind !== 'refresh' ||
+      !payload.sessionId ||
+      !payload.refreshId
+    ) {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+    const rotated = await this.db.transaction(async (client) => {
+      const result = await client.query<{
+        refresh_token_id: string;
+        expires_at: Date;
+        email: string;
+        token_version: number;
+      }>(
+        `SELECT session.refresh_token_id, session.expires_at,
+                users.email, users.token_version
+         FROM auth_sessions AS session
+         JOIN users ON users.id = session.user_id
+         WHERE session.id = $1 FOR UPDATE OF session;`,
+        [payload.sessionId],
+      );
+      const session = result.rows[0];
+      if (
+        !session ||
+        session.refresh_token_id !== payload.refreshId ||
+        session.expires_at <= new Date() ||
+        session.email !== payload.email ||
+        session.token_version !== payload.version
+      ) {
+        return null;
+      }
+      const nextRefreshId = randomUUID();
+      const tokens = await this.signTokens(
+        session.email,
+        session.token_version,
+        payload.sessionId,
+        nextRefreshId,
+      );
+      await client.query(
+        `UPDATE auth_sessions
+         SET refresh_token_id = $2, expires_at = NOW() + INTERVAL '30 days'
+         WHERE id = $1;`,
+        [payload.sessionId, nextRefreshId],
+      );
+      return tokens;
+    });
+    if (!rotated) {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+    return rotated;
+  }
+
+  async logout(refreshToken: string) {
+    let payload: CueTokenPayload;
+    try {
+      payload = await this.jwt.verifyAsync<CueTokenPayload>(refreshToken, {
+        secret: this.refreshSecret,
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+    if (
+      payload.sub !== 'single-user' ||
+      payload.kind !== 'refresh' ||
+      !payload.sessionId ||
+      !payload.refreshId
+    ) {
+      throw new UnauthorizedException('Refresh token is invalid or expired');
+    }
+    await this.db.query(
+      'DELETE FROM auth_sessions WHERE id = $1 AND refresh_token_id = $2;',
+      [payload.sessionId, payload.refreshId],
+    );
   }
 
   async verifyAccess(accessToken: string) {
+    let payload: CueTokenPayload;
     try {
-      const payload = await this.jwt.verifyAsync<CueTokenPayload>(accessToken, {
+      payload = await this.jwt.verifyAsync<CueTokenPayload>(accessToken, {
         secret: this.jwtSecret,
       });
-      if (payload.sub !== 'single-user' || payload.kind !== 'access') {
-        throw new Error('Wrong token type');
-      }
-      return payload;
     } catch {
       throw new UnauthorizedException('Access token is invalid or expired');
     }
+    if (
+      payload.sub !== 'single-user' ||
+      payload.kind !== 'access' ||
+      !payload.sessionId
+    ) {
+      throw new UnauthorizedException('Access token is invalid or expired');
+    }
+    const result = await this.db.query<{ email: string; token_version: number }>(
+      `SELECT users.email, users.token_version
+       FROM auth_sessions AS session
+       JOIN users ON users.id = session.user_id
+       WHERE session.id = $1 AND session.expires_at > NOW();`,
+      [payload.sessionId],
+    );
+    if (
+      result.rows.length === 0 ||
+      result.rows[0].email !== payload.email ||
+      result.rows[0].token_version !== payload.version
+    ) {
+      throw new UnauthorizedException('Access token is invalid or expired');
+    }
+    return payload;
   }
 
-  private async issueTokens(email: string) {
-    const base = { sub: 'single-user' as const, email };
+  private async issueTokens(email: string, version: number, userId: string) {
+    const sessionId = randomUUID();
+    const refreshId = randomUUID();
+    const tokens = await this.signTokens(email, version, sessionId, refreshId);
+    await this.db.query('DELETE FROM auth_sessions WHERE expires_at <= NOW();');
+    await this.db.query(
+      `INSERT INTO auth_sessions (id, user_id, refresh_token_id, expires_at)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '30 days');`,
+      [sessionId, userId, refreshId],
+    );
+    return tokens;
+  }
+
+  private async signTokens(
+    email: string,
+    version: number,
+    sessionId: string,
+    refreshId: string,
+  ) {
+    const base = { sub: 'single-user' as const, email, version, sessionId };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(
         { ...base, kind: 'access' satisfies TokenKind },
         { secret: this.jwtSecret, expiresIn: '15m' },
       ),
       this.jwt.signAsync(
-        { ...base, kind: 'refresh' satisfies TokenKind },
+        { ...base, kind: 'refresh' satisfies TokenKind, refreshId },
         { secret: this.refreshSecret, expiresIn: '30d' },
       ),
     ]);

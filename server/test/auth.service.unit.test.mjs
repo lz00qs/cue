@@ -137,6 +137,29 @@ test('AuthService unit test suite', async (t) => {
     }
   });
 
+  await t.test('setup rejects passwords bcrypt would silently truncate', { skip: !AuthService }, async () => {
+    const previousAllowSetup = process.env.CUE_ALLOW_SETUP;
+    process.env.CUE_ALLOW_SETUP = 'true';
+    try {
+      let inserted = false;
+      const service = new AuthService({
+        query: async (sql) => {
+          if (sql.includes('COUNT(*)')) return { rows: [{ count: '0' }] };
+          inserted = true;
+          return { rows: [], rowCount: 0 };
+        },
+      }, { signAsync: async () => 'test-token' });
+      await assert.rejects(
+        () => service.setup('admin@cue.local', '界'.repeat(25)),
+        /Password must be at most 72 UTF-8 bytes/,
+      );
+      assert.equal(inserted, false);
+    } finally {
+      if (previousAllowSetup === undefined) delete process.env.CUE_ALLOW_SETUP;
+      else process.env.CUE_ALLOW_SETUP = previousAllowSetup;
+    }
+  });
+
   await t.test('a concurrent setup cannot receive tokens after losing the insert', { skip: !AuthService }, async () => {
     const previousAllowSetup = process.env.CUE_ALLOW_SETUP;
     process.env.CUE_ALLOW_SETUP = 'true';
@@ -167,17 +190,34 @@ test('AuthService unit test suite', async (t) => {
 
   await t.test('login verifies password from database', { skip: !AuthService }, async () => {
     const passwordHash = await hash('ValidPassword123', 10);
+    let failures = 0;
+    let lastFailure = null;
+    let lockedUntil = null;
     const mockDb = {
-      query: async (sql, params) => {
-        if (sql.includes('SELECT id, email, password_hash FROM users')) {
+      query: async () => ({ rows: [] }),
+      transaction: async (work) => work({ query: async (sql, params) => {
+        if (sql.includes('FOR UPDATE')) {
           if (params[0].toLowerCase() === 'admin@cue.local') {
             return {
-              rows: [{ id: 'admin', email: 'admin@cue.local', password_hash: passwordHash }],
+              rows: [{
+                id: 'admin', email: 'admin@cue.local', password_hash: passwordHash,
+                token_version: 0, failed_login_attempts: failures,
+                last_failed_login_at: lastFailure, login_locked_until: lockedUntil,
+              }],
             };
           }
         }
+        if (sql.includes('failed_login_attempts = $2')) {
+          failures = params[1];
+          lastFailure = params[2];
+          lockedUntil = params[3];
+        } else if (sql.includes('failed_login_attempts = 0')) {
+          failures = 0;
+          lastFailure = null;
+          lockedUntil = null;
+        }
         return { rows: [] };
-      },
+      } }),
     };
     const mockJwt = {
       signAsync: async (payload) => `token-${payload.kind}`,
@@ -199,6 +239,25 @@ test('AuthService unit test suite', async (t) => {
       () => service.login('unknown@cue.local', 'ValidPassword123'),
       /Invalid email or password/,
     );
+    assert.equal(failures, 1);
+
+    // The fifth failure locks the account; even the correct password is
+    // rejected until the lock expires, without running another bcrypt check.
+    for (let i = 0; i < 4; i++) {
+      await assert.rejects(
+        () => service.login('admin@cue.local', 'WrongPassword!'),
+        /Invalid email or password/,
+      );
+    }
+    assert.equal(failures, 5);
+    assert.ok(lockedUntil > new Date());
+    await assert.rejects(
+      () => service.login('admin@cue.local', 'ValidPassword123'),
+      /Invalid email or password/,
+    );
+    lockedUntil = new Date(Date.now() - 1000);
+    await service.login('admin@cue.local', 'ValidPassword123');
+    assert.equal(failures, 0);
   });
 
   await t.test('updateAccount verifies the current password and replaces credentials', { skip: !AuthService }, async () => {
@@ -212,6 +271,7 @@ test('AuthService unit test suite', async (t) => {
               id: 'admin',
               email: 'admin@cue.local',
               password_hash: passwordHash,
+              token_version: 0,
             }],
           };
         }
@@ -221,6 +281,7 @@ test('AuthService unit test suite', async (t) => {
             passwordHash: params[1],
             id: params[2],
           };
+          return { rows: [{ token_version: 1 }], rowCount: 1 };
         }
         return { rows: [] };
       },
@@ -245,5 +306,74 @@ test('AuthService unit test suite', async (t) => {
       () => service.updateAccount('WrongPassword123', 'other@cue.local'),
       /Current password is incorrect/,
     );
+  });
+
+  await t.test('account changes revoke previously issued access and refresh tokens', { skip: !AuthService }, async () => {
+    const user = {
+      id: 'admin', email: 'admin@cue.local',
+      password_hash: await hash('CurrentPassword123', 10), token_version: 0,
+    };
+    const sessions = new Map([['old-session', {
+      refresh_token_id: 'old-refresh', expires_at: new Date(Date.now() + 60_000),
+    }]]);
+    const db = {
+      query: async (sql, params) => {
+        if (sql.includes('ORDER BY created_at')) return { rows: [{ ...user }] };
+        if (sql.includes('UPDATE users')) {
+          user.email = params[0];
+          user.password_hash = params[1];
+          user.token_version++;
+          return { rows: [{ token_version: user.token_version }], rowCount: 1 };
+        }
+        if (sql.includes('DELETE FROM auth_sessions WHERE user_id')) {
+          sessions.clear();
+        } else if (sql.includes('INSERT INTO auth_sessions')) {
+          sessions.set(params[0], {
+            refresh_token_id: params[2], expires_at: new Date(Date.now() + 60_000),
+          });
+        } else if (sql.includes('session.expires_at > NOW()')) {
+          return { rows: sessions.has(params[0]) ? [{ ...user }] : [] };
+        } else if (sql.includes('DELETE FROM auth_sessions WHERE id')) {
+          if (sessions.get(params[0])?.refresh_token_id === params[1]) {
+            sessions.delete(params[0]);
+          }
+        }
+        return { rows: [] };
+      },
+      transaction: async (work) => work({ query: async (sql, params) => {
+        if (sql.includes('FOR UPDATE OF session')) {
+          const session = sessions.get(params[0]);
+          return { rows: session ? [{ ...session, ...user }] : [] };
+        }
+        if (sql.includes('UPDATE auth_sessions')) {
+          sessions.get(params[0]).refresh_token_id = params[1];
+        }
+        return { rows: [] };
+      } }),
+    };
+    const jwt = {
+      signAsync: async (payload) => JSON.stringify(payload),
+      verifyAsync: async (token) => JSON.parse(token),
+    };
+    const service = new AuthService(db, jwt);
+    const oldAccess = JSON.stringify({
+      sub: 'single-user', email: user.email, kind: 'access', version: 0,
+      sessionId: 'old-session',
+    });
+    const oldRefresh = JSON.stringify({
+      sub: 'single-user', email: user.email, kind: 'refresh', version: 0,
+      sessionId: 'old-session', refreshId: 'old-refresh',
+    });
+    assert.equal((await service.verifyAccess(oldAccess)).version, 0);
+
+    const updated = await service.updateAccount('CurrentPassword123', undefined, 'NewPassword123');
+    await assert.rejects(() => service.verifyAccess(oldAccess), /Access token is invalid or expired/);
+    await assert.rejects(() => service.refresh(oldRefresh), /Refresh token is invalid or expired/);
+    assert.equal((await service.verifyAccess(updated.accessToken)).version, 1);
+    const rotated = await service.refresh(updated.refreshToken);
+    assert.equal(JSON.parse(rotated.accessToken).version, 1);
+    await assert.rejects(() => service.refresh(updated.refreshToken), /Refresh token is invalid or expired/);
+    await service.logout(rotated.refreshToken);
+    await assert.rejects(() => service.verifyAccess(rotated.accessToken), /Access token is invalid or expired/);
   });
 });
