@@ -1042,7 +1042,7 @@ class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage>
           crossAxisCount: 7,
           crossAxisSpacing: 6,
           mainAxisSpacing: 8,
-          childAspectRatio: 44 / 68,
+          childAspectRatio: 44 / 46,
         ),
         itemBuilder: (context, index) {
           final day = days[index];
