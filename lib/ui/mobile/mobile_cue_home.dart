@@ -264,7 +264,8 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                       _MobileTextField(
                         label: context.l10n.taskTitle,
                         autofocus: true,
-                        onChanged: (value) => title = value,
+                        onChanged: (value) =>
+                            setSheetState(() => title = value),
                       ),
                       const SizedBox(height: 10),
                       _MobileTextField(
@@ -285,8 +286,8 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                               padding: EdgeInsets.only(
                                 right: index == 3 ? 0 : CueSpacing.s8,
                               ),
-                              child: _MobilePill(
-                                label: 'P$index',
+                              child: _PriorityPill(
+                                priority: index,
                                 selected: priority == index,
                                 onTap: () =>
                                     setSheetState(() => priority = index),
@@ -296,52 +297,6 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                         }),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _DateChoice(
-                              label: context.l10n.today,
-                              selected:
-                                  dueAt != null &&
-                                  TaskStore.isSameDay(dueAt!, today),
-                              onTap: () => setSheetState(
-                                () => dueAt = DateTime(
-                                  today.year,
-                                  today.month,
-                                  today.day,
-                                  18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _DateChoice(
-                              label: context.l10n.tomorrow,
-                              selected:
-                                  dueAt != null &&
-                                  TaskStore.isSameDay(
-                                    dueAt!,
-                                    today.add(const Duration(days: 1)),
-                                  ),
-                              onTap: () {
-                                final tomorrow = today.add(
-                                  const Duration(days: 1),
-                                );
-                                setSheetState(
-                                  () => dueAt = DateTime(
-                                    tomorrow.year,
-                                    tomorrow.month,
-                                    tomorrow.day,
-                                    18,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       InkWell(
                         key: const Key('mobile-new-task-duedate-picker'),
                         onTap: () async {
@@ -426,27 +381,31 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                         child: FilledButton(
                           style: FilledButton.styleFrom(
                             backgroundColor: CueColors.accent,
+                            foregroundColor: CueColors.onAccent,
+                            disabledBackgroundColor: CueColors.subtle,
+                            disabledForegroundColor: CueColors.tertiary,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          onPressed: () async {
-                            if (title.trim().isEmpty) return;
-                            final succeeded = await _runOperation(
-                              () => _store.addTask(
-                                title: title,
-                                note: note,
-                                priority: priority,
-                                dueAt: dueAt,
-                                reminder: reminder,
-                                recurrence: recurrence,
-                                group: prefilledGroup,
-                              ),
-                            );
-                            if (succeeded && sheetContext.mounted) {
-                              Navigator.pop(sheetContext);
-                            }
-                          },
+                          onPressed: title.trim().isEmpty
+                              ? null
+                              : () async {
+                                  final succeeded = await _runOperation(
+                                    () => _store.addTask(
+                                      title: title,
+                                      note: note,
+                                      priority: priority,
+                                      dueAt: dueAt,
+                                      reminder: reminder,
+                                      recurrence: recurrence,
+                                      group: prefilledGroup,
+                                    ),
+                                  );
+                                  if (succeeded && sheetContext.mounted) {
+                                    Navigator.pop(sheetContext);
+                                  }
+                                },
                           child: Text(context.l10n.addTask),
                         ),
                       ),
@@ -1986,7 +1945,6 @@ class _MobilePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 88,
       height: 36,
       child: TextButton(
         onPressed: onTap,
@@ -1995,13 +1953,64 @@ class _MobilePill extends StatelessWidget {
           foregroundColor: selected ? CueColors.onAccent : CueColors.primary,
           backgroundColor: selected ? CueColors.accent : CueColors.subtle,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontSize: 13, height: 18 / 13),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            height: 18 / 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         child: Text(label),
       ),
     );
   }
 }
+
+class _PriorityPill extends StatelessWidget {
+  const _PriorityPill({
+    required this.priority,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int priority;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (priority) {
+      0 => (CueColors.dangerBackground, CueColors.danger),
+      1 => (CueColors.orangeBackground, CueColors.orange),
+      2 => (CueColors.selected, CueColors.accent),
+      _ => (CueColors.subtle, CueColors.secondary),
+    };
+
+    return SizedBox(
+      height: 36,
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          foregroundColor: fg,
+          backgroundColor: bg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: selected
+                ? BorderSide(color: fg, width: 1.5)
+                : BorderSide.none,
+          ),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            height: 18 / 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        child: Text('P$priority'),
+      ),
+    );
+  }
+}
+
 
 class _MobileTaskRow extends StatelessWidget {
   const _MobileTaskRow({
@@ -3048,11 +3057,11 @@ class _MobileTextField extends StatelessWidget {
         fillColor: CueColors.subtle,
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.border),
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderRadius: BorderRadius.all(Radius.circular(10)),
         ),
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: CueColors.accent),
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderRadius: BorderRadius.all(Radius.circular(10)),
         ),
       ),
     );
@@ -3075,7 +3084,7 @@ class _DateChoice extends StatelessWidget {
     return OutlinedButton(
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
-        foregroundColor: selected ? CueColors.primary : CueColors.secondary,
+        foregroundColor: selected ? CueColors.accent : CueColors.secondary,
         backgroundColor: selected ? CueColors.selected : CueColors.subtle,
         side: BorderSide(color: selected ? CueColors.accent : CueColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
