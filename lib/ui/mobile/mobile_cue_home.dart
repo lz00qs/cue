@@ -109,7 +109,8 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
       ),
       MobileDestination.calendar => _MobileCalendarPage(
         onOpenTask: _openTask,
-        onSelectEmptyDay: (day) => _showAddTaskSheet(prefilledDate: day),
+        onToggleTask: (task) =>
+            _runOperation(() => _store.toggleComplete(task)),
         onSync: _syncNow,
       ),
       MobileDestination.quadrants => _MobileQuadrantsPage(
@@ -781,22 +782,113 @@ class _MobileInboxGroupSwitcher extends StatelessWidget {
   }
 }
 
-class _MobileCalendarPage extends ConsumerWidget {
+class _MobileCalendarPage extends ConsumerStatefulWidget {
   const _MobileCalendarPage({
     required this.onOpenTask,
-    required this.onSelectEmptyDay,
+    required this.onToggleTask,
     required this.onSync,
   });
 
   final ValueChanged<CueTask> onOpenTask;
-  final ValueChanged<DateTime> onSelectEmptyDay;
+  final ValueChanged<CueTask> onToggleTask;
   final Future<void> Function() onSync;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MobileCalendarPage> createState() =>
+      _MobileCalendarPageState();
+}
+
+class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage> {
+  late DateTime _selectedDay;
+  double _calendarHorizontalDrag = 0;
+  int _monthTransitionDirection = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    final today = ref.read(taskStoreProvider)!.today;
+    final focusedMonth = ref.read(calendarFocusedMonthProvider);
+    final lastDay = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    _selectedDay = DateTime(
+      focusedMonth.year,
+      focusedMonth.month,
+      focusedMonth.year == today.year && focusedMonth.month == today.month
+          ? today.day
+          : today.day > lastDay
+          ? lastDay
+          : today.day,
+    );
+  }
+
+  void _selectDay(DateTime day) {
+    final selected = DateTime(day.year, day.month, day.day);
+    final focused = ref.read(calendarFocusedMonthProvider);
+    if (selected.year != focused.year || selected.month != focused.month) {
+      ref.read(calendarFocusedMonthProvider.notifier).setMonth(selected);
+    }
+    setState(() => _selectedDay = selected);
+  }
+
+  void _moveToMonth(DateTime month) {
+    final normalizedMonth = DateTime(month.year, month.month);
+    final focusedMonth = ref.read(calendarFocusedMonthProvider);
+    final lastDay = DateTime(
+      normalizedMonth.year,
+      normalizedMonth.month + 1,
+      0,
+    ).day;
+    final selectedDay = _selectedDay.day > lastDay ? lastDay : _selectedDay.day;
+    setState(() {
+      _monthTransitionDirection = normalizedMonth.isBefore(focusedMonth)
+          ? -1
+          : 1;
+      _selectedDay = DateTime(
+        normalizedMonth.year,
+        normalizedMonth.month,
+        selectedDay,
+      );
+    });
+    ref.read(calendarFocusedMonthProvider.notifier).setMonth(normalizedMonth);
+  }
+
+  void _finishMonthSwipe(DragEndDetails details, DateTime month) {
+    final velocity = details.primaryVelocity ?? 0;
+    final swipeLeft = _calendarHorizontalDrag <= -48 || velocity <= -300;
+    final swipeRight = _calendarHorizontalDrag >= 48 || velocity >= 300;
+    _calendarHorizontalDrag = 0;
+
+    if (swipeLeft) {
+      _moveToMonth(DateTime(month.year, month.month + 1));
+    } else if (swipeRight) {
+      _moveToMonth(DateTime(month.year, month.month - 1));
+    }
+  }
+
+  Future<void> _openMonthPicker(DateTime focusedMonth) async {
+    final store = ref.read(taskStoreProvider)!;
+    final selection = await showModalBottomSheet<_MobileMonthPickerResult>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _MobileMonthPickerSheet(
+        focusedMonth: focusedMonth,
+        today: store.today,
+      ),
+    );
+    if (!mounted || selection == null) return;
+    if (selection.selectToday) {
+      ref.read(calendarFocusedMonthProvider.notifier).resetToToday();
+      setState(() => _selectedDay = store.today);
+      return;
+    }
+    _moveToMonth(selection.month);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
-    final month = DateTime(store.today.year, store.today.month);
+    final focusedMonth = ref.watch(calendarFocusedMonthProvider);
+    final month = DateTime(focusedMonth.year, focusedMonth.month);
     final first = month.subtract(Duration(days: month.weekday - 1));
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final weekCount = ((month.weekday - 1 + daysInMonth) / 7).ceil();
@@ -804,21 +896,20 @@ class _MobileCalendarPage extends ConsumerWidget {
       weekCount * 7,
       (index) => first.add(Duration(days: index)),
     );
-    final nextTasks =
-        store.activeTasks.where((task) => task.dueAt != null).toList()
-          ..sort((a, b) => a.dueAt!.compareTo(b.dueAt!));
+    final selectedTasks = store.tasksForDay(_selectedDay);
 
     return RefreshIndicator(
       color: CueColors.accent,
       backgroundColor: CueColors.card,
-      onRefresh: onSync,
+      onRefresh: widget.onSync,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: CueInsets.mobilePage,
         children: [
-          _MobileHeader(
+          _MobileCalendarHeader(
             title: formatMonthName(context, month),
             subtitle: context.l10n.monthOverview(month.year),
+            onTitleTap: () => _openMonthPicker(month),
           ),
           const SizedBox(height: 20),
           Row(
@@ -844,33 +935,71 @@ class _MobileCalendarPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: days.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              crossAxisSpacing: 6,
-              mainAxisSpacing: 8,
-              childAspectRatio: 44 / 68,
-            ),
-            itemBuilder: (context, index) {
-              final day = days[index];
-              final tasks = store.tasksForDay(day);
-              return _CalendarDay(
-                day: day,
-                inMonth: day.month == month.month,
-                selected: TaskStore.isSameDay(day, store.today),
-                hasTasks: tasks.isNotEmpty,
-                onTap: () => tasks.isEmpty
-                    ? onSelectEmptyDay(day)
-                    : onOpenTask(tasks.first),
-              );
+          GestureDetector(
+            key: const Key('mobile-calendar-month-grid'),
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) => _calendarHorizontalDrag = 0,
+            onHorizontalDragUpdate: (details) {
+              _calendarHorizontalDrag += details.primaryDelta ?? 0;
             },
+            onHorizontalDragEnd: (details) => _finishMonthSwipe(details, month),
+            onHorizontalDragCancel: () => _calendarHorizontalDrag = 0,
+            child: ClipRect(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 280),
+                reverseDuration: const Duration(milliseconds: 280),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeOutCubic,
+                transitionBuilder: (child, animation) {
+                  final incoming =
+                      child.key ==
+                      ValueKey(
+                        'mobile-calendar-grid-${month.year}-${month.month}',
+                      );
+                  final direction = _monthTransitionDirection.toDouble();
+                  final begin = Offset(incoming ? direction : -direction, 0);
+                  return SlideTransition(
+                    position: Tween<Offset>(
+                      begin: begin,
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
+                  );
+                },
+                child: GridView.builder(
+                  key: ValueKey(
+                    'mobile-calendar-grid-${month.year}-${month.month}',
+                  ),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: days.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    crossAxisSpacing: 6,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 44 / 68,
+                  ),
+                  itemBuilder: (context, index) {
+                    final day = days[index];
+                    final tasks = store.tasksForDay(day);
+                    return _CalendarDay(
+                      day: day,
+                      inMonth: day.month == month.month,
+                      selected: TaskStore.isSameDay(day, _selectedDay),
+                      isToday: TaskStore.isSameDay(day, store.today),
+                      hasTasks: tasks.isNotEmpty,
+                      onTap: () => _selectDay(day),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           Text(
-            context.l10n.nextUp,
+            '${formatMonthDay(context, _selectedDay)} · '
+            '${context.l10n.taskCount(selectedTasks.length)}',
+            key: const Key('mobile-calendar-selected-date-label'),
             style: TextStyle(
               color: CueColors.secondary,
               fontSize: 13,
@@ -878,16 +1007,229 @@ class _MobileCalendarPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 10),
-          if (nextTasks.isNotEmpty)
-            _MobileTaskRow(
-              task: nextTasks.first,
-              today: store.today,
-              onOpen: () => onOpenTask(nextTasks.first),
-              onToggle: () {},
-            )
+          if (selectedTasks.isNotEmpty)
+            for (var index = 0; index < selectedTasks.length; index++) ...[
+              _MobileTaskRow(
+                key: ValueKey(
+                  'mobile-calendar-task-${selectedTasks[index].id}',
+                ),
+                task: selectedTasks[index],
+                today: store.today,
+                onOpen: () => widget.onOpenTask(selectedTasks[index]),
+                onToggle: () => widget.onToggleTask(selectedTasks[index]),
+              ),
+              if (index != selectedTasks.length - 1)
+                const SizedBox(height: CueSpacing.s8),
+            ]
           else
             _MobileEmptyState(label: context.l10n.nothingScheduled),
         ],
+      ),
+    );
+  }
+}
+
+class _MobileCalendarHeader extends StatelessWidget {
+  const _MobileCalendarHeader({
+    required this.title,
+    required this.subtitle,
+    required this.onTitleTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback onTitleTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: CueMobileNavigationTokens.headerHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Semantics(
+              button: true,
+              child: GestureDetector(
+                key: const Key('mobile-calendar-title-picker-trigger'),
+                behavior: HitTestBehavior.opaque,
+                onTap: onTitleTap,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CueMobileNavigationTokens.pageTitleTextStyle,
+                          ),
+                        ),
+                        const SizedBox(width: CueSpacing.s4),
+                        Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: CueColors.secondary,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: CueSpacing.s2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: CueMobileNavigationTokens.secondaryForeground,
+                        fontSize: CueMobileNavigationTokens.subtitleFontSize,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileMonthPickerResult {
+  const _MobileMonthPickerResult(this.month, {this.selectToday = false});
+
+  final DateTime month;
+  final bool selectToday;
+}
+
+class _MobileMonthPickerSheet extends StatefulWidget {
+  const _MobileMonthPickerSheet({
+    required this.focusedMonth,
+    required this.today,
+  });
+
+  final DateTime focusedMonth;
+  final DateTime today;
+
+  @override
+  State<_MobileMonthPickerSheet> createState() =>
+      _MobileMonthPickerSheetState();
+}
+
+class _MobileMonthPickerSheetState extends State<_MobileMonthPickerSheet> {
+  late int _displayedYear;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayedYear = widget.focusedMonth.year;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        key: const Key('mobile-month-picker-sheet'),
+        padding: CueInsets.mobileSheet,
+        decoration: BoxDecoration(
+          color: CueColors.popover,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _SheetHandle(),
+            const SizedBox(height: CueSpacing.s16),
+            Row(
+              children: [
+                Text(
+                  '$_displayedYear',
+                  key: const Key('mobile-month-picker-displayed-year'),
+                  style: TextStyle(
+                    color: CueColors.primary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  key: const Key('mobile-month-picker-prev-year'),
+                  tooltip: MaterialLocalizations.of(context)
+                      .previousPageTooltip,
+                  onPressed: () => setState(() => _displayedYear--),
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  color: CueColors.secondary,
+                ),
+                IconButton(
+                  key: const Key('mobile-month-picker-today'),
+                  tooltip: context.l10n.today,
+                  onPressed: () => Navigator.pop(
+                    context,
+                    _MobileMonthPickerResult(widget.today, selectToday: true),
+                  ),
+                  icon: const Icon(Icons.panorama_fish_eye_rounded, size: 18),
+                  color: CueColors.secondary,
+                ),
+                IconButton(
+                  key: const Key('mobile-month-picker-next-year'),
+                  tooltip: MaterialLocalizations.of(context).nextPageTooltip,
+                  onPressed: () => setState(() => _displayedYear++),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  color: CueColors.secondary,
+                ),
+              ],
+            ),
+            const SizedBox(height: CueSpacing.s16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 12,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: CueSpacing.s8,
+                crossAxisSpacing: CueSpacing.s8,
+                childAspectRatio: 2.2,
+              ),
+              itemBuilder: (context, index) {
+                final month = index + 1;
+                final selected =
+                    widget.focusedMonth.year == _displayedYear &&
+                    widget.focusedMonth.month == month;
+                return Material(
+                  color: selected ? CueColors.accent : CueColors.subtle,
+                  borderRadius: BorderRadius.circular(10),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: ValueKey('mobile-month-picker-item-$month'),
+                    onTap: () => Navigator.pop(
+                      context,
+                      _MobileMonthPickerResult(DateTime(_displayedYear, month)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        formatMonthName(context, DateTime(2024, month)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? CueColors.onAccent
+                              : CueColors.primary,
+                          fontSize: 13,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1483,6 +1825,7 @@ class _MobilePill extends StatelessWidget {
 
 class _MobileTaskRow extends StatelessWidget {
   const _MobileTaskRow({
+    super.key,
     required this.task,
     required this.today,
     required this.onOpen,
@@ -1600,6 +1943,7 @@ class _CalendarDay extends StatelessWidget {
     required this.day,
     required this.inMonth,
     required this.selected,
+    required this.isToday,
     required this.hasTasks,
     required this.onTap,
   });
@@ -1607,16 +1951,27 @@ class _CalendarDay extends StatelessWidget {
   final DateTime day;
   final bool inMonth;
   final bool selected;
+  final bool isToday;
   final bool hasTasks;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      key: ValueKey(
+        'mobile-calendar-day-'
+        '${day.year.toString().padLeft(4, '0')}-'
+        '${day.month.toString().padLeft(2, '0')}-'
+        '${day.day.toString().padLeft(2, '0')}',
+      ),
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: inMonth ? CueColors.card : CueColors.subtle,
+          color: selected
+              ? CueColors.selected
+              : inMonth
+              ? CueColors.card
+              : CueColors.subtle,
           border: selected
               ? Border.all(color: CueColors.accent, width: 2)
               : null,
@@ -1628,8 +1983,15 @@ class _CalendarDay extends StatelessWidget {
             Text(
               '${day.day}',
               style: TextStyle(
-                color: inMonth ? CueColors.primary : CueColors.tertiary,
+                color: isToday
+                    ? CueColors.accent
+                    : inMonth
+                    ? CueColors.primary
+                    : CueColors.tertiary,
                 fontSize: 12,
+                fontWeight: isToday || selected
+                    ? FontWeight.w600
+                    : FontWeight.w400,
               ),
             ),
             const SizedBox(height: 8),

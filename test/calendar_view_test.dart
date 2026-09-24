@@ -143,4 +143,150 @@ void main() {
     expect(find.byKey(const Key('month-picker-popover')), findsNothing);
     expect(find.text('September 2026'), findsOneWidget);
   });
+
+  testWidgets('mobile calendar day selection shows that day tasks inline', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('mobile-calendar-day-2026-09-13')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('Next up'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-pcb-review')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-thermal-simulation')),
+      findsOneWidget,
+    );
+    await tester.drag(find.byType(ListView).first, const Offset(0, -180));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-requirements')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-sprint-report')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('mobile-calendar-day-2026-09-15')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('mobile-calendar-day-2026-09-15')),
+    );
+    await tester.pumpAndSettle();
+
+    final selectedDateLabel = tester.widget<Text>(
+      find.byKey(const Key('mobile-calendar-selected-date-label')),
+    );
+    expect(selectedDateLabel.data, contains('September 15'));
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-signal-drift')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-task-pcb-review')),
+      findsNothing,
+    );
+    expect(find.byType(Dialog), findsNothing);
+  });
+
+  testWidgets('mobile calendar swipes and selects a year and month', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calendar'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('mobile-calendar-prev-month')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('mobile-calendar-next-month')),
+      findsNothing,
+    );
+
+    await tester.fling(
+      find.byKey(const Key('mobile-calendar-month-grid')),
+      const Offset(-300, 0),
+      1000,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-grid-2026-10')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+          )
+          .dx,
+      lessThan(20),
+    );
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(const ValueKey('mobile-calendar-grid-2026-10')),
+          )
+          .dx,
+      greaterThan(20),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+      findsNothing,
+    );
+    expect(find.text('October'), findsOneWidget);
+    expect(find.text('2026 · month overview'), findsOneWidget);
+
+    await tester.fling(
+      find.byKey(const Key('mobile-calendar-month-grid')),
+      const Offset(300, 0),
+      1000,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('September'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('mobile-calendar-title-picker-trigger')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('mobile-month-picker-sheet')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('mobile-month-picker-next-year')));
+    await tester.pumpAndSettle();
+    expect(find.text('2027'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('mobile-month-picker-item-6')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('mobile-month-picker-sheet')), findsNothing);
+    expect(find.text('June'), findsOneWidget);
+    expect(find.text('2027 · month overview'), findsOneWidget);
+  });
 }
