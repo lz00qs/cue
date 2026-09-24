@@ -798,27 +798,60 @@ class _MobileCalendarPage extends ConsumerStatefulWidget {
       _MobileCalendarPageState();
 }
 
-class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage> {
+class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage>
+    with TickerProviderStateMixin {
   late DateTime _selectedDay;
-  double _calendarHorizontalDrag = 0;
-  int _monthTransitionDirection = 1;
+
+  // The "committed" current month (what the user sees when no swipe is in progress).
+  late DateTime _currentMonth;
+
+  // While a swipe is settling we keep a reference to the incoming month so we
+  // can render it before the provider is updated.
+  DateTime? _pendingMonth;
+
+  // Raw finger offset in logical pixels, updated on every DragUpdate.
+  double _dragOffset = 0;
+
+  // -1 = dragging / settling towards previous month (finger moving right)
+  //  1 = dragging / settling towards next month     (finger moving left)
+  int _swipeDirection = 0;
+
+  // Controls the settle animation after the finger lifts.
+  late AnimationController _settleController;
+  late Animation<double> _settleAnimation;
+
+  // Width of the calendar grid, captured via LayoutBuilder.
+  double _gridWidth = 0;
 
   @override
   void initState() {
     super.initState();
-    final today = ref.read(taskStoreProvider)!.today;
+    final store = ref.read(taskStoreProvider)!;
+    final today = store.today;
     final focusedMonth = ref.read(calendarFocusedMonthProvider);
-    final lastDay = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    _currentMonth = DateTime(focusedMonth.year, focusedMonth.month);
+    final isTodayMonth =
+        focusedMonth.year == today.year && focusedMonth.month == today.month;
     _selectedDay = DateTime(
       focusedMonth.year,
       focusedMonth.month,
-      focusedMonth.year == today.year && focusedMonth.month == today.month
-          ? today.day
-          : today.day > lastDay
-          ? lastDay
-          : today.day,
+      isTodayMonth ? today.day : 1,
     );
+
+    _settleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _settleAnimation = const AlwaysStoppedAnimation(0);
   }
+
+  @override
+  void dispose() {
+    _settleController.dispose();
+    super.dispose();
+  }
+
+  // ── helpers ─────────────────────────────────────────────────────────────────
 
   void _selectDay(DateTime day) {
     final selected = DateTime(day.year, day.month, day.day);
@@ -829,73 +862,208 @@ class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage> {
     setState(() => _selectedDay = selected);
   }
 
-  void _moveToMonth(DateTime month) {
-    final normalizedMonth = DateTime(month.year, month.month);
-    final focusedMonth = ref.read(calendarFocusedMonthProvider);
-    final lastDay = DateTime(
-      normalizedMonth.year,
-      normalizedMonth.month + 1,
-      0,
-    ).day;
-    final selectedDay = _selectedDay.day > lastDay ? lastDay : _selectedDay.day;
-    setState(() {
-      _monthTransitionDirection = normalizedMonth.isBefore(focusedMonth)
-          ? -1
-          : 1;
-      _selectedDay = DateTime(
-        normalizedMonth.year,
-        normalizedMonth.month,
-        selectedDay,
-      );
-    });
-    ref.read(calendarFocusedMonthProvider.notifier).setMonth(normalizedMonth);
+  /// Returns the day to pre-select when navigating to [month].
+  /// Selects today if [month] is the current calendar month, otherwise day 1.
+  int _initialDayForMonth(DateTime month) {
+    final today = ref.read(taskStoreProvider)!.today;
+    if (month.year == today.year && month.month == today.month) {
+      return today.day;
+    }
+    return 1;
   }
 
-  void _finishMonthSwipe(DragEndDetails details, DateTime month) {
-    final velocity = details.primaryVelocity ?? 0;
-    final swipeLeft = _calendarHorizontalDrag <= -48 || velocity <= -300;
-    final swipeRight = _calendarHorizontalDrag >= 48 || velocity >= 300;
-    _calendarHorizontalDrag = 0;
+  // ── gesture handlers ────────────────────────────────────────────────────────
 
-    if (swipeLeft) {
-      _moveToMonth(DateTime(month.year, month.month + 1));
-    } else if (swipeRight) {
-      _moveToMonth(DateTime(month.year, month.month - 1));
+  void _onDragStart(DragStartDetails _) {
+    _settleController.stop();
+    _dragOffset = 0;
+    _swipeDirection = 0;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _dragOffset += details.primaryDelta ?? 0;
+      // positive drag (→) = going to prev month (-1)
+      // negative drag (←) = going to next month (+1)
+      _swipeDirection = _dragOffset < 0 ? 1 : -1;
+      _pendingMonth = _swipeDirection == 1
+          ? DateTime(_currentMonth.year, _currentMonth.month + 1)
+          : DateTime(_currentMonth.year, _currentMonth.month - 1);
+    });
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    final width = _gridWidth > 0 ? _gridWidth : 300.0;
+
+    // Commit when dragged ≥35% of width or flicked fast enough.
+    final commitSwipe =
+        (_dragOffset.abs() >= width * 0.35) ||
+        (velocity.abs() >= 400 && _dragOffset.sign == -velocity.sign);
+
+    // Gap between the two month grids during the slide animation.
+    const gap = 24.0;
+
+    if (commitSwipe && _pendingMonth != null) {
+      _animateSettle(
+        from: _dragOffset,
+        to: _dragOffset < 0 ? -(width + gap) : (width + gap),
+        onComplete: () {
+          final next = _pendingMonth!;
+          ref.read(calendarFocusedMonthProvider.notifier).setMonth(next);
+          setState(() {
+            _currentMonth = next;
+            _selectedDay = DateTime(
+              next.year,
+              next.month,
+              _initialDayForMonth(next),
+            );
+            _dragOffset = 0;
+            _pendingMonth = null;
+            _swipeDirection = 0;
+          });
+        },
+      );
+    } else {
+      _animateSettle(
+        from: _dragOffset,
+        to: 0,
+        onComplete: () {
+          setState(() {
+            _dragOffset = 0;
+            _pendingMonth = null;
+            _swipeDirection = 0;
+          });
+        },
+      );
     }
   }
 
-  Future<void> _openMonthPicker(DateTime focusedMonth) async {
+  void _animateSettle({
+    required double from,
+    required double to,
+    required VoidCallback onComplete,
+  }) {
+    final tween = Tween<double>(begin: from, end: to);
+    _settleAnimation = tween.animate(
+      CurvedAnimation(parent: _settleController, curve: Curves.easeOutCubic),
+    );
+    _settleController.reset();
+    _settleController.forward().whenCompleteOrCancel(() {
+      if (!mounted) return;
+      onComplete();
+    });
+  }
+
+  // Called by the month picker sheet or header.
+  void _moveToMonth(DateTime month) {
+    if (_settleController.isAnimating) return;
+    final normalizedMonth = DateTime(month.year, month.month);
+    final direction = normalizedMonth.isBefore(_currentMonth) ? -1 : 1;
+    final width = _gridWidth > 0 ? _gridWidth : 300.0;
+
+    setState(() {
+      _swipeDirection = direction;
+      _pendingMonth = normalizedMonth;
+      _dragOffset = 0;
+    });
+
+    const gap = 24.0;
+    _animateSettle(
+      from: 0,
+      to: direction == 1 ? -(width + gap) : (width + gap),
+      onComplete: () {
+        ref
+            .read(calendarFocusedMonthProvider.notifier)
+            .setMonth(normalizedMonth);
+        setState(() {
+          _currentMonth = normalizedMonth;
+          _selectedDay = DateTime(
+            normalizedMonth.year,
+            normalizedMonth.month,
+            _initialDayForMonth(normalizedMonth),
+          );
+          _dragOffset = 0;
+          _pendingMonth = null;
+          _swipeDirection = 0;
+        });
+      },
+    );
+  }
+
+  Future<void> _openMonthPicker() async {
     final store = ref.read(taskStoreProvider)!;
     final selection = await showModalBottomSheet<_MobileMonthPickerResult>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _MobileMonthPickerSheet(
-        focusedMonth: focusedMonth,
+        focusedMonth: _currentMonth,
         today: store.today,
       ),
     );
     if (!mounted || selection == null) return;
     if (selection.selectToday) {
       ref.read(calendarFocusedMonthProvider.notifier).resetToToday();
-      setState(() => _selectedDay = store.today);
+      final today = store.today;
+      setState(() {
+        _selectedDay = today;
+        _currentMonth = DateTime(today.year, today.month);
+      });
       return;
     }
     _moveToMonth(selection.month);
+  }
+
+  // ── grid builder ─────────────────────────────────────────────────────────────
+
+  /// Builds the day grid for [month], translated by [offsetX] pixels.
+  Widget _buildMonthGrid(
+    TaskStore store,
+    DateTime month,
+    double offsetX,
+    bool isInteractive,
+  ) {
+    final first = month.subtract(Duration(days: month.weekday - 1));
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    final weekCount = ((month.weekday - 1 + daysInMonth) / 7).ceil();
+    final days = List.generate(
+      weekCount * 7,
+      (i) => first.add(Duration(days: i)),
+    );
+
+    return Transform.translate(
+      offset: Offset(offsetX, 0),
+      child: GridView.builder(
+        key: ValueKey('calendar-grid-${month.year}-${month.month}'),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: days.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 7,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 8,
+          childAspectRatio: 44 / 68,
+        ),
+        itemBuilder: (context, index) {
+          final day = days[index];
+          final tasks = store.tasksForDay(day);
+          return _CalendarDay(
+            day: day,
+            inMonth: day.month == month.month,
+            selected: isInteractive && TaskStore.isSameDay(day, _selectedDay),
+            isToday: TaskStore.isSameDay(day, store.today),
+            hasTasks: tasks.isNotEmpty,
+            onTap: isInteractive ? () => _selectDay(day) : null,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
-    final focusedMonth = ref.watch(calendarFocusedMonthProvider);
-    final month = DateTime(focusedMonth.year, focusedMonth.month);
-    final first = month.subtract(Duration(days: month.weekday - 1));
-    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final weekCount = ((month.weekday - 1 + daysInMonth) / 7).ceil();
-    final days = List.generate(
-      weekCount * 7,
-      (index) => first.add(Duration(days: index)),
-    );
     final selectedTasks = store.tasksForDay(_selectedDay);
 
     return RefreshIndicator(
@@ -907,11 +1075,12 @@ class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage> {
         padding: CueInsets.mobilePage,
         children: [
           _MobileCalendarHeader(
-            title: formatMonthName(context, month),
-            subtitle: context.l10n.monthOverview(month.year),
-            onTitleTap: () => _openMonthPicker(month),
+            title: formatMonthName(context, _currentMonth),
+            subtitle: context.l10n.monthOverview(_currentMonth.year),
+            onTitleTap: _openMonthPicker,
           ),
           const SizedBox(height: 20),
+          // Weekday labels row
           Row(
             children: [
               for (var index = 0; index < 7; index++)
@@ -935,64 +1104,75 @@ class _MobileCalendarPageState extends ConsumerState<_MobileCalendarPage> {
             ],
           ),
           const SizedBox(height: 20),
+          // ── Follow-the-finger swipeable calendar grid ────────────────────
           GestureDetector(
             key: const Key('mobile-calendar-month-grid'),
             behavior: HitTestBehavior.opaque,
-            onHorizontalDragStart: (_) => _calendarHorizontalDrag = 0,
-            onHorizontalDragUpdate: (details) {
-              _calendarHorizontalDrag += details.primaryDelta ?? 0;
+            onHorizontalDragStart: _onDragStart,
+            onHorizontalDragUpdate: _onDragUpdate,
+            onHorizontalDragEnd: _onDragEnd,
+            onHorizontalDragCancel: () {
+              _animateSettle(
+                from: _dragOffset,
+                to: 0,
+                onComplete: () => setState(() {
+                  _dragOffset = 0;
+                  _pendingMonth = null;
+                  _swipeDirection = 0;
+                }),
+              );
             },
-            onHorizontalDragEnd: (details) => _finishMonthSwipe(details, month),
-            onHorizontalDragCancel: () => _calendarHorizontalDrag = 0,
-            child: ClipRect(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 280),
-                reverseDuration: const Duration(milliseconds: 280),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeOutCubic,
-                transitionBuilder: (child, animation) {
-                  final incoming =
-                      child.key ==
-                      ValueKey(
-                        'mobile-calendar-grid-${month.year}-${month.month}',
-                      );
-                  final direction = _monthTransitionDirection.toDouble();
-                  final begin = Offset(incoming ? direction : -direction, 0);
-                  return SlideTransition(
-                    position: Tween<Offset>(
-                      begin: begin,
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  );
-                },
-                child: GridView.builder(
-                  key: ValueKey(
-                    'mobile-calendar-grid-${month.year}-${month.month}',
-                  ),
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: days.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 7,
-                    crossAxisSpacing: 6,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 44 / 68,
-                  ),
-                  itemBuilder: (context, index) {
-                    final day = days[index];
-                    final tasks = store.tasksForDay(day);
-                    return _CalendarDay(
-                      day: day,
-                      inMonth: day.month == month.month,
-                      selected: TaskStore.isSameDay(day, _selectedDay),
-                      isToday: TaskStore.isSameDay(day, store.today),
-                      hasTasks: tasks.isNotEmpty,
-                      onTap: () => _selectDay(day),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                _gridWidth = constraints.maxWidth;
+
+                return AnimatedBuilder(
+                  animation: _settleController,
+                  builder: (context, _) {
+                    // During active drag use _dragOffset directly;
+                    // during the settle animation interpolate via _settleAnimation.
+                    final liveOffset = _settleController.isAnimating
+                        ? _settleAnimation.value
+                        : _dragOffset;
+
+                    final width = _gridWidth;
+                    final hasPending =
+                        _pendingMonth != null && liveOffset != 0;
+
+                    // The incoming grid sits one full width + gap away,
+                    // so there is always visual breathing room between months.
+                    const gap = 24.0;
+                    final pendingOffsetX = hasPending
+                        ? liveOffset +
+                            (_swipeDirection == 1
+                                ? width + gap
+                                : -(width + gap))
+                        : 0.0;
+
+                    return ClipRect(
+                      child: Stack(
+                        children: [
+                          // Current month moves with the finger.
+                          _buildMonthGrid(
+                            store,
+                            _currentMonth,
+                            liveOffset,
+                            true,
+                          ),
+                          // Incoming month trails just behind the edge.
+                          if (hasPending)
+                            _buildMonthGrid(
+                              store,
+                              _pendingMonth!,
+                              pendingOffsetX,
+                              false,
+                            ),
+                        ],
+                      ),
                     );
                   },
-                ),
-              ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 20),
@@ -1945,7 +2125,7 @@ class _CalendarDay extends StatelessWidget {
     required this.selected,
     required this.isToday,
     required this.hasTasks,
-    required this.onTap,
+    this.onTap,
   });
 
   final DateTime day;
@@ -1953,10 +2133,26 @@ class _CalendarDay extends StatelessWidget {
   final bool selected;
   final bool isToday;
   final bool hasTasks;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    // Visual priority:
+    //   isToday              → filled blue background + bold accent border
+    //   selected (non-today) → transparent background + thin muted border
+    //   otherwise            → card / subtle background, no border
+    final bg = isToday
+        ? CueColors.selected
+        : inMonth
+        ? CueColors.card
+        : CueColors.subtle;
+
+    final border = isToday
+        ? Border.all(color: CueColors.accent, width: 2)
+        : selected
+        ? Border.all(color: CueColors.accent.withValues(alpha: 0.35), width: 1.5)
+        : null;
+
     return GestureDetector(
       key: ValueKey(
         'mobile-calendar-day-'
@@ -1967,14 +2163,8 @@ class _CalendarDay extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: selected
-              ? CueColors.selected
-              : inMonth
-              ? CueColors.card
-              : CueColors.subtle,
-          border: selected
-              ? Border.all(color: CueColors.accent, width: 2)
-              : null,
+          color: bg,
+          border: border,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
