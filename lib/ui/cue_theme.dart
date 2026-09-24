@@ -197,7 +197,9 @@ abstract final class CueMobileNavigationTokens {
   static const double headerIconSize = 24;
   static const Alignment headerLeadingIconAlignment = Alignment.centerLeft;
   static const double headerTitleGap = CueSpacing.s12;
-  static const double titleFontSize = 28;
+  static const double pageTitleFontSize = 28;
+  static const double pageTitleLineHeight = 34;
+  static const FontWeight pageTitleFontWeight = FontWeight.w600;
   static const double subtitleFontSize = 12;
 
   static Color get drawerSurface => CueColors.sidebar;
@@ -214,6 +216,13 @@ abstract final class CueMobileNavigationTokens {
     fontSize: drawerBrandFontSize,
     height: drawerBrandLineHeight / drawerBrandFontSize,
     fontWeight: drawerBrandFontWeight,
+  );
+
+  static TextStyle get pageTitleTextStyle => TextStyle(
+    color: foreground,
+    fontSize: pageTitleFontSize,
+    height: pageTitleLineHeight / pageTitleFontSize,
+    fontWeight: pageTitleFontWeight,
   );
 
   static TextStyle itemLabelStyle({required bool selected}) => TextStyle(

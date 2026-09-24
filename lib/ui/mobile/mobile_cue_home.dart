@@ -988,13 +988,8 @@ class _MobileSettingsPage extends ConsumerWidget {
       children: [
         Text(
           context.l10n.settings,
-          style: TextStyle(
-            color: CueColors.primary,
-            fontSize: 20,
-            height: 25 / 20,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.1,
-          ),
+          key: const Key('mobile-settings-title'),
+          style: CueMobileNavigationTokens.pageTitleTextStyle,
         ),
         const SizedBox(height: 4),
         Text(
@@ -1433,12 +1428,7 @@ class _MobileHeader extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: CueMobileNavigationTokens.foreground,
-                    fontSize: CueMobileNavigationTokens.titleFontSize,
-                    height: 34 / CueMobileNavigationTokens.titleFontSize,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CueMobileNavigationTokens.pageTitleTextStyle,
                 ),
                 const SizedBox(height: CueSpacing.s2),
                 Text(

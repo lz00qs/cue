@@ -1283,6 +1283,10 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
 
+    final settingsTitle = tester.widget<Text>(
+      find.byKey(const Key('mobile-settings-title')),
+    );
+    expect(settingsTitle.style, CueMobileNavigationTokens.pageTitleTextStyle);
     expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
     expect(find.text('My Cue'), findsOneWidget);
     expect(find.text('System default'), findsNWidgets(2));
