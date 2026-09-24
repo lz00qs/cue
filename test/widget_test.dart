@@ -322,6 +322,46 @@ void main() {
     expect(find.text('System default'), findsWidgets);
   });
 
+  testWidgets('desktop and mobile expose version and author information', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('sidebar-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('About Cue'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.byKey(const Key('about-version')), findsOneWidget);
+    expect(find.text('Version'), findsOneWidget);
+    expect(find.text('lz00qs'), findsOneWidget);
+    expect(find.text('lz00qs@gmail.com'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('about-close')));
+    await tester.pumpAndSettle();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('mobile-about-cue')),
+      160,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('mobile-about-cue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byKey(const Key('about-version')), findsOneWidget);
+    expect(find.text('lz00qs'), findsOneWidget);
+    expect(find.text('lz00qs@gmail.com'), findsOneWidget);
+  });
+
   testWidgets('desktop settings change the view used on next launch', (
     tester,
   ) async {

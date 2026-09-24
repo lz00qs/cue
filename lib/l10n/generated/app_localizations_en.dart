@@ -201,6 +201,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
+  String get aboutCue => 'About Cue';
+
+  @override
+  String get aboutCueDescription => 'Version & author';
+
+  @override
+  String get version => 'Version';
+
+  @override
+  String get author => 'Author';
+
+  @override
   String get defaultView => 'Default view';
 
   @override

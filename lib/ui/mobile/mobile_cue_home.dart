@@ -10,6 +10,7 @@ import '../../models/cue_task.dart';
 import '../cue_date_picker.dart';
 import '../cue_theme.dart';
 import '../account_settings.dart';
+import '../about_cue.dart';
 import '../appearance_menu.dart';
 import '../default_view_menu.dart';
 import '../language_menu.dart';
@@ -1553,6 +1554,16 @@ class _MobileSettingsPage extends ConsumerWidget {
               : null,
           onTap: store.isRemote ? () => _showSyncSheet(context) : null,
         ),
+        const SizedBox(height: 16),
+        Text(context.l10n.aboutCue, style: _mobileSectionStyle),
+        const SizedBox(height: 16),
+        _SettingsRow(
+          key: const Key('mobile-about-cue'),
+          icon: Icons.info_outline_rounded,
+          label: context.l10n.aboutCue,
+          detail: context.l10n.aboutCueDescription,
+          onTap: () => showCueAbout(context, mobile: true),
+        ),
       ],
     );
   }
@@ -2932,6 +2943,7 @@ class _ProfileSummary extends StatelessWidget {
 
 class _SettingsRow extends StatelessWidget {
   const _SettingsRow({
+    super.key,
     required this.icon,
     required this.label,
     this.detail,

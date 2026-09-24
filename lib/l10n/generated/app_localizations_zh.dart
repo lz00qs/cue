@@ -193,6 +193,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
+  String get aboutCue => '关于 Cue';
+
+  @override
+  String get aboutCueDescription => '版本与作者信息';
+
+  @override
+  String get version => '版本';
+
+  @override
+  String get author => '作者';
+
+  @override
   String get defaultView => '默认界面';
 
   @override

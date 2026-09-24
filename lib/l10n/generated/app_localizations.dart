@@ -464,6 +464,30 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @aboutCue.
+  ///
+  /// In en, this message translates to:
+  /// **'About Cue'**
+  String get aboutCue;
+
+  /// No description provided for @aboutCueDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Version & author'**
+  String get aboutCueDescription;
+
+  /// No description provided for @version.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get version;
+
+  /// No description provided for @author.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get author;
+
   /// No description provided for @defaultView.
   ///
   /// In en, this message translates to:

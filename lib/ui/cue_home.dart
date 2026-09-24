@@ -11,6 +11,7 @@ import '../data/sync_coordinator.dart';
 import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
 import 'account_settings.dart';
+import 'about_cue.dart';
 import 'cue_theme.dart';
 import 'appearance_menu.dart';
 import 'cue_date_picker.dart';
@@ -818,6 +819,7 @@ enum _SidebarAction {
   appearance,
   language,
   server,
+  about,
   signOut,
 }
 
@@ -949,8 +951,15 @@ class _SidebarSettingsMenu extends StatelessWidget {
               label: context.l10n.changeServer,
             ),
           ),
+        const PopupMenuDivider(height: 1),
+        PopupMenuItem<_SidebarAction>(
+          value: _SidebarAction.about,
+          child: _SettingsMenuItem(
+            icon: Icons.info_outline_rounded,
+            label: context.l10n.aboutCue,
+          ),
+        ),
         if (onLogout != null) ...[
-          const PopupMenuDivider(height: 1),
           PopupMenuItem<_SidebarAction>(
             value: _SidebarAction.signOut,
             child: _SettingsMenuItem(
@@ -1016,6 +1025,8 @@ class _SidebarSettingsMenu extends StatelessWidget {
         showLanguagePicker(context, mobile: false);
       case _SidebarAction.server:
         onConfigureServer?.call();
+      case _SidebarAction.about:
+        showCueAbout(context, mobile: false);
       case _SidebarAction.signOut:
         onLogout?.call();
     }
