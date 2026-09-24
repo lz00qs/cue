@@ -98,6 +98,33 @@ When only modifying backend code, use the included cross-platform script to rebu
 # Dart: dart run tool/rebuild_backend.dart
 ```
 
+### Database Backup and Migration
+
+Cue's `docker-compose.yml` includes a `db-backup` container that automatically performs frequent full logical backups of the PostgreSQL database. The compressed backups (`.sql.gz`) are stored in the host's `./backups` directory.
+
+**Smart Backup Rotation Strategy:**
+- **Hourly:** Retains the last 24 hours (configured via `BACKUP_KEEP_MINS=1440`).
+- **Daily:** Retains the last 7 days.
+- **Weekly:** Retains the last 4 weeks.
+- **Monthly:** Retains the last 3 months.
+*(Files spanning multiple periods are hardlinked to minimize disk usage.)*
+
+**Migration and Restore Steps:**
+
+1. Copy the code and `./backups` directory to the new server.
+2. Start only the database service initially to avoid new data writes:
+   ```bash
+   docker compose up -d cue-db
+   ```
+3. Import the latest backup file (replace `cue-20260924.sql.gz` with the actual filename):
+   ```bash
+   gunzip -c ./backups/daily/cue-20260924.sql.gz | docker compose exec -T cue-db psql -U cue -d cue
+   ```
+4. Once restored, start all services:
+   ```bash
+   docker compose up -d
+   ```
+
 ## Local Development
 
 The Web client defaults to the same-origin `/api`. If the Flutter dev server and API are on different origins, specify the URL:

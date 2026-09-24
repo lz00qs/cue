@@ -153,6 +153,33 @@ docker compose down
 
 `docker compose down` 不会删除数据库卷。只有明确需要清空全部 Cue 数据时才使用 `docker compose down -v`。
 
+### 数据库备份与迁移
+
+Cue 的 `docker-compose.yml` 中默认包含了一个 `db-backup` 容器，会自动对 PostgreSQL 数据库进行高频全量逻辑备份，并将压缩好的纯文本备份文件（`.sql.gz`）存放到宿主机的 `./backups` 目录中。
+
+**智能轮转策略（GFS）：**
+- **每小时**：保留过去 24 小时的记录（通过 `BACKUP_KEEP_MINS=1440` 实现）。
+- **每天**：保留过去 7 天的记录。
+- **每周**：保留过去 4 周的记录。
+- **每月**：保留过去 3 个月的记录。
+*（同一份文件在不同周期中通过硬链接存储，不会重复占用硬盘空间）*
+
+**迁移与恢复步骤：**
+
+1. 迁移环境时，将代码及 `./backups` 目录一起复制到新服务器。
+2. 仅拉起数据库服务，暂不启动 API 避免产生新数据：
+   ```bash
+   docker compose up -d cue-db
+   ```
+3. 选择最新的备份文件进行解压并导入（请将 `cue-20260924.sql.gz` 替换为实际文件名）：
+   ```bash
+   gunzip -c ./backups/daily/cue-20260924.sql.gz | docker compose exec -T cue-db psql -U cue -d cue
+   ```
+4. 恢复完成后，启动所有服务：
+   ```bash
+   docker compose up -d
+   ```
+
 ## 本地开发
 
 Flutter 界面使用 Riverpod 管理应用会话、主题、语言及各页面的导航和筛选状态。`lib/state/app_state.dart` 定义应用级 Provider，`lib/state/page_state.dart` 定义页面状态。任务的乐观更新、冲突恢复和增量同步逻辑仍集中在 `TaskStore`，由 `taskRevisionProvider` 把任务变更送到 Riverpod 页面；组件内的文本控制器、悬停与拖拽反馈仍由 Flutter Widget 管理。
