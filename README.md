@@ -52,6 +52,42 @@ PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时�
 docker compose up --build -d
 ```
 
+仅修改后端代码时，可使用项目自带的跨平台一键更新工具。它会重建
+`cue-api` 镜像、替换后端容器、等待健康检查通过，并刷新正在运行的
+Nginx 代理；PostgreSQL 容器和数据卷不会被删除：
+
+macOS / Linux：
+
+```bash
+./scripts/rebuild-backend.sh
+```
+
+Windows CMD / PowerShell：
+
+```bat
+scripts\rebuild-backend.cmd
+```
+
+也可以在所有平台直接运行同一份 Dart 实现：
+
+```bash
+dart run tool/rebuild_backend.dart
+```
+
+需要忽略 Docker 构建缓存、从头重建时运行：
+
+```bash
+./scripts/rebuild-backend.sh --no-cache
+# Windows：scripts\rebuild-backend.cmd --no-cache
+```
+
+Android Studio 会从 `.run/Rebuild Cue Backend.run.xml` 加载共享运行配置。
+重新打开项目（或在运行配置列表中选择它）后，在顶部下拉框选择
+`Rebuild Cue Backend`，点击运行按钮即可一键更新后端。该配置使用项目的
+Dart SDK，不依赖 Bash，因此 Windows、macOS 和 Linux 使用方式相同。执行前
+需确保 Docker Desktop、OrbStack 或其他 Docker 引擎已启动，且项目根目录
+已有配置完成的 `.env`。
+
 Web 镜像会在 Docker 构建阶段直接从当前 Flutter 源码编译，避免旧的
 `build/web` 产物与新版 API 不兼容。宿主机无需预先运行 `flutter build web`。
 
