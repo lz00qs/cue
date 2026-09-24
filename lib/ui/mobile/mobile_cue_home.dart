@@ -3080,32 +3080,6 @@ class _MobileTextField extends StatelessWidget {
   }
 }
 
-class _DateChoice extends StatelessWidget {
-  const _DateChoice({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: onTap,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: selected ? CueColors.accent : CueColors.secondary,
-        backgroundColor: selected ? CueColors.selected : CueColors.subtle,
-        side: BorderSide(color: selected ? CueColors.accent : CueColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
 class _SheetHandle extends StatelessWidget {
   const _SheetHandle();
 

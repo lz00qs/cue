@@ -232,7 +232,9 @@ class AppReminderService {
     if (_permissionGranted) return true;
     if (defaultTargetPlatform != TargetPlatform.macOS &&
         defaultTargetPlatform != TargetPlatform.iOS &&
-        defaultTargetPlatform != TargetPlatform.android) return true;
+        defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
     if (_permissionRequested) return false;
     return requestPermission();
   }
@@ -281,7 +283,7 @@ class AppReminderService {
             channelDescription: 'Notifications for upcoming tasks in Cue',
             importance: Importance.max,
             priority: Priority.high,
-            color: const Color(0xFF3A63F3),
+            color: Color(0xFF3A63F3),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
