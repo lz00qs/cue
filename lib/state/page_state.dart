@@ -64,17 +64,17 @@ CueView _mapStartupView(StartupView view) {
 
 MobileDestination? _mapViewToDestination(CueView view) {
   return switch (view) {
-    CueView.inbox => MobileDestination.board,
+    CueView.inbox => MobileDestination.inbox,
     CueView.today => MobileDestination.today,
     CueView.upcoming => MobileDestination.today,
     CueView.list => MobileDestination.today,
-    CueView.board => MobileDestination.board,
+    CueView.board => MobileDestination.inbox,
     CueView.calendar => MobileDestination.calendar,
     CueView.quadrants => MobileDestination.quadrants,
   };
 }
 
-enum MobileDestination { today, board, calendar, quadrants, settings }
+enum MobileDestination { today, inbox, calendar, quadrants, settings }
 
 class MobileUiState {
   const MobileUiState(this.destination, this.showLater);
@@ -103,6 +103,18 @@ class MobileUi extends Notifier<MobileUiState> {
   }
 }
 
+final mobileInboxGroupProvider =
+    NotifierProvider<MobileInboxGroupSelection, String?>(
+      MobileInboxGroupSelection.new,
+    );
+
+class MobileInboxGroupSelection extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String group) => state = group;
+}
+
 void navigateToCueView(WidgetRef ref, CueView view) {
   ref.read(cueHomeUiProvider.notifier).selectView(view);
   final destination = _mapViewToDestination(view);
@@ -122,7 +134,7 @@ void navigateToMobileDestination(WidgetRef ref, MobileDestination destination) {
 CueView? _mapDestinationToView(MobileDestination destination) {
   return switch (destination) {
     MobileDestination.today => CueView.today,
-    MobileDestination.board => CueView.inbox,
+    MobileDestination.inbox => CueView.inbox,
     MobileDestination.calendar => CueView.calendar,
     MobileDestination.quadrants => CueView.quadrants,
     MobileDestination.settings => null,
@@ -306,4 +318,3 @@ class SetupAdminUi extends Notifier<SetupAdminUiState> {
     interacted: state.interacted,
   );
 }
-

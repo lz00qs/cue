@@ -246,7 +246,9 @@ class TaskStore extends ChangeNotifier {
   static final DateTime demoToday = DateTime(2026, 9, 13);
   static const String defaultUngrouped = '未分组';
 
-  final List<String> _customGroups = ['社会事项', '研发事项', '工作'];
+  // User-created empty groups live here. Groups that already contain tasks are
+  // derived from task data below, so real accounts never inherit demo labels.
+  final List<String> _customGroups = [];
 
   List<String> get groups {
     final set = <String>{};
@@ -268,15 +270,17 @@ class TaskStore extends ChangeNotifier {
   void addGroup(String name) {
     final trimmed = name.trim();
     if (trimmed.isEmpty || trimmed == defaultUngrouped) return;
-    if (!_customGroups.contains(trimmed)) {
-      final ungroupedIndex = _customGroups.indexOf(defaultUngrouped);
-      if (ungroupedIndex == -1) {
-        _customGroups.add(trimmed);
-      } else {
-        _customGroups.insert(ungroupedIndex, trimmed);
-      }
-      notifyListeners();
-    }
+    final orderedGroups = groups;
+    if (orderedGroups.contains(trimmed)) return;
+    final ungroupedIndex = orderedGroups.indexOf(defaultUngrouped);
+    orderedGroups.insert(
+      ungroupedIndex == -1 ? orderedGroups.length : ungroupedIndex,
+      trimmed,
+    );
+    _customGroups
+      ..clear()
+      ..addAll(orderedGroups);
+    notifyListeners();
   }
 
   void moveGroup(String group, String targetGroup) {
@@ -301,11 +305,13 @@ class TaskStore extends ChangeNotifier {
         oldName == trimmed) {
       return;
     }
-    final index = _customGroups.indexOf(oldName);
+    final orderedGroups = groups;
+    final index = orderedGroups.indexOf(oldName);
     if (index != -1) {
-      _customGroups[index] = trimmed;
-    } else {
-      _customGroups.add(trimmed);
+      orderedGroups[index] = trimmed;
+      _customGroups
+        ..clear()
+        ..addAll(orderedGroups);
     }
     for (var i = 0; i < _tasks.length; i++) {
       if (_tasks[i].group == oldName) {

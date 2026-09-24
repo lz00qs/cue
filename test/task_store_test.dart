@@ -174,6 +174,19 @@ void main() {
     expect(store.tasks.single.recurrence, 'weekly');
   });
 
+  test('groups come from user data rather than fixed demo labels', () {
+    final store = TaskStore([]);
+
+    expect(store.groups, [TaskStore.defaultUngrouped]);
+    expect(store.groups, isNot(contains('社会事项')));
+    expect(store.groups, isNot(contains('研发事项')));
+    expect(store.groups, isNot(contains('工作')));
+
+    store.addGroup('Personal');
+
+    expect(store.groups, ['Personal', TaskStore.defaultUngrouped]);
+  });
+
   test('recurring task appears on subsequent matching days', () async {
     final start = DateTime(2026, 9, 20);
     final task = _task(revision: 1).copyWith(dueAt: start, recurrence: 'daily');

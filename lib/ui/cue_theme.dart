@@ -161,6 +161,91 @@ abstract final class CueColors {
       isDark ? const Color(0xFF17181C) : const Color(0xFFEDEEF2);
 }
 
+/// Shared tokens for the mobile shell's top bar and primary navigation drawer.
+///
+/// Keeping these values here prevents the drawer from becoming a one-off
+/// surface and makes its selected state follow Cue's light and dark themes.
+abstract final class CueMobileNavigationTokens {
+  static const double drawerWidth = 304;
+  static const double drawerRadius = 24;
+  static const double drawerHeaderHeight = 56;
+  static const double drawerBrandFontSize = 20;
+  static const double drawerBrandLineHeight = 24;
+  static const FontWeight drawerBrandFontWeight = FontWeight.w600;
+  static const EdgeInsets drawerPadding = EdgeInsets.fromLTRB(
+    CueSpacing.s12,
+    CueSpacing.s16,
+    CueSpacing.s12,
+    CueSpacing.s24,
+  );
+
+  static const double itemHeight = 48;
+  static const double itemRadius = 12;
+  static const double itemGap = CueSpacing.s4;
+  static const double itemIconSize = 20;
+  static const double itemContentGap = CueSpacing.s12;
+  static const double itemLabelFontSize = 15;
+  static const double itemLabelLineHeight = 20;
+  static const FontWeight itemLabelFontWeight = FontWeight.w500;
+  static const FontWeight selectedItemLabelFontWeight = FontWeight.w600;
+  static const EdgeInsets itemPadding = EdgeInsets.symmetric(
+    horizontal: CueSpacing.s14,
+  );
+
+  static const double headerHeight = 62;
+  static const double headerActionSize = 36;
+  static const double headerIconSize = 24;
+  static const Alignment headerLeadingIconAlignment = Alignment.centerLeft;
+  static const double headerTitleGap = CueSpacing.s12;
+  static const double titleFontSize = 28;
+  static const double subtitleFontSize = 12;
+
+  static Color get drawerSurface => CueColors.sidebar;
+  static Color get drawerScrim => CueColors.modalBarrier;
+  static Color get surfaceTint => Colors.transparent;
+  static Color get selectedBackground => CueColors.selected;
+  static Color get unselectedBackground => Colors.transparent;
+  static Color get selectedForeground => CueColors.accent;
+  static Color get foreground => CueColors.primary;
+  static Color get secondaryForeground => CueColors.secondary;
+
+  static TextStyle get brandTextStyle => TextStyle(
+    color: foreground,
+    fontSize: drawerBrandFontSize,
+    height: drawerBrandLineHeight / drawerBrandFontSize,
+    fontWeight: drawerBrandFontWeight,
+  );
+
+  static TextStyle itemLabelStyle({required bool selected}) => TextStyle(
+    color: selected ? selectedForeground : foreground,
+    fontSize: itemLabelFontSize,
+    height: itemLabelLineHeight / itemLabelFontSize,
+    fontWeight: selected
+        ? selectedItemLabelFontWeight
+        : itemLabelFontWeight,
+  );
+}
+
+/// Tokens for the horizontally scrollable section switcher in mobile Inbox.
+abstract final class CueMobileInboxTokens {
+  static const double groupHeight = 36;
+  static const double groupRadius = 18;
+  static const double groupGap = CueSpacing.s8;
+  static const double groupAddIconSize = 20;
+  static const double groupLabelFontSize = 14;
+  static const EdgeInsets groupPadding = EdgeInsets.symmetric(
+    horizontal: CueSpacing.s14,
+  );
+  static const double headerToGroupsGap = CueSpacing.s16;
+  static const double groupsToTasksGap = CueSpacing.s24;
+  static const double sectionGap = CueSpacing.s24;
+
+  static Color get selectedBackground => CueColors.selected;
+  static Color get selectedForeground => CueColors.accent;
+  static Color get foreground => CueColors.secondary;
+  static Color get addGroupForeground => CueColors.accent;
+}
+
 /// Shared visual tokens for the priority-quadrant experience.
 ///
 /// Desktop and mobile intentionally use different layout widgets, but their

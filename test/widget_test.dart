@@ -700,12 +700,11 @@ void main() {
     await tester.tap(find.byKey(const Key('sidebar-sync')));
     await tester.pump();
 
-    Animation<double> rotation() =>
-        tester
-            .widget<RotationTransition>(
-              find.byKey(const Key('sidebar-sync-rotation')),
-            )
-            .turns;
+    Animation<double> rotation() => tester
+        .widget<RotationTransition>(
+          find.byKey(const Key('sidebar-sync-rotation')),
+        )
+        .turns;
 
     expect(rotation().isAnimating, isTrue);
     await tester.pump(const Duration(milliseconds: 250));
@@ -731,12 +730,11 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 2500));
 
-    final rotation =
-        tester
-            .widget<RotationTransition>(
-              find.byKey(const Key('sidebar-sync-rotation')),
-            )
-            .turns;
+    final rotation = tester
+        .widget<RotationTransition>(
+          find.byKey(const Key('sidebar-sync-rotation')),
+        )
+        .turns;
     expect(rotation.isAnimating, isTrue);
 
     sync.complete(const SyncResult(changes: [], latestRevision: 0));
@@ -1288,6 +1286,8 @@ void main() {
     expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
     expect(find.text('My Cue'), findsOneWidget);
     expect(find.text('System default'), findsNWidgets(2));
+    expect(find.text('Default view'), findsOneWidget);
+    expect(find.text('Today'), findsNWidgets(2));
     expect(find.text('Language'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
     expect(find.text('Import & sync'), findsOneWidget);
@@ -1297,6 +1297,76 @@ void main() {
     expect(find.text('Widgets'), findsNothing);
     expect(find.text('AI features'), findsNothing);
     expect(find.text('Help & guide'), findsNothing);
+  });
+
+  testWidgets('mobile settings configure the next-launch default view', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Default view'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byKey(const Key('default-view-option-inbox')), findsOneWidget);
+    expect(find.byKey(const Key('default-view-option-today')), findsOneWidget);
+    expect(
+      find.byKey(const Key('default-view-option-calendar')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('default-view-option-quadrants')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('default-view-option-upcoming')), findsNothing);
+    expect(find.byKey(const Key('default-view-option-list')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('default-view-option-calendar')));
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CueHome)),
+      listen: false,
+    );
+    expect(
+      container.read(appControllerProvider).startupView,
+      StartupView.calendar,
+    );
+    expect(find.text('Calendar'), findsNWidgets(2));
+    expect(find.text('Personalize Cue for the way you work'), findsOneWidget);
+  });
+
+  testWidgets('mobile Today aligns its leading icon and omits annotations', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    final menuIcon = find.descendant(
+      of: find.byKey(const Key('mobile-drawer-button')),
+      matching: find.byIcon(Icons.menu_rounded),
+    );
+    final todayFilter = find.byKey(const Key('mobile-today-filter-today'));
+    expect(
+      tester.getTopLeft(menuIcon).dx,
+      closeTo(tester.getTopLeft(todayFilter).dx, 0.01),
+    );
+    expect(find.text('MORNING · 2'), findsNothing);
+    expect(find.text('LATER · 2'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('mobile-today-filter-later')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('UPCOMING ·'), findsNothing);
   });
 
   testWidgets('all mobile pages respect the top system safe area', (
@@ -1330,9 +1400,9 @@ void main() {
 
     expectSafePage();
 
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Board'));
+    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
     await tester.pumpAndSettle();
     expectSafePage();
 
@@ -1366,7 +1436,7 @@ void main() {
     expect(find.byKey(const Key('cue-date-picker-time')), findsOneWidget);
   });
 
-  testWidgets('mobile board groups tasks without workflow status tabs', (
+  testWidgets('mobile new task sheet owns its text field lifecycle', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -1374,15 +1444,149 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('More'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Open Board'));
+    await tester.tap(find.byKey(const Key('mobile-quick-add')));
     await tester.pumpAndSettle();
 
-    expect(find.text('社会事项 · 7'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Lifecycle-safe task');
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Lifecycle-safe task'), findsOneWidget);
+  });
+
+  testWidgets('mobile drawer switches between Today and Inbox', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    expect(find.text('Today'), findsWidgets);
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('mobile-navigation-drawer')), findsOneWidget);
+    expect(find.byKey(const Key('mobile-drawer-today')), findsOneWidget);
+    expect(find.byKey(const Key('mobile-drawer-inbox')), findsOneWidget);
+    final drawer = tester.widget<Drawer>(
+      find.byKey(const Key('mobile-navigation-drawer')),
+    );
+    expect(drawer.width, CueMobileNavigationTokens.drawerWidth);
+    expect(drawer.backgroundColor, CueMobileNavigationTokens.drawerSurface);
+    expect(drawer.surfaceTintColor, CueMobileNavigationTokens.surfaceTint);
+    final drawerBrand = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('mobile-navigation-drawer')),
+        matching: find.text('Cue'),
+      ),
+    );
+    expect(drawerBrand.style, CueMobileNavigationTokens.brandTextStyle);
+    final selectedToday = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byKey(const Key('mobile-drawer-today')),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(selectedToday.color, CueMobileNavigationTokens.selectedBackground);
+    final selectedTodayLabel = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('mobile-drawer-today')),
+        matching: find.text('Today'),
+      ),
+    );
+    expect(
+      selectedTodayLabel.style,
+      CueMobileNavigationTokens.itemLabelStyle(selected: true),
+    );
+
+    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Inbox'), findsOneWidget);
+    expect(
+      find.byKey(const Key('mobile-inbox-group-switcher')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-inbox-group-社会事项')),
+      findsOneWidget,
+    );
+    final selectedGroup = tester.widget<Material>(
+      find.byKey(const ValueKey('mobile-inbox-group-社会事项')),
+    );
+    expect(selectedGroup.color, CueMobileInboxTokens.selectedBackground);
+    expect(find.text('整理机架'), findsOneWidget);
+    expect(find.text('桌面灯设计'), findsNothing);
     expect(find.text('To do'), findsNothing);
     expect(find.text('Doing'), findsNothing);
     expect(find.text('Done'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('mobile-inbox-group-研发事项')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('桌面灯设计'), findsOneWidget);
+    expect(find.text('整理机架'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-drawer-today')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sunday, September 13'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('桌面灯设计'), findsOneWidget);
+    expect(find.text('整理机架'), findsNothing);
+  });
+
+  testWidgets('mobile creates a custom Inbox group and adds into it', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-drawer-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.pumpAndSettle();
+
+    final addGroup = find.byKey(const Key('mobile-inbox-add-group'));
+    await tester.ensureVisible(addGroup);
+    await tester.tap(addGroup);
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('mobile-add-group-name-field')),
+      'Mobile group',
+    );
+    await tester.tap(find.byKey(const Key('mobile-add-group-submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('mobile-inbox-group-Mobile group')),
+      findsOneWidget,
+    );
+    expect(find.text('Nothing here — enjoy the space.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('mobile-quick-add')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).first,
+      'Task in mobile group',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Add task'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Task in mobile group'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('opens the V2 mobile task details dialog', (tester) async {
@@ -1563,24 +1767,20 @@ void main() {
       expect(timePickerTheme.backgroundColor, CueColors.popover);
       expect(timePickerTheme.dialBackgroundColor, CueColors.subtle);
       expect(timePickerTheme.dialHandColor, CueColors.accent);
-      final hourMinuteColor = timePickerTheme.hourMinuteColor as WidgetStateColor;
-      final hourMinuteTextColor = timePickerTheme.hourMinuteTextColor as WidgetStateColor;
+      final hourMinuteColor =
+          timePickerTheme.hourMinuteColor as WidgetStateColor;
+      final hourMinuteTextColor =
+          timePickerTheme.hourMinuteTextColor as WidgetStateColor;
       expect(
         hourMinuteColor.resolve({WidgetState.selected}),
         CueColors.selected,
       );
-      expect(
-        hourMinuteColor.resolve({}),
-        CueColors.subtle,
-      );
+      expect(hourMinuteColor.resolve({}), CueColors.subtle);
       expect(
         hourMinuteTextColor.resolve({WidgetState.selected}),
         CueColors.accent,
       );
-      expect(
-        hourMinuteTextColor.resolve({}),
-        CueColors.primary,
-      );
+      expect(hourMinuteTextColor.resolve({}), CueColors.primary);
 
       // Confirm time picker
       await tester.tap(

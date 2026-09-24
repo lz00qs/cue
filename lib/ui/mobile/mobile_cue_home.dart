@@ -11,6 +11,7 @@ import '../cue_date_picker.dart';
 import '../cue_theme.dart';
 import '../account_settings.dart';
 import '../appearance_menu.dart';
+import '../default_view_menu.dart';
 import '../language_menu.dart';
 
 class MobileCueHome extends ConsumerStatefulWidget {
@@ -34,6 +35,8 @@ class MobileCueHome extends ConsumerStatefulWidget {
 }
 
 class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
   TaskStore get _store => ref.read(taskStoreProvider)!;
   MobileDestination get _destination => ref.read(mobileUiProvider).destination;
   bool get _showLater => ref.read(mobileUiProvider).showLater;
@@ -43,7 +46,16 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     ref.watch(taskRevisionProvider);
     ref.watch(mobileUiProvider);
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: CueColors.canvas,
+      drawerScrimColor: CueMobileNavigationTokens.drawerScrim,
+      drawerEnableOpenDragGesture:
+          _destination == MobileDestination.today ||
+          _destination == MobileDestination.inbox,
+      drawer: _MobileNavigationDrawer(
+        destination: _destination,
+        onSelect: _selectPrimaryView,
+      ),
       body: SafeArea(
         key: const Key('mobile-content-safe-area'),
         bottom: false,
@@ -54,7 +66,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
               Positioned(
                 right: 20,
                 bottom: 16,
-                child: _QuickAddButton(onTap: _showAddTaskSheet),
+                child: _QuickAddButton(onTap: _showQuickAdd),
               ),
           ],
         ),
@@ -85,25 +97,25 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
         onOpenTask: _openTask,
         onToggleTask: (task) =>
             _runOperation(() => _store.toggleComplete(task)),
-        onOpenBoard: _openBoard,
+        onOpenDrawer: _openDrawer,
         onSync: _syncNow,
       ),
-      MobileDestination.board => _MobileBoardPage(
+      MobileDestination.inbox => _MobileInboxPage(
         onOpenTask: _openTask,
         onToggleTask: (task) =>
             _runOperation(() => _store.toggleComplete(task)),
-        onBackToToday: _openToday,
+        onOpenDrawer: _openDrawer,
         onSync: _syncNow,
       ),
       MobileDestination.calendar => _MobileCalendarPage(
         onOpenTask: _openTask,
         onSelectEmptyDay: (day) => _showAddTaskSheet(prefilledDate: day),
-        onOpenBoard: _openBoard,
+        onOpenInbox: _openInbox,
         onSync: _syncNow,
       ),
       MobileDestination.quadrants => _MobileQuadrantsPage(
         onOpenTask: _openTask,
-        onOpenBoard: _openBoard,
+        onOpenInbox: _openInbox,
         onSync: _syncNow,
       ),
       MobileDestination.settings => _MobileSettingsPage(
@@ -155,12 +167,17 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     );
   }
 
-  void _openBoard() {
-    navigateToMobileDestination(ref, MobileDestination.board);
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
   }
 
-  void _openToday() {
-    navigateToMobileDestination(ref, MobileDestination.today);
+  void _openInbox() {
+    navigateToMobileDestination(ref, MobileDestination.inbox);
+  }
+
+  void _selectPrimaryView(MobileDestination destination) {
+    Navigator.of(context).pop();
+    navigateToMobileDestination(ref, destination);
   }
 
   Future<void> _syncNow() => _runOperation(_store.sync);
@@ -181,9 +198,27 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     }
   }
 
-  Future<void> _showAddTaskSheet({DateTime? prefilledDate}) async {
-    final titleController = TextEditingController();
-    final noteController = TextEditingController();
+  void _showQuickAdd() {
+    String? prefilledGroup;
+    if (_destination == MobileDestination.inbox) {
+      final groups = _store.groups;
+      final selection = ref.read(mobileInboxGroupProvider);
+      final selectedGroup = groups.contains(selection)
+          ? selection!
+          : groups.first;
+      if (selectedGroup != TaskStore.defaultUngrouped) {
+        prefilledGroup = selectedGroup;
+      }
+    }
+    _showAddTaskSheet(prefilledGroup: prefilledGroup);
+  }
+
+  Future<void> _showAddTaskSheet({
+    DateTime? prefilledDate,
+    String? prefilledGroup,
+  }) async {
+    var title = '';
+    var note = '';
     final today = _store.today;
     var priority = 2;
     String? reminder;
@@ -232,15 +267,15 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                       ),
                       const SizedBox(height: 16),
                       _MobileTextField(
-                        controller: titleController,
                         label: context.l10n.taskTitle,
                         autofocus: true,
+                        onChanged: (value) => title = value,
                       ),
                       const SizedBox(height: 10),
                       _MobileTextField(
-                        controller: noteController,
                         label: context.l10n.notes,
                         maxLines: 3,
+                        onChanged: (value) => note = value,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -401,15 +436,16 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
                             ),
                           ),
                           onPressed: () async {
-                            if (titleController.text.trim().isEmpty) return;
+                            if (title.trim().isEmpty) return;
                             final succeeded = await _runOperation(
                               () => _store.addTask(
-                                title: titleController.text,
-                                note: noteController.text,
+                                title: title,
+                                note: note,
                                 priority: priority,
                                 dueAt: dueAt,
                                 reminder: reminder,
                                 recurrence: recurrence,
+                                group: prefilledGroup,
                               ),
                             );
                             if (succeeded && sheetContext.mounted) {
@@ -428,8 +464,6 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
         );
       },
     );
-    titleController.dispose();
-    noteController.dispose();
   }
 }
 
@@ -439,7 +473,7 @@ class _MobileTodayPage extends ConsumerWidget {
     required this.onFilterChanged,
     required this.onOpenTask,
     required this.onToggleTask,
-    required this.onOpenBoard,
+    required this.onOpenDrawer,
     required this.onSync,
   });
 
@@ -447,7 +481,7 @@ class _MobileTodayPage extends ConsumerWidget {
   final ValueChanged<bool> onFilterChanged;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<CueTask> onToggleTask;
-  final VoidCallback onOpenBoard;
+  final VoidCallback onOpenDrawer;
   final Future<void> Function() onSync;
 
   @override
@@ -455,12 +489,6 @@ class _MobileTodayPage extends ConsumerWidget {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
     final tasks = showLater ? store.upcomingTasks : store.todayTasks;
-    final morning = tasks
-        .where((task) => task.dueAt != null && task.dueAt!.hour < 12)
-        .toList();
-    final later = showLater
-        ? tasks
-        : tasks.where((task) => !morning.contains(task)).toList();
     return RefreshIndicator(
       color: CueColors.accent,
       backgroundColor: CueColors.card,
@@ -474,19 +502,21 @@ class _MobileTodayPage extends ConsumerWidget {
             subtitle: showLater
                 ? context.l10n.planWhatComesNext
                 : formatLongDate(context, store.today),
-            onOpenBoard: onOpenBoard,
+            onOpenDrawer: onOpenDrawer,
             onSync: onSync,
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               _MobilePill(
+                key: const Key('mobile-today-filter-today'),
                 label: context.l10n.today,
                 selected: !showLater,
                 onTap: () => onFilterChanged(false),
               ),
               const SizedBox(width: 8),
               _MobilePill(
+                key: const Key('mobile-today-filter-later'),
                 label: context.l10n.later,
                 selected: showLater,
                 onTap: () => onFilterChanged(true),
@@ -494,34 +524,15 @@ class _MobileTodayPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 20),
-          if (showLater)
+          if (tasks.isNotEmpty)
             _TaskGroup(
-              label: context.l10n.upcomingUpper,
+              label: '',
+              showLabel: false,
               tasks: tasks,
               store: store,
               onOpenTask: onOpenTask,
               onToggleTask: onToggleTask,
-            )
-          else ...[
-            if (morning.isNotEmpty)
-              _TaskGroup(
-                label: context.l10n.morning,
-                tasks: morning,
-                store: store,
-                onOpenTask: onOpenTask,
-                onToggleTask: onToggleTask,
-              ),
-            if (morning.isNotEmpty && later.isNotEmpty)
-              const SizedBox(height: 8),
-            if (later.isNotEmpty)
-              _TaskGroup(
-                label: context.l10n.laterUpper,
-                tasks: later,
-                store: store,
-                onOpenTask: onOpenTask,
-                onToggleTask: onToggleTask,
-              ),
-          ],
+            ),
           if (tasks.isEmpty) _MobileEmptyState(label: context.l10n.allClear),
         ],
       ),
@@ -536,6 +547,8 @@ class _TaskGroup extends StatelessWidget {
     required this.store,
     required this.onOpenTask,
     required this.onToggleTask,
+    this.labelIncludesCount = false,
+    this.showLabel = true,
   });
 
   final String label;
@@ -543,14 +556,21 @@ class _TaskGroup extends StatelessWidget {
   final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<CueTask> onToggleTask;
+  final bool labelIncludesCount;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$label · ${tasks.length}', style: _mobileEyebrowStyle),
-        const SizedBox(height: 8),
+        if (showLabel) ...[
+          Text(
+            labelIncludesCount ? label : '$label · ${tasks.length}',
+            style: _mobileEyebrowStyle,
+          ),
+          const SizedBox(height: 8),
+        ],
         for (var index = 0; index < tasks.length; index++) ...[
           _MobileTaskRow(
             task: tasks[index],
@@ -565,23 +585,31 @@ class _TaskGroup extends StatelessWidget {
   }
 }
 
-class _MobileBoardPage extends ConsumerWidget {
-  const _MobileBoardPage({
+class _MobileInboxPage extends ConsumerWidget {
+  const _MobileInboxPage({
     required this.onOpenTask,
     required this.onToggleTask,
-    required this.onBackToToday,
+    required this.onOpenDrawer,
     required this.onSync,
   });
 
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<CueTask> onToggleTask;
-  final VoidCallback onBackToToday;
+  final VoidCallback onOpenDrawer;
   final Future<void> Function() onSync;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
+    final groups = store.groups;
+    final selection = ref.watch(mobileInboxGroupProvider);
+    final selectedGroup = groups.contains(selection)
+        ? selection!
+        : groups.first;
+    final activeTasks = store.activeTasksForGroup(selectedGroup);
+    final completedTasks = store.completedTasksForGroup(selectedGroup);
+
     return RefreshIndicator(
       color: CueColors.accent,
       backgroundColor: CueColors.card,
@@ -591,48 +619,171 @@ class _MobileBoardPage extends ConsumerWidget {
         padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
-            title: context.l10n.board,
+            title: context.l10n.inbox,
             subtitle: context.l10n.openTaskCount(store.activeTasks.length),
-            boardIsOpen: true,
-            onOpenBoard: onBackToToday,
+            onOpenDrawer: onOpenDrawer,
             onSync: onSync,
           ),
-          const SizedBox(height: 20),
-          for (final group in store.groups) ...[
-            Builder(
-              builder: (context) {
-                final tasks = [
-                  ...store.activeTasksForGroup(group),
-                  ...store.completedTasksForGroup(group),
-                ];
-                if (tasks.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: CueSpacing.s24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '$group · ${tasks.length}',
-                        style: _mobileEyebrowStyle,
-                      ),
-                      const SizedBox(height: 8),
-                      for (var index = 0; index < tasks.length; index++) ...[
-                        _MobileTaskRow(
-                          task: tasks[index],
-                          today: store.today,
-                          onOpen: () => onOpenTask(tasks[index]),
-                          onToggle: () => onToggleTask(tasks[index]),
-                        ),
-                        if (index != tasks.length - 1)
-                          const SizedBox(height: 8),
-                      ],
-                    ],
-                  ),
-                );
-              },
+          const SizedBox(height: CueMobileInboxTokens.headerToGroupsGap),
+          _MobileInboxGroupSwitcher(
+            groups: groups,
+            selectedGroup: selectedGroup,
+            onSelect: (group) =>
+                ref.read(mobileInboxGroupProvider.notifier).select(group),
+            onAddGroup: () => _showAddGroupDialog(context, ref, store),
+          ),
+          const SizedBox(height: CueMobileInboxTokens.groupsToTasksGap),
+          if (activeTasks.isNotEmpty)
+            _TaskGroup(
+              label: context.l10n.openTasksLabel(activeTasks.length),
+              labelIncludesCount: true,
+              tasks: activeTasks,
+              store: store,
+              onOpenTask: onOpenTask,
+              onToggleTask: onToggleTask,
             ),
-          ],
+          if (activeTasks.isNotEmpty && completedTasks.isNotEmpty)
+            const SizedBox(height: CueMobileInboxTokens.sectionGap),
+          if (completedTasks.isNotEmpty)
+            _TaskGroup(
+              label: context.l10n.completed,
+              tasks: completedTasks,
+              store: store,
+              onOpenTask: onOpenTask,
+              onToggleTask: onToggleTask,
+            ),
+          if (activeTasks.isEmpty && completedTasks.isEmpty)
+            _MobileEmptyState(label: context.l10n.emptyList),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showAddGroupDialog(
+    BuildContext context,
+    WidgetRef ref,
+    TaskStore store,
+  ) async {
+    var name = '';
+
+    void submit(BuildContext dialogContext) {
+      final trimmed = name.trim();
+      if (trimmed.isEmpty) return;
+      store.addGroup(trimmed);
+      ref.read(mobileInboxGroupProvider.notifier).select(trimmed);
+      Navigator.pop(dialogContext);
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.addGroup),
+        content: TextField(
+          key: const Key('mobile-add-group-name-field'),
+          autofocus: true,
+          maxLength: 100,
+          onChanged: (value) => name = value,
+          onSubmitted: (_) => submit(dialogContext),
+          decoration: InputDecoration(hintText: context.l10n.enterGroupName),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.l10n.cancel),
+          ),
+          FilledButton(
+            key: const Key('mobile-add-group-submit'),
+            onPressed: () => submit(dialogContext),
+            child: Text(context.l10n.addGroup),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileInboxGroupSwitcher extends StatelessWidget {
+  const _MobileInboxGroupSwitcher({
+    required this.groups,
+    required this.selectedGroup,
+    required this.onSelect,
+    required this.onAddGroup,
+  });
+
+  final List<String> groups;
+  final String selectedGroup;
+  final ValueChanged<String> onSelect;
+  final VoidCallback onAddGroup;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: CueMobileInboxTokens.groupHeight,
+      child: ListView.separated(
+        key: const Key('mobile-inbox-group-switcher'),
+        scrollDirection: Axis.horizontal,
+        itemCount: groups.length + 1,
+        separatorBuilder: (_, _) =>
+            const SizedBox(width: CueMobileInboxTokens.groupGap),
+        itemBuilder: (context, index) {
+          if (index == groups.length) {
+            return SizedBox(
+              width: CueMobileInboxTokens.groupHeight,
+              height: CueMobileInboxTokens.groupHeight,
+              child: IconButton(
+                key: const Key('mobile-inbox-add-group'),
+                tooltip: context.l10n.addGroup,
+                onPressed: onAddGroup,
+                padding: EdgeInsets.zero,
+                icon: Icon(
+                  Icons.add_rounded,
+                  size: CueMobileInboxTokens.groupAddIconSize,
+                  color: CueMobileInboxTokens.addGroupForeground,
+                ),
+              ),
+            );
+          }
+          final group = groups[index];
+          final selected = group == selectedGroup;
+          final foreground = selected
+              ? CueMobileInboxTokens.selectedForeground
+              : CueMobileInboxTokens.foreground;
+          return Semantics(
+            button: true,
+            selected: selected,
+            child: Material(
+              key: ValueKey('mobile-inbox-group-$group'),
+              color: selected
+                  ? CueMobileInboxTokens.selectedBackground
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(
+                CueMobileInboxTokens.groupRadius,
+              ),
+              child: InkWell(
+                onTap: () => onSelect(group),
+                borderRadius: BorderRadius.circular(
+                  CueMobileInboxTokens.groupRadius,
+                ),
+                child: Padding(
+                  padding: CueMobileInboxTokens.groupPadding,
+                  child: Center(
+                    child: Text(
+                      group,
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: CueMobileInboxTokens.groupLabelFontSize,
+                        height: 20 / CueMobileInboxTokens.groupLabelFontSize,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -642,13 +793,13 @@ class _MobileCalendarPage extends ConsumerWidget {
   const _MobileCalendarPage({
     required this.onOpenTask,
     required this.onSelectEmptyDay,
-    required this.onOpenBoard,
+    required this.onOpenInbox,
     required this.onSync,
   });
 
   final ValueChanged<CueTask> onOpenTask;
   final ValueChanged<DateTime> onSelectEmptyDay;
-  final VoidCallback onOpenBoard;
+  final VoidCallback onOpenInbox;
   final Future<void> Function() onSync;
 
   @override
@@ -678,7 +829,7 @@ class _MobileCalendarPage extends ConsumerWidget {
           _MobileHeader(
             title: formatMonthName(context, month),
             subtitle: context.l10n.monthOverview(month.year),
-            onOpenBoard: onOpenBoard,
+            onOpenInbox: onOpenInbox,
             onSync: onSync,
           ),
           const SizedBox(height: 20),
@@ -757,12 +908,12 @@ class _MobileCalendarPage extends ConsumerWidget {
 class _MobileQuadrantsPage extends ConsumerWidget {
   const _MobileQuadrantsPage({
     required this.onOpenTask,
-    required this.onOpenBoard,
+    required this.onOpenInbox,
     required this.onSync,
   });
 
   final ValueChanged<CueTask> onOpenTask;
-  final VoidCallback onOpenBoard;
+  final VoidCallback onOpenInbox;
   final Future<void> Function() onSync;
 
   @override
@@ -786,7 +937,7 @@ class _MobileQuadrantsPage extends ConsumerWidget {
           _MobileHeader(
             title: context.l10n.quadrants,
             subtitle: context.l10n.importanceUrgency,
-            onOpenBoard: onOpenBoard,
+            onOpenInbox: onOpenInbox,
             onSync: onSync,
           ),
           const SizedBox(height: 20),
@@ -888,6 +1039,13 @@ class _MobileSettingsPage extends ConsumerWidget {
         const SizedBox(height: 16),
         Text(context.l10n.preferences, style: _mobileSectionStyle),
         const SizedBox(height: 16),
+        _SettingsRow(
+          icon: Icons.home_outlined,
+          label: context.l10n.defaultView,
+          detail: startupViewLabel(context, mobileStartupView(app.startupView)),
+          onTap: () => showDefaultViewPicker(context, mobile: true),
+        ),
+        const SizedBox(height: 8),
         _SettingsRow(
           icon: Icons.language_rounded,
           label: context.l10n.language,
@@ -1120,86 +1278,236 @@ class _MobileSettingsPage extends ConsumerWidget {
   }
 }
 
+class _MobileNavigationDrawer extends StatelessWidget {
+  const _MobileNavigationDrawer({
+    required this.destination,
+    required this.onSelect,
+  });
+
+  final MobileDestination destination;
+  final ValueChanged<MobileDestination> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      key: const Key('mobile-navigation-drawer'),
+      width: CueMobileNavigationTokens.drawerWidth,
+      backgroundColor: CueMobileNavigationTokens.drawerSurface,
+      surfaceTintColor: CueMobileNavigationTokens.surfaceTint,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(
+          right: Radius.circular(CueMobileNavigationTokens.drawerRadius),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: CueMobileNavigationTokens.drawerPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: CueMobileNavigationTokens.drawerHeaderHeight,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: CueMobileNavigationTokens.itemPadding,
+                    child: Text(
+                      'Cue',
+                      style: CueMobileNavigationTokens.brandTextStyle,
+                    ),
+                  ),
+                ),
+              ),
+              _MobileNavigationItem(
+                key: const Key('mobile-drawer-today'),
+                icon: Icons.today_outlined,
+                label: context.l10n.today,
+                selected: destination == MobileDestination.today,
+                onTap: () => onSelect(MobileDestination.today),
+              ),
+              const SizedBox(height: CueMobileNavigationTokens.itemGap),
+              _MobileNavigationItem(
+                key: const Key('mobile-drawer-inbox'),
+                icon: Icons.inbox_outlined,
+                label: context.l10n.inbox,
+                selected: destination == MobileDestination.inbox,
+                onTap: () => onSelect(MobileDestination.inbox),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MobileNavigationItem extends StatelessWidget {
+  const _MobileNavigationItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected
+        ? CueMobileNavigationTokens.selectedForeground
+        : CueMobileNavigationTokens.foreground;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected
+            ? CueMobileNavigationTokens.selectedBackground
+            : CueMobileNavigationTokens.unselectedBackground,
+        borderRadius: BorderRadius.circular(
+          CueMobileNavigationTokens.itemRadius,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(
+            CueMobileNavigationTokens.itemRadius,
+          ),
+          child: SizedBox(
+            height: CueMobileNavigationTokens.itemHeight,
+            child: Padding(
+              padding: CueMobileNavigationTokens.itemPadding,
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: CueMobileNavigationTokens.itemIconSize,
+                    color: foreground,
+                  ),
+                  const SizedBox(
+                    width: CueMobileNavigationTokens.itemContentGap,
+                  ),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: CueMobileNavigationTokens.itemLabelStyle(
+                        selected: selected,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _MobileHeader extends StatelessWidget {
   const _MobileHeader({
     required this.title,
     required this.subtitle,
-    required this.onOpenBoard,
     required this.onSync,
-    this.boardIsOpen = false,
+    this.onOpenDrawer,
+    this.onOpenInbox,
   });
 
   final String title;
   final String subtitle;
-  final VoidCallback onOpenBoard;
   final Future<void> Function() onSync;
-  final bool boardIsOpen;
+  final VoidCallback? onOpenDrawer;
+  final VoidCallback? onOpenInbox;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 62,
-      child: Stack(
+      height: CueMobileNavigationTokens.headerHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned(
-            left: 0,
-            top: 0,
-            child: Text(
-              title,
-              style: TextStyle(
-                color: CueColors.primary,
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
+          if (onOpenDrawer != null) ...[
+            SizedBox(
+              width: CueMobileNavigationTokens.headerActionSize,
+              height: CueMobileNavigationTokens.headerActionSize,
+              child: IconButton(
+                key: const Key('mobile-drawer-button'),
+                tooltip: MaterialLocalizations.of(context).openAppDrawerTooltip,
+                onPressed: onOpenDrawer,
+                padding: EdgeInsets.zero,
+                alignment: CueMobileNavigationTokens.headerLeadingIconAlignment,
+                icon: Icon(
+                  Icons.menu_rounded,
+                  size: CueMobileNavigationTokens.headerIconSize,
+                  color: CueMobileNavigationTokens.foreground,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            top: 36,
-            child: Text(
-              subtitle,
-              style: TextStyle(color: CueColors.secondary, fontSize: 12),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            top: 0,
-            child: PopupMenuButton<String>(
-              color: CueColors.card,
-              tooltip: context.l10n.more,
-              padding: EdgeInsets.zero,
-              onSelected: (value) {
-                if (value == 'board') onOpenBoard();
-                if (value == 'sync') onSync();
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  value: 'board',
-                  child: Text(
-                    boardIsOpen
-                        ? context.l10n.backToToday
-                        : context.l10n.openBoard,
-                    style: TextStyle(color: CueColors.primary),
+            const SizedBox(width: CueMobileNavigationTokens.headerTitleGap),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CueMobileNavigationTokens.foreground,
+                    fontSize: CueMobileNavigationTokens.titleFontSize,
+                    height: 34 / CueMobileNavigationTokens.titleFontSize,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                PopupMenuItem(
-                  value: 'sync',
-                  child: Text(
-                    context.l10n.syncNow,
-                    style: TextStyle(color: CueColors.primary),
+                const SizedBox(height: CueSpacing.s2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: CueMobileNavigationTokens.secondaryForeground,
+                    fontSize: CueMobileNavigationTokens.subtitleFontSize,
                   ),
                 ),
               ],
-              child: SizedBox(
-                width: 28,
-                height: 32,
-                child: Align(
-                  alignment: Alignment.topRight,
+            ),
+          ),
+          PopupMenuButton<String>(
+            color: CueColors.card,
+            tooltip: context.l10n.more,
+            padding: EdgeInsets.zero,
+            onSelected: (value) {
+              if (value == 'inbox') onOpenInbox?.call();
+              if (value == 'sync') onSync();
+            },
+            itemBuilder: (_) => [
+              if (onOpenInbox != null)
+                PopupMenuItem(
+                  value: 'inbox',
                   child: Text(
-                    '•••',
-                    style: TextStyle(color: CueColors.secondary, fontSize: 12),
+                    context.l10n.inbox,
+                    style: TextStyle(color: CueColors.primary),
                   ),
                 ),
+              PopupMenuItem(
+                value: 'sync',
+                child: Text(
+                  context.l10n.syncNow,
+                  style: TextStyle(color: CueColors.primary),
+                ),
+              ),
+            ],
+            child: SizedBox(
+              width: CueMobileNavigationTokens.headerActionSize,
+              height: CueMobileNavigationTokens.headerActionSize,
+              child: Icon(
+                Icons.more_vert_rounded,
+                size: CueMobileNavigationTokens.headerIconSize,
+                color: CueMobileNavigationTokens.secondaryForeground,
               ),
             ),
           ),
@@ -1211,6 +1519,7 @@ class _MobileHeader extends StatelessWidget {
 
 class _MobilePill extends StatelessWidget {
   const _MobilePill({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -1544,7 +1853,7 @@ class _MobileBottomNavigation extends StatelessWidget {
         children: items.map((item) {
           final selected =
               destination == item.$1 ||
-              (destination == MobileDestination.board &&
+              (destination == MobileDestination.inbox &&
                   item.$1 == MobileDestination.today);
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -2229,21 +2538,21 @@ class _SyncFact extends StatelessWidget {
 
 class _MobileTextField extends StatelessWidget {
   const _MobileTextField({
-    required this.controller,
     required this.label,
+    required this.onChanged,
     this.autofocus = false,
     this.maxLines = 1,
   });
 
-  final TextEditingController controller;
   final String label;
+  final ValueChanged<String> onChanged;
   final bool autofocus;
   final int maxLines;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
-      controller: controller,
+      onChanged: onChanged,
       autofocus: autofocus,
       maxLines: maxLines,
       style: TextStyle(color: CueColors.primary),
