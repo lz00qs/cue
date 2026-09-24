@@ -9,7 +9,7 @@ import 'preference_picker.dart';
 String startupViewLabel(BuildContext context, StartupView view) {
   final l10n = context.l10n;
   return switch (view) {
-    StartupView.inbox => l10n.inbox,
+    StartupView.board => l10n.board,
     StartupView.today => l10n.today,
     StartupView.upcoming => l10n.upcoming,
     StartupView.list => l10n.list,
@@ -35,10 +35,10 @@ Future<void> showDefaultViewPicker(
   final l10n = context.l10n;
   final options = [
     CuePreferenceOption(
-      value: StartupView.inbox,
-      label: l10n.inbox,
-      icon: Icons.inbox_outlined,
-      key: const Key('default-view-option-inbox'),
+      value: StartupView.board,
+      label: l10n.board,
+      icon: Icons.view_column_outlined,
+      key: const Key('default-view-option-board'),
     ),
     CuePreferenceOption(
       value: StartupView.today,

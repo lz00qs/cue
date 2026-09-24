@@ -1,6 +1,6 @@
 import 'app_storage.dart';
 
-enum StartupView { inbox, today, upcoming, list, calendar, quadrants }
+enum StartupView { board, today, upcoming, list, calendar, quadrants }
 
 class StartupViewStore {
   StartupViewStore({AppStorage? storage})
@@ -11,6 +11,7 @@ class StartupViewStore {
 
   Future<StartupView?> get view async {
     final value = await _storage.read(key: _startupViewKey);
+    if (value == 'inbox') return StartupView.board;
     for (final view in StartupView.values) {
       if (view.name == value) return view;
     }

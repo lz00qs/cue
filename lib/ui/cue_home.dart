@@ -177,7 +177,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }
 
   Widget _buildContent() {
-    final isBoard = _view == CueView.inbox || _view == CueView.board;
+    final isBoard = _view == CueView.board;
     final isCalendar = _view == CueView.calendar;
     final pageInsets = isBoard
         ? (_usesMacOSIntegratedTitleBar
@@ -224,11 +224,10 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   }
 
   String get _pageTitle => switch (_view) {
-    CueView.inbox => context.l10n.inbox,
+    CueView.board => context.l10n.board,
     CueView.today => context.l10n.today,
     CueView.upcoming => context.l10n.upcoming,
     CueView.list => context.l10n.allTasks,
-    CueView.board => context.l10n.inbox,
     CueView.calendar => formatMonthYear(
       context,
       ref.watch(calendarFocusedMonthProvider),
@@ -237,18 +236,17 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   };
 
   String get _pageSubtitle => switch (_view) {
-    CueView.inbox => context.l10n.openTaskCount(_store.activeTasks.length),
+    CueView.board => context.l10n.openTaskCount(_store.activeTasks.length),
     CueView.today =>
       '${formatLongDate(context, _store.today)} · ${context.l10n.taskCount(_store.todayTasks.length)}',
     CueView.upcoming => context.l10n.planWhatComesNext,
     CueView.list => context.l10n.oneTaskModel,
-    CueView.board => context.l10n.openTaskCount(_store.activeTasks.length),
     CueView.calendar => context.l10n.monthViewDueOnly,
     CueView.quadrants => context.l10n.importanceUrgencyTwoDays,
   };
 
   Widget get _pageBody => switch (_view) {
-    CueView.inbox || CueView.board => BoardView(
+    CueView.board => BoardView(
       onOpenTask: _showTaskDetails,
       onAddTask: ({group, priority}) => _showAddTaskDialog(
         prefilledGroup: group,
@@ -465,13 +463,12 @@ class _Sidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _SidebarItem(
-            key: const Key('sidebar-inbox'),
-            label: context.l10n.inbox,
-            icon: Icons.inbox_outlined,
-            selectedIcon: Icons.inbox_rounded,
-            count: store.activeTasks.length,
-            selected: selected == CueView.inbox || selected == CueView.board,
-            onTap: () => onSelect(CueView.inbox),
+            key: const Key('sidebar-board'),
+            label: context.l10n.board,
+            icon: Icons.view_column_outlined,
+            selectedIcon: Icons.view_column,
+            selected: selected == CueView.board,
+            onTap: () => onSelect(CueView.board),
           ),
           const SizedBox(height: 8),
           _SidebarItem(
@@ -1271,7 +1268,7 @@ class _TaskListView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tasks = switch (view) {
-      CueView.inbox => store.activeTasks.toList(),
+      CueView.board => store.activeTasks.toList(),
       CueView.upcoming => store.upcomingTasks,
       CueView.today => store.todayTasks,
       CueView.list => switch (filter) {
@@ -1382,7 +1379,7 @@ class _TaskListView extends StatelessWidget {
 
   static String _sectionTitle(BuildContext context, CueView view, int count) =>
       switch (view) {
-        CueView.inbox => context.l10n.openTasksLabel(count),
+        CueView.board => context.l10n.openTasksLabel(count),
         CueView.upcoming => context.l10n.comingUpLabel(count),
         CueView.list => context.l10n.allTasksLabel(count),
         _ => context.l10n.tasksLabel(count),

@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/startup_view_store.dart';
 import 'app_state.dart';
 
-enum CueView { inbox, today, upcoming, list, board, calendar, quadrants }
+enum CueView { today, upcoming, list, board, calendar, quadrants }
 
 enum CueListFilter { all, today, upcoming, completed, overdue }
 
@@ -54,7 +54,7 @@ class CueHomeUi extends Notifier<CueHomeUiState> {
 
 CueView _mapStartupView(StartupView view) {
   return switch (view) {
-    StartupView.inbox => CueView.inbox,
+    StartupView.board => CueView.board,
     StartupView.today => CueView.today,
     StartupView.upcoming => CueView.upcoming,
     StartupView.list => CueView.list,
@@ -65,17 +65,16 @@ CueView _mapStartupView(StartupView view) {
 
 MobileDestination? _mapViewToDestination(CueView view) {
   return switch (view) {
-    CueView.inbox => MobileDestination.inbox,
+    CueView.board => MobileDestination.board,
     CueView.today => MobileDestination.today,
     CueView.upcoming => MobileDestination.today,
     CueView.list => MobileDestination.today,
-    CueView.board => MobileDestination.inbox,
     CueView.calendar => MobileDestination.calendar,
     CueView.quadrants => MobileDestination.quadrants,
   };
 }
 
-enum MobileDestination { today, inbox, calendar, quadrants, settings }
+enum MobileDestination { today, board, calendar, quadrants, settings }
 
 class MobileUiState {
   const MobileUiState(this.destination, this.showLater);
@@ -104,12 +103,12 @@ class MobileUi extends Notifier<MobileUiState> {
   }
 }
 
-final mobileInboxGroupProvider =
-    NotifierProvider<MobileInboxGroupSelection, String?>(
-      MobileInboxGroupSelection.new,
+final mobileBoardGroupProvider =
+    NotifierProvider<MobileBoardGroupSelection, String?>(
+      MobileBoardGroupSelection.new,
     );
 
-class MobileInboxGroupSelection extends Notifier<String?> {
+class MobileBoardGroupSelection extends Notifier<String?> {
   @override
   String? build() => null;
 
@@ -135,7 +134,7 @@ void navigateToMobileDestination(WidgetRef ref, MobileDestination destination) {
 CueView? _mapDestinationToView(MobileDestination destination) {
   return switch (destination) {
     MobileDestination.today => CueView.today,
-    MobileDestination.inbox => CueView.inbox,
+    MobileDestination.board => CueView.board,
     MobileDestination.calendar => CueView.calendar,
     MobileDestination.quadrants => CueView.quadrants,
     MobileDestination.settings => null,

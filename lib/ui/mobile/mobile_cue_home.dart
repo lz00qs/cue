@@ -52,7 +52,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
       drawerScrimColor: CueMobileNavigationTokens.drawerScrim,
       drawerEnableOpenDragGesture:
           _destination == MobileDestination.today ||
-          _destination == MobileDestination.inbox,
+          _destination == MobileDestination.board,
       drawer: _MobileNavigationDrawer(
         destination: _destination,
         onSelect: _selectPrimaryView,
@@ -101,7 +101,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
         onOpenDrawer: _openDrawer,
         onSync: _syncNow,
       ),
-      MobileDestination.inbox => _MobileInboxPage(
+      MobileDestination.board => _MobileBoardPage(
         onOpenTask: _openTask,
         onToggleTask: (task) =>
             _runOperation(() => _store.toggleComplete(task)),
@@ -196,9 +196,9 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
 
   void _showQuickAdd() {
     String? prefilledGroup;
-    if (_destination == MobileDestination.inbox) {
+    if (_destination == MobileDestination.board) {
       final groups = _store.groups;
-      final selection = ref.read(mobileInboxGroupProvider);
+      final selection = ref.read(mobileBoardGroupProvider);
       final selectedGroup = groups.contains(selection)
           ? selection!
           : groups.first;
@@ -539,8 +539,8 @@ class _TaskGroup extends StatelessWidget {
   }
 }
 
-class _MobileInboxPage extends ConsumerWidget {
-  const _MobileInboxPage({
+class _MobileBoardPage extends ConsumerWidget {
+  const _MobileBoardPage({
     required this.onOpenTask,
     required this.onToggleTask,
     required this.onOpenDrawer,
@@ -557,7 +557,7 @@ class _MobileInboxPage extends ConsumerWidget {
     ref.watch(taskRevisionProvider);
     final store = ref.watch(taskStoreProvider)!;
     final groups = store.groups;
-    final selection = ref.watch(mobileInboxGroupProvider);
+    final selection = ref.watch(mobileBoardGroupProvider);
     final selectedGroup = groups.contains(selection)
         ? selection!
         : groups.first;
@@ -573,19 +573,19 @@ class _MobileInboxPage extends ConsumerWidget {
         padding: CueInsets.mobilePage,
         children: [
           _MobileHeader(
-            title: context.l10n.inbox,
+            title: context.l10n.board,
             subtitle: context.l10n.openTaskCount(store.activeTasks.length),
             onOpenDrawer: onOpenDrawer,
           ),
-          const SizedBox(height: CueMobileInboxTokens.headerToGroupsGap),
-          _MobileInboxGroupSwitcher(
+          const SizedBox(height: CueMobileBoardTokens.headerToGroupsGap),
+          _MobileBoardGroupSwitcher(
             groups: groups,
             selectedGroup: selectedGroup,
             onSelect: (group) =>
-                ref.read(mobileInboxGroupProvider.notifier).select(group),
+                ref.read(mobileBoardGroupProvider.notifier).select(group),
             onAddGroup: () => _showAddGroupDialog(context, ref, store),
           ),
-          const SizedBox(height: CueMobileInboxTokens.groupsToTasksGap),
+          const SizedBox(height: CueMobileBoardTokens.groupsToTasksGap),
           if (activeTasks.isNotEmpty)
             _TaskGroup(
               label: context.l10n.openTasksLabel(activeTasks.length),
@@ -596,7 +596,7 @@ class _MobileInboxPage extends ConsumerWidget {
               onToggleTask: onToggleTask,
             ),
           if (activeTasks.isNotEmpty && completedTasks.isNotEmpty)
-            const SizedBox(height: CueMobileInboxTokens.sectionGap),
+            const SizedBox(height: CueMobileBoardTokens.sectionGap),
           if (completedTasks.isNotEmpty)
             _TaskGroup(
               label: context.l10n.completed,
@@ -623,7 +623,7 @@ class _MobileInboxPage extends ConsumerWidget {
       final trimmed = name.trim();
       if (trimmed.isEmpty) return;
       store.addGroup(trimmed);
-      ref.read(mobileInboxGroupProvider.notifier).select(trimmed);
+      ref.read(mobileBoardGroupProvider.notifier).select(trimmed);
       Navigator.pop(dialogContext);
     }
 
@@ -655,8 +655,8 @@ class _MobileInboxPage extends ConsumerWidget {
   }
 }
 
-class _MobileInboxGroupSwitcher extends StatelessWidget {
-  const _MobileInboxGroupSwitcher({
+class _MobileBoardGroupSwitcher extends StatelessWidget {
+  const _MobileBoardGroupSwitcher({
     required this.groups,
     required this.selectedGroup,
     required this.onSelect,
@@ -671,27 +671,27 @@ class _MobileInboxGroupSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: CueMobileInboxTokens.groupHeight,
+      height: CueMobileBoardTokens.groupHeight,
       child: ListView.separated(
-        key: const Key('mobile-inbox-group-switcher'),
+        key: const Key('mobile-board-group-switcher'),
         scrollDirection: Axis.horizontal,
         itemCount: groups.length + 1,
         separatorBuilder: (_, _) =>
-            const SizedBox(width: CueMobileInboxTokens.groupGap),
+            const SizedBox(width: CueMobileBoardTokens.groupGap),
         itemBuilder: (context, index) {
           if (index == groups.length) {
             return SizedBox(
-              width: CueMobileInboxTokens.groupHeight,
-              height: CueMobileInboxTokens.groupHeight,
+              width: CueMobileBoardTokens.groupHeight,
+              height: CueMobileBoardTokens.groupHeight,
               child: IconButton(
-                key: const Key('mobile-inbox-add-group'),
+                key: const Key('mobile-board-add-group'),
                 tooltip: context.l10n.addGroup,
                 onPressed: onAddGroup,
                 padding: EdgeInsets.zero,
                 icon: Icon(
                   Icons.add_rounded,
-                  size: CueMobileInboxTokens.groupAddIconSize,
-                  color: CueMobileInboxTokens.addGroupForeground,
+                  size: CueMobileBoardTokens.groupAddIconSize,
+                  color: CueMobileBoardTokens.addGroupForeground,
                 ),
               ),
             );
@@ -699,33 +699,33 @@ class _MobileInboxGroupSwitcher extends StatelessWidget {
           final group = groups[index];
           final selected = group == selectedGroup;
           final foreground = selected
-              ? CueMobileInboxTokens.selectedForeground
-              : CueMobileInboxTokens.foreground;
+              ? CueMobileBoardTokens.selectedForeground
+              : CueMobileBoardTokens.foreground;
           return Semantics(
             button: true,
             selected: selected,
             child: Material(
-              key: ValueKey('mobile-inbox-group-$group'),
+              key: ValueKey('mobile-board-group-$group'),
               color: selected
-                  ? CueMobileInboxTokens.selectedBackground
+                  ? CueMobileBoardTokens.selectedBackground
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(
-                CueMobileInboxTokens.groupRadius,
+                CueMobileBoardTokens.groupRadius,
               ),
               child: InkWell(
                 onTap: () => onSelect(group),
                 borderRadius: BorderRadius.circular(
-                  CueMobileInboxTokens.groupRadius,
+                  CueMobileBoardTokens.groupRadius,
                 ),
                 child: Padding(
-                  padding: CueMobileInboxTokens.groupPadding,
+                  padding: CueMobileBoardTokens.groupPadding,
                   child: Center(
                     child: Text(
                       group,
                       style: TextStyle(
                         color: foreground,
-                        fontSize: CueMobileInboxTokens.groupLabelFontSize,
-                        height: 20 / CueMobileInboxTokens.groupLabelFontSize,
+                        fontSize: CueMobileBoardTokens.groupLabelFontSize,
+                        height: 20 / CueMobileBoardTokens.groupLabelFontSize,
                         fontWeight: selected
                             ? FontWeight.w600
                             : FontWeight.w500,
@@ -1798,11 +1798,11 @@ class _MobileNavigationDrawer extends StatelessWidget {
               ),
               const SizedBox(height: CueMobileNavigationTokens.itemGap),
               _MobileNavigationItem(
-                key: const Key('mobile-drawer-inbox'),
-                icon: Icons.inbox_outlined,
-                label: context.l10n.inbox,
-                selected: destination == MobileDestination.inbox,
-                onTap: () => onSelect(MobileDestination.inbox),
+                key: const Key('mobile-drawer-board'),
+                icon: Icons.view_column_outlined,
+                label: context.l10n.board,
+                selected: destination == MobileDestination.board,
+                onTap: () => onSelect(MobileDestination.board),
               ),
             ],
           ),
@@ -2401,7 +2401,7 @@ class _MobileBottomNavigation extends StatelessWidget {
         children: items.map((item) {
           final selected =
               destination == item.$1 ||
-              (destination == MobileDestination.inbox &&
+              (destination == MobileDestination.board &&
                   item.$1 == MobileDestination.today);
           return GestureDetector(
             behavior: HitTestBehavior.opaque,

@@ -235,8 +235,8 @@ abstract final class CueMobileNavigationTokens {
   );
 }
 
-/// Tokens for the horizontally scrollable section switcher in mobile Inbox.
-abstract final class CueMobileInboxTokens {
+/// Tokens for the horizontally scrollable section switcher in mobile Board.
+abstract final class CueMobileBoardTokens {
   static const double groupHeight = 36;
   static const double groupRadius = 18;
   static const double groupGap = CueSpacing.s8;

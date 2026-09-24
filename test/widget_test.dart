@@ -192,7 +192,7 @@ void main() {
 
     expect(pageBackground(), CueColors.canvas);
     for (final entry in const {
-      'Inbox': 'sidebar-inbox',
+      'Board': 'sidebar-board',
       'Upcoming': 'sidebar-upcoming',
       'List': 'sidebar-list',
       'Calendar': 'sidebar-calendar',
@@ -584,7 +584,7 @@ void main() {
     },
   );
 
-  testWidgets('renders the Cue Today view and switches to Inbox board', (
+  testWidgets('renders the Cue Today view and switches to Board', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
@@ -597,7 +597,7 @@ void main() {
     expect(find.text('Focus for today'), findsOneWidget);
     expect(find.text('Review PCB layout'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('sidebar-inbox')));
+    await tester.tap(find.byKey(const Key('sidebar-board')));
     await tester.pumpAndSettle();
 
     expect(find.text('社会事项'), findsOneWidget);
@@ -908,7 +908,7 @@ void main() {
     expect(pagePadding().left, CueSpacing.desktopPageGutter);
     expect(pagePadding().top, expectedPageTop);
 
-    await tester.tap(find.byKey(const Key('sidebar-inbox')));
+    await tester.tap(find.byKey(const Key('sidebar-board')));
     await tester.pumpAndSettle();
 
     expect(pagePadding(), boardPageInsets);
@@ -986,7 +986,7 @@ void main() {
 
     expectFixedHeader();
     for (final key in [
-      'sidebar-inbox',
+      'sidebar-board',
       'sidebar-upcoming',
       'sidebar-list',
       'sidebar-calendar',
@@ -1028,13 +1028,13 @@ void main() {
     expect(tester.getTopLeft(listHeader).dy, listHeaderTop);
   });
 
-  testWidgets('desktop inbox renames a group inline', (tester) async {
+  testWidgets('desktop board renames a group inline', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sidebar-inbox')));
+    await tester.tap(find.byKey(const Key('sidebar-board')));
     await tester.pumpAndSettle();
 
     final prioritySection = find.byKey(const Key('group-priority-研发事项-3'));
@@ -1109,7 +1109,7 @@ void main() {
     expect(find.text('Delete Section'), findsOneWidget);
   });
 
-  testWidgets('desktop inbox reorders columns from the header drag handle', (
+  testWidgets('desktop board reorders columns from the header drag handle', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1000));
@@ -1117,7 +1117,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sidebar-inbox')));
+    await tester.tap(find.byKey(const Key('sidebar-board')));
     await tester.pumpAndSettle();
 
     final socialColumn = find.byKey(const Key('group-col-社会事项'));
@@ -1253,7 +1253,7 @@ void main() {
 
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sidebar-inbox')));
+    await tester.tap(find.byKey(const Key('sidebar-board')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('整理机架'));
     await tester.pumpAndSettle();
@@ -1274,7 +1274,7 @@ void main() {
 
       await tester.pumpWidget(const CueApp.demo());
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('sidebar-inbox')));
+      await tester.tap(find.byKey(const Key('sidebar-board')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('组装模拟器'));
       await tester.pumpAndSettle();
@@ -1358,7 +1358,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.byKey(const Key('default-view-option-inbox')), findsOneWidget);
+    expect(find.byKey(const Key('default-view-option-board')), findsOneWidget);
     expect(find.byKey(const Key('default-view-option-today')), findsOneWidget);
     expect(
       find.byKey(const Key('default-view-option-calendar')),
@@ -1428,7 +1428,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('mobile-drawer-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.tap(find.byKey(const Key('mobile-drawer-board')));
     await tester.pumpAndSettle();
     expectNoOverflowAction();
 
@@ -1472,7 +1472,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('mobile-drawer-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.tap(find.byKey(const Key('mobile-drawer-board')));
     await tester.pumpAndSettle();
     expectSafePage();
 
@@ -1525,7 +1525,7 @@ void main() {
     expect(find.text('Lifecycle-safe task'), findsOneWidget);
   });
 
-  testWidgets('mobile drawer switches between Today and Inbox', (tester) async {
+  testWidgets('mobile drawer switches between Today and Board', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1537,7 +1537,7 @@ void main() {
 
     expect(find.byKey(const Key('mobile-navigation-drawer')), findsOneWidget);
     expect(find.byKey(const Key('mobile-drawer-today')), findsOneWidget);
-    expect(find.byKey(const Key('mobile-drawer-inbox')), findsOneWidget);
+    expect(find.byKey(const Key('mobile-drawer-board')), findsOneWidget);
     final drawer = tester.widget<Drawer>(
       find.byKey(const Key('mobile-navigation-drawer')),
     );
@@ -1571,29 +1571,29 @@ void main() {
       CueMobileNavigationTokens.itemLabelStyle(selected: true),
     );
 
-    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.tap(find.byKey(const Key('mobile-drawer-board')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Inbox'), findsOneWidget);
+    expect(find.text('Board'), findsOneWidget);
     expect(
-      find.byKey(const Key('mobile-inbox-group-switcher')),
+      find.byKey(const Key('mobile-board-group-switcher')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('mobile-inbox-group-社会事项')),
+      find.byKey(const ValueKey('mobile-board-group-社会事项')),
       findsOneWidget,
     );
     final selectedGroup = tester.widget<Material>(
-      find.byKey(const ValueKey('mobile-inbox-group-社会事项')),
+      find.byKey(const ValueKey('mobile-board-group-社会事项')),
     );
-    expect(selectedGroup.color, CueMobileInboxTokens.selectedBackground);
+    expect(selectedGroup.color, CueMobileBoardTokens.selectedBackground);
     expect(find.text('整理机架'), findsOneWidget);
     expect(find.text('桌面灯设计'), findsNothing);
     expect(find.text('To do'), findsNothing);
     expect(find.text('Doing'), findsNothing);
     expect(find.text('Done'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('mobile-inbox-group-研发事项')));
+    await tester.tap(find.byKey(const ValueKey('mobile-board-group-研发事项')));
     await tester.pumpAndSettle();
 
     expect(find.text('桌面灯设计'), findsOneWidget);
@@ -1608,14 +1608,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('mobile-drawer-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.tap(find.byKey(const Key('mobile-drawer-board')));
     await tester.pumpAndSettle();
 
     expect(find.text('桌面灯设计'), findsOneWidget);
     expect(find.text('整理机架'), findsNothing);
   });
 
-  testWidgets('mobile creates a custom Inbox group and adds into it', (
+  testWidgets('mobile creates a custom Board group and adds into it', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -1625,10 +1625,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('mobile-drawer-button')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('mobile-drawer-inbox')));
+    await tester.tap(find.byKey(const Key('mobile-drawer-board')));
     await tester.pumpAndSettle();
 
-    final addGroup = find.byKey(const Key('mobile-inbox-add-group'));
+    final addGroup = find.byKey(const Key('mobile-board-add-group'));
     await tester.ensureVisible(addGroup);
     await tester.tap(addGroup);
     await tester.pumpAndSettle();
@@ -1641,7 +1641,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('mobile-inbox-group-Mobile group')),
+      find.byKey(const ValueKey('mobile-board-group-Mobile group')),
       findsOneWidget,
     );
     expect(find.text('Nothing here — enjoy the space.'), findsOneWidget);
