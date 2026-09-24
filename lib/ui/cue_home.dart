@@ -1281,7 +1281,6 @@ class _TaskListView extends StatelessWidget {
         CueListFilter.completed => store.completedTasks.toList(),
       },
     };
-    final showFilters = view == CueView.today;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1294,38 +1293,11 @@ class _TaskListView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        if (showFilters) ...[
-          SizedBox(
-            height: 44,
-            child: Row(
-              children: [
-                CueViewTab(
-                  label: context.l10n.today,
-                  selected: filter == CueListFilter.today,
-                  onTap: () => onFilterChanged(CueListFilter.today),
-                ),
-                const SizedBox(width: 8),
-                CueViewTab(
-                  label: context.l10n.upcoming,
-                  selected: filter == CueListFilter.upcoming,
-                  onTap: () => onFilterChanged(CueListFilter.upcoming),
-                ),
-                const SizedBox(width: 8),
-                CueViewTab(
-                  label: context.l10n.completed,
-                  selected: filter == CueListFilter.completed,
-                  onTap: () => onFilterChanged(CueListFilter.completed),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
         KeyedSubtree(
           key: const Key('desktop-task-list-header'),
           child: Text(
             view == CueView.today
-                ? context.l10n.focusForToday
+                ? '${context.l10n.focusForToday} · ${tasks.length}'
                 : _sectionTitle(context, view, tasks.length),
             style: Theme.of(context).textTheme.titleMedium
                 ?.copyWith(color: CueColors.secondary),
