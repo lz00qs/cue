@@ -10,6 +10,7 @@ import '../state/page_state.dart';
 import '../data/sync_coordinator.dart';
 import '../l10n/l10n.dart';
 import '../models/cue_task.dart';
+import '../tray_handler.dart';
 import 'account_settings.dart';
 import 'about_cue.dart';
 import 'cue_theme.dart';
@@ -51,6 +52,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   final _quickAddController = TextEditingController();
   final _quickAddFocus = FocusNode();
   late final SyncCoordinator _syncCoordinator;
+  bool _isMobileLayout = false;
 
   bool get _usesMacOSIntegratedTitleBar =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
@@ -59,7 +61,14 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    trayCreateTaskRequests.addListener(_onTrayCreateTask);
     _syncCoordinator = SyncCoordinator(_store)..start();
+  }
+
+  void _onTrayCreateTask() {
+    if (mounted && !_isMobileLayout) {
+      _showAddTaskDialog();
+    }
   }
 
   @override
@@ -76,6 +85,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    trayCreateTaskRequests.removeListener(_onTrayCreateTask);
     _syncCoordinator.dispose();
     _quickAddController.dispose();
     _quickAddFocus.dispose();
@@ -118,7 +128,8 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
           autofocus: true,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              if (constraints.maxWidth < 840) return _buildMobile();
+              _isMobileLayout = constraints.maxWidth < 840;
+              if (_isMobileLayout) return _buildMobile();
               return _buildDesktop();
             },
           ),
@@ -158,6 +169,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
 
   Widget _buildMobile() {
     final home = MobileCueHome(
+      createTaskRequests: trayCreateTaskRequests,
       userEmail: widget.userEmail,
       onLogout: widget.onLogout,
       onUpdateAccount: widget.onUpdateAccount,

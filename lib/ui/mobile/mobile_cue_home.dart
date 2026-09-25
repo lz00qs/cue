@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,7 @@ import '../language_menu.dart';
 class MobileCueHome extends ConsumerStatefulWidget {
   const MobileCueHome({
     super.key,
+    this.createTaskRequests,
     this.userEmail,
     this.onLogout,
     this.onUpdateAccount,
@@ -26,6 +28,7 @@ class MobileCueHome extends ConsumerStatefulWidget {
   });
 
   final String? userEmail;
+  final ValueListenable<int>? createTaskRequests;
   final Future<void> Function()? onLogout;
   final AccountUpdater? onUpdateAccount;
   final String? serverUrl;
@@ -41,6 +44,31 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
   TaskStore get _store => ref.read(taskStoreProvider)!;
   MobileDestination get _destination => ref.read(mobileUiProvider).destination;
   bool get _showLater => ref.read(mobileUiProvider).showLater;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.createTaskRequests?.addListener(_onTrayCreateTask);
+  }
+
+  @override
+  void didUpdateWidget(MobileCueHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.createTaskRequests != widget.createTaskRequests) {
+      oldWidget.createTaskRequests?.removeListener(_onTrayCreateTask);
+      widget.createTaskRequests?.addListener(_onTrayCreateTask);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.createTaskRequests?.removeListener(_onTrayCreateTask);
+    super.dispose();
+  }
+
+  void _onTrayCreateTask() {
+    if (mounted) _showQuickAdd();
+  }
 
   @override
   Widget build(BuildContext context) {

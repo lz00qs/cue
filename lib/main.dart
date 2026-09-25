@@ -11,8 +11,11 @@ import 'ui/cue_theme.dart';
 import 'ui/login_screen.dart';
 import 'ui/server_connection_screen.dart';
 import 'ui/setup_admin_screen.dart';
+import 'tray_handler.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initSystemTray();
   runApp(const CueApp());
 }
 
