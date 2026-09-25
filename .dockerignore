@@ -17,4 +17,5 @@ backups/
 *.keystore
 *.p12
 *.pfx
+*.p8
 **/android/key.properties

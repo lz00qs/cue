@@ -159,6 +159,22 @@ CUE_ANDROID_SIGNING_PROPERTIES=/absolute/path/to/key.properties flutter build ap
 
 The GitHub release workflow uses the `android-release` environment on version tags and expects two environment secrets: `CUE_ANDROID_KEYSTORE_BASE64` (the single-line Base64 encoding of the same keystore) and `CUE_ANDROID_STORE_PASSWORD` (the keystore and key password). It verifies the built APK against the public certificate fingerprint in `android/release-cert.sha256` before uploading it. The current PKCS#12 keystore uses the same password for the store and key.
 
+### macOS Release DMG
+
+The Release workflow produces a universal `Cue-vX.Y.Z-macos-universal.dmg` from a `vX.Y.Z` tag matching the `version` in `pubspec.yaml`. It exports a Developer ID-signed app, signs the DMG, submits it to Apple for notarization, staples the ticket, and verifies the result before attaching it to the GitHub Release. An Xcode archive alone is not the downloadable release package.
+
+Before pushing the first release tag, create the `macos-release` GitHub environment and restrict deployments to tags matching `v*`. Set its variable `CUE_MACOS_TEAM_ID` to the Apple Developer Team ID and add these environment secrets:
+
+| Secret | Value |
+| --- | --- |
+| `CUE_MACOS_DEVELOPER_ID_P12_BASE64` | Single-line Base64 of a **Developer ID Application** `.p12` containing the private key |
+| `CUE_MACOS_DEVELOPER_ID_P12_PASSWORD` | Password used when exporting that `.p12` |
+| `CUE_MACOS_NOTARY_API_KEY_BASE64` | Single-line Base64 of an App Store Connect **Team** API key `.p8` |
+| `CUE_MACOS_NOTARY_KEY_ID` | Key ID shown in App Store Connect |
+| `CUE_MACOS_NOTARY_ISSUER_ID` | Issuer ID shown in App Store Connect |
+
+On macOS, `base64 -i /absolute/path/to/file | tr -d '\n'` produces the single-line value. Keep the original `.p12`, its password, and the one-time-download `.p8` in secure independent backups; never commit them. The [Apple Developer ID guide](https://developer.apple.com/help/account/certificates/create-developer-id-certificates), [App Store Connect Team API key guide](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api), and [GitHub certificate import guide](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications) cover credential creation. Individual App Store Connect API keys cannot be used with `notarytool`.
+
 Set the initial theme:
 ```bash
 flutter run -d macos --dart-define=CUE_THEME=dark

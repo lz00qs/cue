@@ -48,6 +48,7 @@ certs/
 *.keystore
 *.p12
 *.pfx
+*.p8
 
 # Generated platform plugin registrants
 **/generated_plugin_registrant.dart

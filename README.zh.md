@@ -220,6 +220,22 @@ CUE_ANDROID_SIGNING_PROPERTIES=/absolute/path/to/key.properties flutter build ap
 
 GitHub Release 工作流仅在版本 tag 上使用 `android-release` 环境，需要在该环境配置两个 Secrets：`CUE_ANDROID_KEYSTORE_BASE64`（同一密钥库文件的单行 Base64 内容）和 `CUE_ANDROID_STORE_PASSWORD`（密钥库及密钥密码）。上传 APK 前，工作流会与 `android/release-cert.sha256` 中公开的证书指纹比较。本项目目前的 PKCS#12 密钥库使用相同的库密码和密钥密码。
 
+### macOS Release DMG
+
+推送与 `pubspec.yaml` 中 `version` 一致的 `vX.Y.Z` 标签后，Release 工作流会生成通用架构的 `Cue-vX.Y.Z-macos-universal.dmg`：导出 Developer ID 签名的 App、签名 DMG、提交 Apple 公证、附加公证票据并验证，然后作为 GitHub Release 附件发布。Xcode Archive 构建成功并不等于已经得到可分发的 DMG。
+
+首次推送版本标签前，在 GitHub 创建 `macos-release` Environment，将可部署的标签限制为 `v*`。设置环境变量 `CUE_MACOS_TEAM_ID` 为 Apple Developer Team ID，并添加以下 Environment Secrets：
+
+| Secret | 内容 |
+| --- | --- |
+| `CUE_MACOS_DEVELOPER_ID_P12_BASE64` | 含私钥的 **Developer ID Application** `.p12` 文件的单行 Base64 |
+| `CUE_MACOS_DEVELOPER_ID_P12_PASSWORD` | 导出该 `.p12` 时设置的密码 |
+| `CUE_MACOS_NOTARY_API_KEY_BASE64` | App Store Connect **团队 API 密钥** `.p8` 文件的单行 Base64 |
+| `CUE_MACOS_NOTARY_KEY_ID` | App Store Connect 显示的 Key ID |
+| `CUE_MACOS_NOTARY_ISSUER_ID` | App Store Connect 显示的 Issuer ID |
+
+在 macOS 上可用 `base64 -i /文件的绝对路径 | tr -d '\n'` 得到单行内容。请独立安全备份 `.p12`、导出密码和只能下载一次的 `.p8`，不要提交到 Git。凭据准备可参考 [Apple Developer ID 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates)、[App Store Connect 团队 API 密钥](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api) 和 [GitHub 证书导入说明](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications)。个人 API 密钥不能用于 `notarytool`。
+
 明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 
 ```bash

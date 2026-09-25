@@ -161,10 +161,40 @@ jobs:
           path: build/ios/iphoneos/cue-ios.zip
 
   macos:
-    name: Build macOS App
+    name: Build notarized macOS DMG
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
+    environment: macos-release
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      CUE_MACOS_TEAM_ID: ${{ vars.CUE_MACOS_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check macOS release credentials
+        env:
+          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
+          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
+          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
+          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
+          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
+          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
+          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
+          tag_version="${GITHUB_REF_NAME#v}"
+          app_version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
+          [[ "$GITHUB_REF_NAME" == v* && "$tag_version" == "$app_version" ]] || {
+            echo "::error::Release tag $GITHUB_REF_NAME does not match pubspec.yaml version $app_version"
+            exit 1
+          }
       
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -174,20 +204,96 @@ jobs:
           
       - name: Install dependencies
         run: flutter pub get
-        
-      - name: Build macOS
-        run: flutter build macos --release
-        
-      - name: Compress macOS Build
+
+      - name: Archive universal macOS app
         run: |
-          cd build/macos/Build/Products/Release
-          zip -r cue-macos.zip *.app
-          
-      - name: Upload macOS App
+          set -euo pipefail
+          flutter build macos --release
+          xcodebuild -workspace macos/Runner.xcworkspace \
+            -scheme Runner -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
+            CODE_SIGN_IDENTITY='-' archive
+
+      - name: Import Developer ID certificate
+        env:
+          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
+          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
+          umask 077
+          certificate_path="$RUNNER_TEMP/cue-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/cue-signing.keychain-db"
+          trap 'rm -f "$certificate_path"' EXIT
+          printf '%s' "$CUE_MACOS_DEVELOPER_ID_P12_BASE64" | base64 -D > "$certificate_path"
+          keychain_password="$(openssl rand -hex 32)"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$CUE_MACOS_DEVELOPER_ID_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | \
+            awk -v team="$CUE_MACOS_TEAM_ID" \
+              'index($0, "Developer ID Application:") && index($0, "(" team ")") { print $2; exit }')"
+          [[ "$identity" =~ ^[0-9A-Fa-f]{40}$ ]] || {
+            echo '::error::No Developer ID Application identity for the configured team'
+            exit 1
+          }
+          echo "CUE_MACOS_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Export Developer ID signed app
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/CueExportOptions.plist" "$CUE_MACOS_TEAM_ID" "$CUE_MACOS_CODESIGN_IDENTITY" <<'PY'
+          import plistlib
+          import sys
+          with open(sys.argv[1], 'wb') as output:
+              plistlib.dump({
+                  'destination': 'export',
+                  'method': 'developer-id',
+                  'signingCertificate': sys.argv[3],
+                  'signingStyle': 'manual',
+                  'teamID': sys.argv[2],
+              }, output)
+          PY
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/CueExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/cue-macos-export"
+          test -d "$RUNNER_TEMP/cue-macos-export/Cue.app"
+
+      - name: Sign and notarize DMG
+        env:
+          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
+          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
+          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
+          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
+          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9][A-Za-z0-9._+-]*$ ]]
+          umask 077
+          export CUE_MACOS_NOTARY_API_KEY_PATH="$RUNNER_TEMP/cue-notary-key.p8"
+          trap 'rm -f "$CUE_MACOS_NOTARY_API_KEY_PATH"' EXIT
+          printf '%s' "$CUE_MACOS_NOTARY_API_KEY_BASE64" | base64 -D > "$CUE_MACOS_NOTARY_API_KEY_PATH"
+          scripts/package-macos-dmg.sh \
+            "$RUNNER_TEMP/cue-macos-export/Cue.app" \
+            "build/release/Cue-${GITHUB_REF_NAME}-macos-universal.dmg"
+
+      - name: Upload notarized DMG
         uses: actions/upload-artifact@v4
         with:
-          name: cue-macos-app
-          path: build/macos/Build/Products/Release/cue-macos.zip
+          name: cue-macos-dmg
+          path: build/release/*.dmg
+          if-no-files-found: error
 
   windows:
     name: Build Windows App
@@ -238,6 +344,7 @@ jobs:
           files: |
             artifacts/cue-android-apk/app-release.apk
             artifacts/cue-ios-app/cue-ios.zip
-            artifacts/cue-macos-app/cue-macos.zip
+            artifacts/cue-macos-dmg/*.dmg
             artifacts/cue-windows-app/cue-windows.zip
           generate_release_notes: true
+          fail_on_unmatched_files: true
