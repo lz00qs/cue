@@ -548,7 +548,6 @@ class _SidebarItem extends StatefulWidget {
     required this.selected,
     required this.onTap,
     this.selectedIcon,
-    this.count,
   });
 
   final String label;
@@ -556,7 +555,6 @@ class _SidebarItem extends StatefulWidget {
   final IconData? selectedIcon;
   final bool selected;
   final VoidCallback onTap;
-  final int? count;
 
   @override
   State<_SidebarItem> createState() => _SidebarItemState();
@@ -606,38 +604,6 @@ class _SidebarItemState extends State<_SidebarItem> {
                         ? CueColors.accent
                         : CueColors.secondary,
                   ),
-                  if (widget.count != null && widget.count! > 0)
-                    Positioned(
-                      top: 3,
-                      right: 2,
-                      child: Container(
-                        constraints: const BoxConstraints(minWidth: 16),
-                        height: 16,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: widget.selected
-                              ? CueColors.accent
-                              : CueColors.strongBorder,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: CueColors.sidebar,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Text(
-                          widget.count! > 99 ? '99+' : '${widget.count}',
-                          style: TextStyle(
-                            color: widget.selected
-                                ? CueColors.onAccent
-                                : CueColors.primary,
-                            fontSize: 9,
-                            height: 1,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -670,9 +636,10 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
   late final Animation<double> _rotationAnimation;
   bool _hovered = false;
   bool _manualSyncing = false;
+  bool _minDurationActive = false;
   bool? _manualFailureOverride;
 
-  bool get _isSyncing => _manualSyncing || widget.syncing;
+  bool get _isSyncing => _manualSyncing || _minDurationActive || widget.syncing;
   bool get _failed => !_isSyncing && (_manualFailureOverride ?? widget.failed);
 
   @override
@@ -695,6 +662,18 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
     if (oldWidget.failed != widget.failed && !_manualSyncing) {
       _manualFailureOverride = null;
     }
+    if (!oldWidget.syncing && widget.syncing) {
+      _startMinDurationTimer();
+    }
+    _updateRotation();
+  }
+
+  void _startMinDurationTimer() async {
+    setState(() => _minDurationActive = true);
+    _updateRotation();
+    await Future<void>.delayed(_minimumAnimationDuration);
+    if (!mounted) return;
+    setState(() => _minDurationActive = false);
     _updateRotation();
   }
 
@@ -773,34 +752,51 @@ class _SidebarSyncButtonState extends State<_SidebarSyncButton>
               duration: const Duration(milliseconds: 120),
               width: 44,
               height: 44,
-              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _hovered && !_isSyncing
                     ? CueColors.sidebarHover
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 160),
-                child: _failed
-                    ? Icon(
-                        Icons.sync_problem_rounded,
-                        key: const Key('sidebar-sync-failed'),
-                        size: _sidebarIconSize,
-                        color: CueColors.danger,
-                      )
-                    : RotationTransition(
-                        key: const Key('sidebar-sync-rotation'),
-                        turns: _rotationAnimation,
-                        child: Icon(
-                          Icons.sync_rounded,
-                          key: const Key('sidebar-sync-icon'),
-                          size: _sidebarIconSize,
-                          color: _isSyncing
-                              ? CueColors.accent
-                              : CueColors.secondary,
-                        ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 160),
+                    child: _failed
+                        ? Icon(
+                            Icons.sync_problem_rounded,
+                            key: const Key('sidebar-sync-failed'),
+                            size: _sidebarIconSize,
+                            color: CueColors.danger,
+                          )
+                        : RotationTransition(
+                            key: const Key('sidebar-sync-rotation'),
+                            turns: _rotationAnimation,
+                            child: Icon(
+                              Icons.sync_rounded,
+                              key: const Key('sidebar-sync-icon'),
+                              size: _sidebarIconSize,
+                              color: _isSyncing
+                                  ? CueColors.accent
+                                  : CueColors.secondary,
+                            ),
+                          ),
+                  ),
+                  Positioned(
+                    right: 6,
+                    bottom: 6,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: _failed ? CueColors.danger : CueColors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: CueColors.sidebar, width: 1.5),
                       ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -973,30 +969,10 @@ class _SidebarSettingsMenu extends StatelessWidget {
         child: SizedBox(
           width: 44,
           height: 44,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                Icons.settings_outlined,
-                size: _sidebarIconSize,
-                color: CueColors.secondary,
-              ),
-              Positioned(
-                right: 7,
-                bottom: 7,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: store.lastError == null
-                        ? CueColors.green
-                        : CueColors.danger,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: CueColors.sidebar, width: 1.5),
-                  ),
-                ),
-              ),
-            ],
+          child: Icon(
+            Icons.settings_outlined,
+            size: _sidebarIconSize,
+            color: CueColors.secondary,
           ),
         ),
       ),
