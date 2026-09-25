@@ -7,15 +7,17 @@ English | [简体中文](README.zh.md)
 
 Cue is a single-user task management application. The client is built with Flutter, supporting Android, iOS, Web, and Desktop. The backend uses NestJS with PostgreSQL for data persistence. The mobile UI is aligned with the Cue Figma V2 design, offering four task projections: List, Kanban, Monthly Calendar, and Priority Quadrants.
 
-## Screenshots
+## For self-hosted users
 
-<!-- TODO: Replace with real screenshot URLs -->
-<!-- <p align="center">
-  <img src="docs/assets/screenshot-today.png" width="200" />
-  <img src="docs/assets/screenshot-kanban.png" width="200" />
-  <img src="docs/assets/screenshot-calendar.png" width="200" />
-  <img src="docs/assets/screenshot-quadrants.png" width="200" />
-</p> -->
+Cue does not provide hosted accounts or a shared server. Each user runs the Web app, API, and PostgreSQL from this repository on their own machine or server, then connects their mobile and desktop clients to that server. Data stays in the user's PostgreSQL volume. Keep the server and clients on the same release version.
+
+1. Choose a version on [GitHub Releases](https://github.com/lz00qs/cue/releases). Download its source archive or clone this repository and check out the matching `vX.Y.Z` tag. Follow [Docker Deployment](#docker-deployment) on your server, replacing the example database password and both JWT secrets in `.env`.
+2. Create the administrator account only from the server's local Web page or through an SSH tunnel, then turn `CUE_ALLOW_SETUP` off. For access from other devices, configure a valid TLS certificate and the HTTPS entry point. Do not expose the initial setup HTTP port to the public internet.
+3. Open your own HTTPS URL in a browser. Download the macOS DMG, Windows installer, or Android APK from the matching GitHub Release. The developer distributes the iOS client separately through the App Store; **the GitHub Release does not contain an installable iOS `.app` ZIP**. On first launch, enter your own server's base URL, such as `https://tasks.example.com`, then sign in with the administrator account you created.
+4. Check that `cue-db`, `cue-api`, `cue-web`, and `db-backup` are running with `docker compose ps`, and verify a backup as described in [Database Backup and Migration](#database-backup-and-migration). Save a restorable backup before upgrading the server.
+
+Trusted LAN testing can use HTTP as described below; internet access should use HTTPS. Check the App Store listing separately for iOS availability.
+Official releases also publish the API and Web Docker images as `ghcr.io/lz00qs/cue/cue-api:X.Y.Z` and `ghcr.io/lz00qs/cue/cue-web:X.Y.Z`. The Compose command below builds from the matching source version, so pulling those images is optional.
 
 ## Features
 
@@ -46,6 +48,7 @@ cp .env.example .env
 ```
 
 Configure the database password, two distinct random JWT secrets (at least 32 characters each), and the first-time setup toggle in `.env`. **Do not store admin accounts or passwords in `.env`**.
+Run `openssl rand -hex 32` twice and use the two different values for `CUE_JWT_SECRET` and `CUE_REFRESH_SECRET`; choose a separate strong database password.
 
 `CUE_ALLOW_SETUP` defaults to `false`. When initializing a fresh database, keep `CUE_BIND_ADDRESS=127.0.0.1` and temporarily set the setup toggle to `true` to create an admin account via the local web interface. Once done, revert it to `false`, recreate the API container, and then open the public HTTPS entry.
 
@@ -64,6 +67,14 @@ docker compose exec cue-api npm run reset-password -- <new-password>
 PostgreSQL uses `CUE_TIMEZONE=Asia/Shanghai` by default; modify this in `.env` for other regions.
 
 ## Docker Deployment
+
+On Linux, prepare the backup directory before the first start (the backup container uses UID/GID `999:999`):
+
+```bash
+mkdir -p backups && sudo chown 999:999 backups && sudo chmod 700 backups
+```
+
+macOS Docker file-sharing permissions may differ; check `docker compose logs db-backup` after starting and confirm that a backup file exists.
 
 ```bash
 docker compose up --build -d
@@ -100,7 +111,18 @@ When only modifying backend code, use the included cross-platform script to rebu
 
 ### Database Backup and Migration
 
-Cue's `docker-compose.yml` includes a `db-backup` container that automatically performs frequent full logical backups of the PostgreSQL database. The compressed backups (`.sql.gz`) are stored in the host's `./backups` directory.
+Cue's `docker-compose.yml` includes a `db-backup` container. `docker compose up --build -d` starts it, creates one backup immediately, and then backs up the database every hour. The compressed SQL files are stored in the host's ignored `./backups` directory. If you started only selected services, run `docker compose up -d db-backup`.
+
+Check the service and latest backup, then rehearse a restore in an isolated, disposable PostgreSQL 17 container (requires Bash and Docker):
+
+```bash
+docker compose ps db-backup
+ls -lh backups/last/cue-latest.sql.gz
+bash scripts/verify-backup-restore.sh backups/last/cue-latest.sql.gz
+```
+
+The verification script does not connect to the running Cue database or modify its volume. Backups contain accounts and tasks. Regularly copy them to independent, protected storage so a server disk failure does not destroy both the database and its backups.
+If the database grows beyond the script's default 512 MiB temporary space, set `CUE_RESTORE_TMPFS_SIZE=2g` when running the restore check.
 
 **Smart Backup Rotation Strategy:**
 - **Hourly:** Retains the last 24 hours (configured via `BACKUP_KEEP_MINS=1440`).
@@ -112,13 +134,14 @@ Cue's `docker-compose.yml` includes a `db-backup` container that automatically p
 **Migration and Restore Steps:**
 
 1. Copy the code and `./backups` directory to the new server.
-2. Start only the database service initially to avoid new data writes:
+2. Start only the database service with a **new, empty PostgreSQL volume** to avoid migrations or new writes:
    ```bash
    docker compose up -d cue-db
    ```
-3. Import the latest backup file (replace `cue-20260924.sql.gz` with the actual filename):
+3. Import the latest backup. The following command is only for an empty database; do not import over a running Cue database:
    ```bash
-   gunzip -c ./backups/daily/cue-20260924.sql.gz | docker compose exec -T cue-db psql -U cue -d cue
+   set -o pipefail
+   gunzip -c ./backups/last/cue-latest.sql.gz | docker compose exec -T cue-db psql -v ON_ERROR_STOP=1 -U cue -d cue
    ```
 4. Once restored, start all services:
    ```bash
@@ -159,6 +182,16 @@ CUE_ANDROID_SIGNING_PROPERTIES=/absolute/path/to/key.properties flutter build ap
 
 The GitHub release workflow uses the `android-release` environment on version tags and expects two environment secrets: `CUE_ANDROID_KEYSTORE_BASE64` (the single-line Base64 encoding of the same keystore) and `CUE_ANDROID_STORE_PASSWORD` (the keystore and key password). It verifies the built APK against the public certificate fingerprint in `android/release-cert.sha256` before uploading it. The current PKCS#12 keystore uses the same password for the store and key.
 
+### iOS App Store distribution
+
+CI checks that the iOS source builds without signing. An unsigned `.app` ZIP is not an installable user release and is not attached to GitHub Releases. As with [Immich's mobile distribution](https://docs.immich.app/install/post-install/), users should obtain the iOS client through the App Store (or TestFlight while testing) and connect it to their own Cue server.
+
+The developer creates an iOS app record in App Store Connect for bundle ID `top.hylcreative.cue`, configures an **Apple Distribution** certificate and App Store signing in Xcode, updates the version and build number in `pubspec.yaml`, and runs `flutter pub get` followed by `flutter build ipa --release` on a Mac. Upload the signed IPA with Xcode Organizer or Transporter, test it in TestFlight, and submit it for App Review. Use a new build number for each upload. See the [Flutter iOS release guide](https://docs.flutter.dev/deployment/ios) and [Apple's build upload guide](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds). The macOS DMG uses a different Developer ID certificate.
+
+Before submission, add accurate app details, screenshots, support contact information, a [privacy policy URL and data collection disclosures](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy) in App Store Connect. Because Cue requires a self-hosted server and login, provide [App Review](https://developer.apple.com/app-store/review/guidelines/) with a public test server and dedicated demo account, including the server URL and sign-in steps in Review Notes. Keep that service available during review; do not share credentials for a personal production database.
+
+If the first release must be available on iOS at the same time, wait for App Store approval and schedule its availability before pushing the official GitHub `vX.Y.Z` tag. A passing iOS CI build does not make the app downloadable from the App Store.
+
 ### macOS Release DMG
 
 The Release workflow produces a universal `Cue-vX.Y.Z-macos-universal.dmg` from a `vX.Y.Z` tag matching the `version` in `pubspec.yaml`. It exports a Developer ID-signed app, signs the DMG, submits it to Apple for notarization, staples the ticket, and verifies the result before attaching it to the GitHub Release. An Xcode archive alone is not the downloadable release package.
@@ -174,6 +207,22 @@ Before pushing the first release tag, create the `macos-release` GitHub environm
 | `CUE_MACOS_NOTARY_ISSUER_ID` | Issuer ID shown in App Store Connect |
 
 On macOS, `base64 -i /absolute/path/to/file | tr -d '\n'` produces the single-line value. Keep the original `.p12`, its password, and the one-time-download `.p8` in secure independent backups; never commit them. The [Apple Developer ID guide](https://developer.apple.com/help/account/certificates/create-developer-id-certificates), [App Store Connect Team API key guide](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api), and [GitHub certificate import guide](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications) cover credential creation. Individual App Store Connect API keys cannot be used with `notarytool`.
+
+### Windows Release installer
+
+The Release workflow produces `Cue-vX.Y.Z-windows-x64-setup.exe` with Inno Setup, plus a portable ZIP. The installer creates Start Menu and optional desktop shortcuts and includes an uninstaller. It installs for the current user without administrator privileges. Windows code signing is not configured for this release.
+
+### Manual release rehearsal
+
+Use a `vX.Y.Z-dryrun` tag matching the version in `pubspec.yaml`. Pushing this tag **does not trigger the Release workflow**. Manually dispatching it runs tests, builds and verifies the signed Android APK, signs and notarizes the macOS DMG, tests the Windows installer, checks the unsigned iOS build, and builds the API/Web Docker images. It does not push GHCR images or create a GitHub Release. Outputs remain as artifacts of that Actions run. The `android-release` and `macos-release` environments may remain restricted to `v*` tags; `main` does not need access.
+
+```bash
+git tag v1.0.0-dryrun
+git push origin v1.0.0-dryrun
+gh workflow run release.yml --ref v1.0.0-dryrun
+```
+
+This example matches the current `version: 1.0.0+1`; update the tag when the version changes. `gh workflow run --ref` requires the [GitHub CLI](https://cli.github.com/manual/gh_workflow_run) and repository write access. The existing Windows-only check can still be run from `main` in the Actions UI with `windows_only` selected. After checking the rehearsal artifacts and self-hosted setup, push the official `vX.Y.Z` tag to publish GHCR images and GitHub Release assets. Publication requires successful tests and Android, iOS build check, macOS, Windows, and Docker jobs. iOS App Store delivery follows the separate process above.
 
 Set the initial theme:
 ```bash

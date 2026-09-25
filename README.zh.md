@@ -4,6 +4,18 @@
 
 Cue 是一个单用户任务管理应用。客户端使用 Flutter 支持 Android、iOS、Web 与桌面端，服务端使用 NestJS，数据持久化到 PostgreSQL；移动端 UI 对齐 Cue Figma V2 设计，提供列表、看板、月历和四象限四种任务投影。
 
+## 给自行部署的用户
+
+Cue 不提供公共账号或托管服务器。每位使用者先在自己的设备或服务器上部署本仓库的 Web、API 和 PostgreSQL，再让手机与桌面客户端连接到**自己的** Cue 服务；数据保存在自行部署的 PostgreSQL 数据卷中。建议让服务端和客户端使用同一个版本。
+
+1. 从 [GitHub Releases](https://github.com/lz00qs/cue/releases) 选择版本，下载对应源码并在服务器上按下方的 [Docker 部署](#docker-部署) 完成初始化。也可以克隆仓库并检出该版本的 `vX.Y.Z` 标签。设置 `.env` 时务必替换示例密码和两个 JWT 密钥。
+2. 只在服务器本机或经 SSH 转发的本机页面创建管理员，随后关闭 `CUE_ALLOW_SETUP`。需要从其他设备访问时，为自己的域名配置有效 TLS 证书并启用 HTTPS 入口；不要把初始化用的 HTTP 端口直接暴露到公网。
+3. 浏览器访问自己的 HTTPS 地址。macOS DMG、Windows 安装程序和 Android APK 从同一版本的 GitHub Release 下载；iOS 客户端由开发者另行通过 App Store 发布，**GitHub Release 不提供可安装的 iOS `.app` ZIP**。原生客户端首次启动时，填写自己的服务基础地址，例如 `https://tasks.example.com`，再使用刚创建的管理员账号登录。
+4. 检查 `docker compose ps` 中 `cue-db`、`cue-api`、`cue-web` 和 `db-backup` 的状态，并按[数据库备份与迁移](#数据库备份与迁移)验证备份。服务端升级前先留存可恢复的备份。
+
+局域网内调试可以按下文配置可信的 HTTP 地址；跨公网访问应使用 HTTPS。iOS App Store 上架状态与 GitHub Release 分开，以 App Store 页面为准。
+正式版本还会将 API 与 Web 的 Docker 镜像分别发布为 `ghcr.io/lz00qs/cue/cue-api:X.Y.Z` 和 `ghcr.io/lz00qs/cue/cue-web:X.Y.Z`；下文的 Compose 命令会从同版本源码自行构建，无需先拉取镜像。
+
 ## 已实现
 
 - 首次建号需在本机临时开启 `CUE_ALLOW_SETUP`；凭证经 bcrypt 安全哈希后存储于 PostgreSQL，不再写入本地 `.env` 文件
@@ -33,6 +45,7 @@ cp .env.example .env
 ```
 
 `.env` 中配置数据库密码、两个不同的随机 JWT Secret（各至少 32 字符）和首次建号开关。**不要在 `.env` 中存放管理员账号和密码**；旧版环境变量自动建号功能已移除。
+可分别运行两次 `openssl rand -hex 32`，将得到的不同随机值填入 `CUE_JWT_SECRET` 和 `CUE_REFRESH_SECRET`；数据库密码也应换成独立的强密码。
 
 `CUE_ALLOW_SETUP` 默认为 `false`。全新数据库初始化时，先保持 `CUE_BIND_ADDRESS=127.0.0.1`，临时把它设为 `true`，通过本机 Web 页面创建管理员。完成后立即改回 `false` 并重建 API 容器，再开放公网 HTTPS 入口。未初始化且开关关闭时，Web 页面会说明需要在本机启用建号；有效的建号 API 请求会得到 403。凭证经 bcrypt 哈希后保存在 PostgreSQL 中。
 
@@ -51,6 +64,14 @@ docker compose exec cue-api npm run reset-password -- <新密码>
 PostgreSQL 默认使用 `CUE_TIMEZONE=Asia/Shanghai`；部署到其他地区时可在 `.env` 修改。
 
 ## Docker 部署
+
+Linux 首次启动前，先为备份容器准备目录（容器使用 UID/GID `999:999`）：
+
+```bash
+mkdir -p backups && sudo chown 999:999 backups && sudo chmod 700 backups
+```
+
+macOS 的 Docker 文件共享权限可能不同；启动后检查 `docker compose logs db-backup`，确认备份文件确实生成。
 
 ```bash
 docker compose up --build -d
@@ -155,7 +176,18 @@ docker compose down
 
 ### 数据库备份与迁移
 
-Cue 的 `docker-compose.yml` 中默认包含了一个 `db-backup` 容器，会自动对 PostgreSQL 数据库进行高频全量逻辑备份，并将压缩好的纯文本备份文件（`.sql.gz`）存放到宿主机的 `./backups` 目录中。
+Cue 的 `docker-compose.yml` 中默认包含 `db-backup` 容器。`docker compose up --build -d` 会启动它；容器启动时立即备份一次，之后每小时备份。压缩后的 SQL 文件位于宿主机的 `./backups` 目录，该目录已被 Git 忽略。若只启动了部分服务，可运行 `docker compose up -d db-backup` 补上。
+
+检查备份服务与最新备份，并在隔离的一次性 PostgreSQL 17 容器中演练恢复（需要 Bash 和 Docker）：
+
+```bash
+docker compose ps db-backup
+ls -lh backups/last/cue-latest.sql.gz
+bash scripts/verify-backup-restore.sh backups/last/cue-latest.sql.gz
+```
+
+验证脚本不连接现有 Cue 数据库，也不修改其数据卷。备份包含账号和任务数据；还应定期复制到独立、受保护的存储位置，避免服务器磁盘损坏时备份与数据库一起丢失。
+数据库增大后若恢复验证所需的临时空间超过默认的 512 MiB，可在运行脚本时设置 `CUE_RESTORE_TMPFS_SIZE=2g`。
 
 **智能轮转策略（GFS）：**
 - **每小时**：保留过去 24 小时的记录（通过 `BACKUP_KEEP_MINS=1440` 实现）。
@@ -167,13 +199,14 @@ Cue 的 `docker-compose.yml` 中默认包含了一个 `db-backup` 容器，会�
 **迁移与恢复步骤：**
 
 1. 迁移环境时，将代码及 `./backups` 目录一起复制到新服务器。
-2. 仅拉起数据库服务，暂不启动 API 避免产生新数据：
+2. 在**全新的空 PostgreSQL 数据卷**中仅拉起数据库服务，暂不启动 API，避免迁移或新写入：
    ```bash
    docker compose up -d cue-db
    ```
-3. 选择最新的备份文件进行解压并导入（请将 `cue-20260924.sql.gz` 替换为实际文件名）：
+3. 选择最新的备份文件解压并导入。下面的命令只适用于空数据库，不要直接覆盖正在使用的 Cue 数据库：
    ```bash
-   gunzip -c ./backups/daily/cue-20260924.sql.gz | docker compose exec -T cue-db psql -U cue -d cue
+   set -o pipefail
+   gunzip -c ./backups/last/cue-latest.sql.gz | docker compose exec -T cue-db psql -v ON_ERROR_STOP=1 -U cue -d cue
    ```
 4. 恢复完成后，启动所有服务：
    ```bash
@@ -236,6 +269,16 @@ GitHub Release 工作流仅在版本 tag 上使用 `android-release` 环境，�
 
 在 macOS 上可用 `base64 -i /文件的绝对路径 | tr -d '\n'` 得到单行内容。请独立安全备份 `.p12`、导出密码和只能下载一次的 `.p8`，不要提交到 Git。凭据准备可参考 [Apple Developer ID 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates)、[App Store Connect 团队 API 密钥](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api) 和 [GitHub 证书导入说明](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications)。个人 API 密钥不能用于 `notarytool`。
 
+### iOS App Store 发布
+
+iOS 源码在 CI 中执行未签名的编译检查，但未签名 `.app` ZIP 无法供普通用户安装，因此 GitHub Release 不再附带它。与 [Immich 的客户端分发方式](https://docs.immich.app/install/post-install/)类似，iOS 客户端应通过 App Store（测试时可用 TestFlight）交付，用户仍连接自己部署的 Cue 服务。
+
+由开发者在 App Store Connect 创建 iOS 应用记录，使用本项目的 Bundle ID `top.hylcreative.cue`，在 Xcode 中配置 **Apple Distribution** 证书与 App Store 签名；这与 macOS DMG 使用的 Developer ID 证书不同。更新 `pubspec.yaml` 的版本和构建号后，在 Mac 上运行 `flutter pub get`、`flutter build ipa --release`，通过 Xcode Organizer 或 Transporter 上传签名 IPA，并在 App Store Connect 中完成 TestFlight 验证和审核提交。每次重新上传须使用新的构建号。具体步骤参见 [Flutter iOS 发布指南](https://docs.flutter.dev/deployment/ios)和 [Apple 上传构建说明](https://developer.apple.com/help/app-store-connect/manage-builds/upload-builds)。
+
+提交审核前，还要在 App Store Connect 填写真实的应用说明、截图、支持联系方式、[隐私政策网址及数据收集声明](https://developer.apple.com/help/app-store-connect/manage-app-information/manage-app-privacy)。由于 Cue 需要登录自建服务，应为 [App Review](https://developer.apple.com/app-store/review/guidelines/) 准备可从公网访问的测试服务器和专用测试账号，并在审核备注写明服务器地址及登录方法；审核期间保持服务可用，不要提供个人生产数据库账号。
+
+若首版需让 iOS 用户同时下载，先等 App Store 审核通过并安排上架时间，再发布 GitHub 的正式 `vX.Y.Z` 标签；仅通过 CI 的 iOS 编译检查不代表 App Store 已可下载。
+
 ### Windows Release 安装包
 
 Release 工作流会将 Windows x64 构建目录中的 EXE、DLL、`data` 和 Visual C++ 运行库打包为 `Cue-vX.Y.Z-windows-x64-setup.exe`，并附加到 GitHub Release。安装包使用 Inno Setup，安装在当前用户的程序目录，提供开始菜单快捷方式、可选桌面快捷方式和卸载入口，无需管理员权限。原来的便携 ZIP 也会保留。
@@ -248,7 +291,19 @@ flutter build windows --release
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 ```
 
-当前 Windows 安装包未做代码签名，下载运行时可能出现 SmartScreen 提示。以后可配置受 Windows 信任的代码签名证书，并在 Release 工作流中签署应用和安装包，以显示可验证的发布者身份；新签名的文件仍可能因尚无足够信誉而收到提示。
+当前 Windows 安装包未做代码签名；本次发布流程不配置 Windows 签名。
+
+### 发布前手动演练
+
+完整演练使用与 `pubspec.yaml` 一致的 `vX.Y.Z-dryrun` 标签。推送该标签**不会自动触发 Release 工作流**；手动运行会执行测试、签名 APK、签名并公证 DMG、Windows 安装包测试、iOS 编译检查，以及 API/Web Docker 镜像构建，但不会推送 GHCR 镜像，也不会创建 GitHub Release。演练产物仅保存在该次 Actions 运行的 Artifacts 中。`android-release` 和 `macos-release` 环境仍只需允许 `v*` 标签，不必开放 `main`。
+
+```bash
+git tag v1.0.0-dryrun
+git push origin v1.0.0-dryrun
+gh workflow run release.yml --ref v1.0.0-dryrun
+```
+
+上例适用于当前 `version: 1.0.0+1`；修改版本后同步修改演练标签。`gh workflow run --ref` 需要 [GitHub CLI](https://cli.github.com/manual/gh_workflow_run) 及仓库写入权限。此前的 Windows 单独验证仍可在 Actions 页面从 `main` 手动运行，并勾选 `windows_only`。确认演练产物和自行部署流程后，推送正式 `vX.Y.Z` 标签才会发布 GHCR 镜像与 GitHub Release；正式发布要求测试、Android、iOS 编译检查、macOS、Windows 和 Docker job 全部成功。iOS 上架由上节的 App Store Connect 流程单独完成。
 
 明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 

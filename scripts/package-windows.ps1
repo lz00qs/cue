@@ -7,8 +7,14 @@ if (-not $versionMatch.Success) {
     throw 'Expected a version such as 1.0.0+1 in pubspec.yaml'
 }
 $version = $versionMatch.Groups[1].Value
-if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
-    throw "Release tag $env:GITHUB_REF_NAME does not match pubspec.yaml version $version"
+if ($env:GITHUB_REF_TYPE -eq 'tag') {
+    $expectedTag = "v$version"
+    if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+        $expectedTag += '-dryrun'
+    }
+    if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+        throw "Expected tag $expectedTag, got $env:GITHUB_REF_NAME"
+    }
 }
 
 $buildDir = Join-Path $projectRoot 'build\windows\x64\runner\Release'

@@ -96,6 +96,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-cue}
       - POSTGRES_USER=${POSTGRES_USER:-cue}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      - BACKUP_ON_START=TRUE # Create a recoverable backup as soon as the service starts.
       - SCHEDULE=@hourly     # 改为每小时执行一次备份
       - BACKUP_KEEP_MINS=1440 # 保留过去 24 小时的每个小时备份 (24*60=1440分钟)
       - BACKUP_KEEP_DAYS=7   # 保留过去 7 天的每日备份

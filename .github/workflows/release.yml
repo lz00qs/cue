@@ -4,7 +4,8 @@ on:
   push:
     tags:
       - 'v*' # 当推送带有 v 前缀的 tag 时触发 (例如 v1.0.0)
-  workflow_dispatch: # 允许手动在网页端触发
+      - '!v*-dryrun' # 演练 tag 仅由 workflow_dispatch 触发，不自动发布
+  workflow_dispatch: # 手动运行只构建，不发布镜像或 GitHub Release
     inputs:
       windows_only:
         description: Build only the Windows installer for validation
@@ -15,13 +16,49 @@ env:
   FLUTTER_VERSION: '3.47.5' # 根据您的 Dockerfile 使用的 Flutter 版本
 
 jobs:
+  prepare:
+    name: Validate release ref
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check version and dry-run tag
+        shell: bash
+        env:
+          WINDOWS_ONLY: ${{ inputs.windows_only }}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo '::error::Expected a numeric version in pubspec.yaml'
+            exit 1
+          }
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == "v$version" ]] || {
+              echo "::error::Release tag must be v$version"
+              exit 1
+            }
+          elif [[ "$WINDOWS_ONLY" == true ]]; then
+            [[ "$GITHUB_REF_TYPE" == branch && "$GITHUB_REF_NAME" == main ]] || {
+              echo '::error::Windows-only manual validation requires the main branch'
+              exit 1
+            }
+            echo 'Windows-only manual validation; no publication'
+          else
+            [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == "v$version-dryrun" ]] || {
+              echo "::error::Full manual validation requires the v$version-dryrun tag"
+              exit 1
+            }
+            echo 'Full manual validation; no publication'
+          fi
+
   test:
     name: Release tests
+    needs: prepare
     uses: ./.github/workflows/ci.yml
 
   docker:
-    name: Build and Publish Docker to GHCR
-    needs: test
+    name: Build Docker images (publish on release tags)
+    needs: [test, android, ios, macos, windows]
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: ubuntu-latest
     permissions:
@@ -35,6 +72,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -67,7 +105,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./server
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta-api.outputs.tags }}
           labels: ${{ steps.meta-api.outputs.labels }}
 
@@ -75,14 +113,14 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
 
   android:
     name: Build Android APK
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ github.event_name == 'push' || !inputs.windows_only }}
     runs-on: ubuntu-latest
     environment: android-release
     steps:
@@ -140,9 +178,10 @@ jobs:
         with:
           name: cue-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
 
   ios:
-    name: Build iOS App
+    name: Check iOS build (App Store upload is manual)
     needs: test
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: macos-latest
@@ -159,25 +198,13 @@ jobs:
         run: flutter pub get
         
       - name: Build iOS (No Codesign)
-        # 注意: 如果没有配置证书，iOS 只能 build 并在越狱设备或模拟器上运行。
-        # 如需真正发布至 App Store，需要配置证书并在命令中移除 --no-codesign。
+        # 编译检查；未签名的 .app 不作为用户可安装的 Release 附件。
         run: flutter build ios --release --no-codesign
-        
-      - name: Compress iOS Build
-        run: |
-          cd build/ios/iphoneos
-          zip -r cue-ios.zip Runner.app
-          
-      - name: Upload iOS App
-        uses: actions/upload-artifact@v4
-        with:
-          name: cue-ios-app
-          path: build/ios/iphoneos/cue-ios.zip
 
   macos:
     name: Build notarized macOS DMG
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ github.event_name == 'push' || !inputs.windows_only }}
     runs-on: macos-latest
     environment: macos-release
     timeout-minutes: 120
@@ -204,10 +231,13 @@ jobs:
           : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
           : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
           [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
-          tag_version="${GITHUB_REF_NAME#v}"
           app_version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
-          [[ "$GITHUB_REF_NAME" == v* && "$tag_version" == "$app_version" ]] || {
-            echo "::error::Release tag $GITHUB_REF_NAME does not match pubspec.yaml version $app_version"
+          expected_tag="v$app_version"
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            expected_tag+='-dryrun'
+          fi
+          [[ "$GITHUB_REF_NAME" == "$expected_tag" ]] || {
+            echo "::error::Expected tag $expected_tag, got $GITHUB_REF_NAME"
             exit 1
           }
       
@@ -358,6 +388,7 @@ jobs:
         with:
           name: cue-windows-app
           path: cue-windows.zip
+          if-no-files-found: error
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
@@ -370,7 +401,7 @@ jobs:
     name: Create GitHub Release
     needs: [test, docker, android, ios, macos, windows]
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.test.result == 'success' && needs.macos.result == 'success' }}
+    if: ${{ github.event_name == 'push' && needs.test.result == 'success' && needs.docker.result == 'success' && needs.android.result == 'success' && needs.ios.result == 'success' && needs.macos.result == 'success' && needs.windows.result == 'success' }}
     permissions:
       contents: write
     steps:
@@ -382,23 +413,25 @@ jobs:
         with:
           path: artifacts
 
-      - name: Verify notarized DMG artifact
+      - name: Verify release artifacts
         run: |
           set -euo pipefail
-          dmg_files=(artifacts/cue-macos-dmg/*.dmg)
-          [[ -f "${dmg_files[0]}" ]] || {
-            echo '::error::The notarized macOS DMG artifact is missing'
-            exit 1
-          }
+          test -f artifacts/cue-android-apk/app-release.apk
+          test -f artifacts/cue-windows-app/cue-windows.zip
+          compgen -G 'artifacts/cue-macos-dmg/*.dmg' >/dev/null
+          compgen -G 'artifacts/cue-windows-installer/*.exe' >/dev/null
           
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          body: |
+            Cue is self-hosted: deploy the Web app, API, and PostgreSQL on your own server before connecting a client. See the [中文部署说明](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.zh.md) or [English setup guide](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.md).
+
+            Assets below contain the macOS DMG, Android APK, and Windows installer/portable ZIP. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
           files: |
             artifacts/cue-android-apk/app-release.apk
-            artifacts/cue-ios-app/cue-ios.zip
             artifacts/cue-macos-dmg/*.dmg
             artifacts/cue-windows-installer/*.exe
             artifacts/cue-windows-app/cue-windows.zip
           generate_release_notes: true
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
