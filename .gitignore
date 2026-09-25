@@ -38,6 +38,9 @@ app.*.map.json
 certs/
 .agents/
 
+# Local database backups
+/backups/
+
 # Android local configuration and signing credentials
 **/android/local.properties
 **/android/key.properties

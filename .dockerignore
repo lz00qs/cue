@@ -12,6 +12,7 @@ coverage
 !.env.example
 server/node_modules
 server/dist
+backups/
 *.jks
 *.keystore
 *.p12
