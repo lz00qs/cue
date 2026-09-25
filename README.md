@@ -140,6 +140,25 @@ flutter run -d android --dart-define=CUE_API_URL=http://10.0.2.2:8080
 flutter run -d ios --dart-define=CUE_API_URL=http://127.0.0.1:8080
 ```
 
+### Android Release Signing
+
+Release APKs require the long-lived Cue signing keystore; the build fails instead of falling back to a debug key when it is missing. Keep the keystore and its password outside the repository, back up both securely, and reuse the same key for every direct-download APK update. A previously installed debug-signed build cannot be updated in place with the release-signed APK.
+
+For a local build, point `CUE_ANDROID_SIGNING_PROPERTIES` at a private Java properties file (or place it at the ignored `android/key.properties` path):
+
+```properties
+storeFile=/absolute/path/to/cue-release.p12
+storePassword=<keystore-password>
+keyAlias=cue-release
+keyPassword=<key-password>
+```
+
+```bash
+CUE_ANDROID_SIGNING_PROPERTIES=/absolute/path/to/key.properties flutter build apk --release
+```
+
+The GitHub release workflow uses the `android-release` environment on version tags and expects two environment secrets: `CUE_ANDROID_KEYSTORE_BASE64` (the single-line Base64 encoding of the same keystore) and `CUE_ANDROID_STORE_PASSWORD` (the keystore and key password). It verifies the built APK against the public certificate fingerprint in `android/release-cert.sha256` before uploading it. The current PKCS#12 keystore uses the same password for the store and key.
+
 Set the initial theme:
 ```bash
 flutter run -d macos --dart-define=CUE_THEME=dark

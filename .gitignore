@@ -43,6 +43,8 @@ certs/
 **/android/key.properties
 *.jks
 *.keystore
+*.p12
+*.pfx
 
 # Generated platform plugin registrants
 **/generated_plugin_registrant.dart

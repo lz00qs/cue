@@ -201,6 +201,25 @@ flutter build apk --release --dart-define=CUE_API_URL=https://cue.example.com
 flutter build ipa --release --dart-define=CUE_API_URL=https://cue.example.com
 ```
 
+### Android 正式版签名
+
+正式 APK 必须使用长期保存的 Cue 签名密钥库；缺少签名材料时构建会失败，不会退回调试签名。密钥库和密码应保存在仓库外并分别做好安全备份，所有通过 GitHub 直接下载的后续 APK 都要沿用同一把密钥。已经安装的调试签名版本无法直接覆盖升级为正式签名版本。
+
+本地构建时，将 `CUE_ANDROID_SIGNING_PROPERTIES` 指向私有的 Java properties 文件；也可使用已被 Git 忽略的 `android/key.properties`：
+
+```properties
+storeFile=/absolute/path/to/cue-release.p12
+storePassword=<密钥库密码>
+keyAlias=cue-release
+keyPassword=<密钥密码>
+```
+
+```bash
+CUE_ANDROID_SIGNING_PROPERTIES=/absolute/path/to/key.properties flutter build apk --release
+```
+
+GitHub Release 工作流仅在版本 tag 上使用 `android-release` 环境，需要在该环境配置两个 Secrets：`CUE_ANDROID_KEYSTORE_BASE64`（同一密钥库文件的单行 Base64 内容）和 `CUE_ANDROID_STORE_PASSWORD`（密钥库及密钥密码）。上传 APK 前，工作流会与 `android/release-cert.sha256` 中公开的证书指纹比较。本项目目前的 PKCS#12 密钥库使用相同的库密码和密钥密码。
+
 明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 
 ```bash

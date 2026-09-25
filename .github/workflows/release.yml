@@ -70,7 +70,9 @@ jobs:
 
   android:
     name: Build Android APK
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    environment: android-release
     steps:
       - uses: actions/checkout@v4
       
@@ -88,10 +90,39 @@ jobs:
           
       - name: Install dependencies
         run: flutter pub get
-        
+
+      - name: Restore Android release signing key
+        env:
+          CUE_ANDROID_KEYSTORE_BASE64: ${{ secrets.CUE_ANDROID_KEYSTORE_BASE64 }}
+          CUE_ANDROID_STORE_PASSWORD: ${{ secrets.CUE_ANDROID_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CUE_ANDROID_KEYSTORE_BASE64:?Missing CUE_ANDROID_KEYSTORE_BASE64 secret}"
+          : "${CUE_ANDROID_STORE_PASSWORD:?Missing CUE_ANDROID_STORE_PASSWORD secret}"
+          umask 077
+          printf '%s' "$CUE_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cue-release.p12"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/cue-release.p12"
+            printf 'storePassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
+            printf 'keyAlias=cue-release\n'
+            printf 'keyPassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
+          } > android/key.properties
+
       - name: Build APK
         run: flutter build apk --release
-        
+
+      - name: Verify Android release certificate
+        run: |
+          set -euo pipefail
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -n "$apksigner_path"
+          actual="$("$apksigner_path" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          expected="$(tr -d '[:space:]' < android/release-cert.sha256)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo '::error::Android APK certificate does not match android/release-cert.sha256'
+            exit 1
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:

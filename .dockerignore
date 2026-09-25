@@ -12,3 +12,8 @@ coverage
 !.env.example
 server/node_modules
 server/dist
+*.jks
+*.keystore
+*.p12
+*.pfx
+**/android/key.properties
