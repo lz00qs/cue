@@ -371,7 +371,7 @@ void main() {
     await tester.pumpWidget(const CueApp.demo());
     await tester.pumpAndSettle();
 
-    expect(find.text('Focus for today'), findsOneWidget);
+    expect(find.textContaining('Focus for today · '), findsOneWidget);
     await tester.tap(find.byKey(const Key('sidebar-settings')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Default view'));
@@ -389,7 +389,7 @@ void main() {
       container.read(appControllerProvider).startupView,
       StartupView.calendar,
     );
-    expect(find.text('Focus for today'), findsOneWidget);
+    expect(find.textContaining('Focus for today · '), findsOneWidget);
   });
 
   testWidgets('desktop account settings update email and password', (
@@ -594,7 +594,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('sidebar-today')), findsOneWidget);
-    expect(find.text('Focus for today'), findsOneWidget);
+    expect(find.textContaining('Focus for today · '), findsOneWidget);
     expect(find.text('Review PCB layout'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('sidebar-board')));
@@ -642,6 +642,33 @@ void main() {
     );
     expect(find.text('Cue'), findsNothing);
     expect(find.byTooltip('Today'), findsOneWidget);
+  });
+
+  testWidgets('desktop sidebar selection changes in the first frame', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const CueApp.demo());
+    await tester.pumpAndSettle();
+
+    Color? backgroundColor(String key) {
+      final box = tester.widget<DecoratedBox>(
+        find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.byType(DecoratedBox),
+        ).first,
+      );
+      return (box.decoration as BoxDecoration).color;
+    }
+
+    expect(backgroundColor('sidebar-today'), CueColors.selected);
+    await tester.tap(find.byKey(const Key('sidebar-calendar')));
+    await tester.pump();
+
+    expect(backgroundColor('sidebar-today'), Colors.transparent);
+    expect(backgroundColor('sidebar-calendar'), CueColors.selected);
   });
 
   testWidgets('macOS sidebar reserves the native traffic-light area', (

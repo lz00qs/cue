@@ -233,17 +233,17 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(
-      find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+      find.byKey(const ValueKey('calendar-grid-2026-9')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('mobile-calendar-grid-2026-10')),
+      find.byKey(const ValueKey('calendar-grid-2026-10')),
       findsOneWidget,
     );
     expect(
       tester
           .getTopLeft(
-            find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+            find.byKey(const ValueKey('calendar-grid-2026-9')),
           )
           .dx,
       lessThan(20),
@@ -251,14 +251,14 @@ void main() {
     expect(
       tester
           .getTopLeft(
-            find.byKey(const ValueKey('mobile-calendar-grid-2026-10')),
+            find.byKey(const ValueKey('calendar-grid-2026-10')),
           )
           .dx,
       greaterThan(20),
     );
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('mobile-calendar-grid-2026-9')),
+      find.byKey(const ValueKey('calendar-grid-2026-9')),
       findsNothing,
     );
     expect(find.text('October'), findsOneWidget);

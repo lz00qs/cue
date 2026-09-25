@@ -591,22 +591,34 @@ class _SidebarItemState extends State<_SidebarItem> {
           child: GestureDetector(
             onTap: widget.onTap,
             behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
+            // Selection changes with the icon; only the hover layer animates.
+            child: Container(
               width: 44,
               height: 44,
               decoration: BoxDecoration(
                 color: widget.selected
                     ? CueColors.selected
-                    : _hovered
-                    ? CueColors.sidebarHover
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
-                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
+                  if (!widget.selected)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: _hovered ? 1 : 0,
+                          duration: const Duration(milliseconds: 120),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: CueColors.sidebarHover,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   Icon(
                     widget.selected
                         ? (widget.selectedIcon ?? widget.icon)
