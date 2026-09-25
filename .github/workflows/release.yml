@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*' # 当推送带有 v 前缀的 tag 时触发 (例如 v1.0.0)
   workflow_dispatch: # 允许手动在网页端触发
+    inputs:
+      windows_only:
+        description: Build only the Windows installer for validation
+        type: boolean
+        default: false
 
 env:
   FLUTTER_VERSION: '3.47.5' # 根据您的 Dockerfile 使用的 Flutter 版本
@@ -12,6 +17,7 @@ env:
 jobs:
   docker:
     name: Build and Publish Docker to GHCR
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -131,6 +137,7 @@ jobs:
 
   ios:
     name: Build iOS App
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -297,7 +304,7 @@ jobs:
 
   windows:
     name: Build Windows App
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
       
@@ -312,6 +319,27 @@ jobs:
         
       - name: Build Windows
         run: flutter build windows --release
+
+      - name: Package Windows installer
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+
+      - name: Smoke test Windows installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem build/release/Cue-*-windows-x64-setup.exe | Select-Object -First 1
+          if (-not $installer) { throw 'Windows installer is missing' }
+          $target = Join-Path $env:RUNNER_TEMP 'CueInstallerSmoke'
+          & $installer.FullName '/VERYSILENT' '/SUPPRESSMSGBOXES' '/NORESTART' '/NOICONS' "/DIR=$target"
+          if ($LASTEXITCODE -ne 0) { throw "Installer failed with exit code $LASTEXITCODE" }
+          foreach ($file in @('cue.exe', 'flutter_windows.dll', 'data/app.so', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+            if (-not (Test-Path (Join-Path $target $file))) { throw "Installed file missing: $file" }
+          }
+          $uninstaller = Get-ChildItem $target -Filter 'unins*.exe' | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Uninstaller is missing' }
+          & $uninstaller.FullName '/VERYSILENT' '/SUPPRESSMSGBOXES' '/NORESTART'
+          if ($LASTEXITCODE -ne 0) { throw "Uninstaller failed with exit code $LASTEXITCODE" }
+          if (Test-Path (Join-Path $target 'cue.exe')) { throw 'Uninstaller left cue.exe behind' }
         
       - name: Compress Windows Build
         run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath cue-windows.zip
@@ -321,6 +349,13 @@ jobs:
         with:
           name: cue-windows-app
           path: cue-windows.zip
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: cue-windows-installer
+          path: build/release/Cue-*-windows-x64-setup.exe
+          if-no-files-found: error
 
   release:
     name: Create GitHub Release
@@ -354,6 +389,7 @@ jobs:
             artifacts/cue-android-apk/app-release.apk
             artifacts/cue-ios-app/cue-ios.zip
             artifacts/cue-macos-dmg/*.dmg
+            artifacts/cue-windows-installer/*.exe
             artifacts/cue-windows-app/cue-windows.zip
           generate_release_notes: true
           fail_on_unmatched_files: false

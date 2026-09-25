@@ -236,6 +236,20 @@ GitHub Release 工作流仅在版本 tag 上使用 `android-release` 环境，�
 
 在 macOS 上可用 `base64 -i /文件的绝对路径 | tr -d '\n'` 得到单行内容。请独立安全备份 `.p12`、导出密码和只能下载一次的 `.p8`，不要提交到 Git。凭据准备可参考 [Apple Developer ID 证书](https://developer.apple.com/help/account/certificates/create-developer-id-certificates)、[App Store Connect 团队 API 密钥](https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api) 和 [GitHub 证书导入说明](https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications)。个人 API 密钥不能用于 `notarytool`。
 
+### Windows Release 安装包
+
+Release 工作流会将 Windows x64 构建目录中的 EXE、DLL、`data` 和 Visual C++ 运行库打包为 `Cue-vX.Y.Z-windows-x64-setup.exe`，并附加到 GitHub Release。安装包使用 Inno Setup，安装在当前用户的程序目录，提供开始菜单快捷方式、可选桌面快捷方式和卸载入口，无需管理员权限。原来的便携 ZIP 也会保留。
+
+在 Windows 本机安装 Flutter、Visual Studio 2022 的 C++ 工具和 Inno Setup 6 后，可以运行：
+
+```powershell
+flutter pub get
+flutter build windows --release
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1
+```
+
+当前 Windows 安装包未做代码签名，下载运行时可能出现 SmartScreen 提示。以后若要消除发布者未知提示，需要配置受 Windows 信任的代码签名证书，并在 Release 工作流中签署应用和安装包。
+
 明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 
 ```bash
