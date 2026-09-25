@@ -248,7 +248,7 @@ flutter build windows --release
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1
 ```
 
-当前 Windows 安装包未做代码签名，下载运行时可能出现 SmartScreen 提示。以后若要消除发布者未知提示，需要配置受 Windows 信任的代码签名证书，并在 Release 工作流中签署应用和安装包。
+当前 Windows 安装包未做代码签名，下载运行时可能出现 SmartScreen 提示。以后可配置受 Windows 信任的代码签名证书，并在 Release 工作流中签署应用和安装包，以显示可验证的发布者身份；新签名的文件仍可能因尚无足够信誉而收到提示。
 
 明暗配色对应 Figma 文件中 `Cue Color` 的 Light 和 Dark 模式。桌面端在侧栏底部的“外观”菜单、移动端在“设置 → 外观”中可随时切换，选择会保存在本机。`CUE_THEME` 仅设置首次启动时的默认主题；不指定时默认浅色：
 
