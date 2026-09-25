@@ -198,6 +198,8 @@ docker compose exec -e CUE_ALLOW_DEMO_DATA=true cue-api \
 
 ## Validation & Testing
 
+CI runs Flutter analysis and tests plus the server build and unit tests on pushes to `main` and pull requests targeting `main`. Tag-triggered releases run the same tests before any platform build or Docker publication. The end-to-end API tests below still require a running service and must be run separately.
+
 ```bash
 flutter analyze
 flutter test

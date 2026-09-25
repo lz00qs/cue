@@ -302,6 +302,8 @@ docker compose exec -e CUE_ALLOW_DEMO_DATA=true cue-api \
 
 ## 验证
 
+CI 会在提交到 `main` 和针对 `main` 的 Pull Request 上运行 Flutter 静态分析、Flutter 测试以及服务端构建与单元测试。版本标签触发的 Release 工作流会先复用同一套测试；只有测试通过，才会开始各平台构建和 Docker 发布。下方需要已启动服务的端到端 API 测试仍需单独运行。
+
 ```bash
 flutter analyze
 flutter test

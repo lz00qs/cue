@@ -15,8 +15,13 @@ env:
   FLUTTER_VERSION: '3.47.5' # 根据您的 Dockerfile 使用的 Flutter 版本
 
 jobs:
+  test:
+    name: Release tests
+    uses: ./.github/workflows/ci.yml
+
   docker:
     name: Build and Publish Docker to GHCR
+    needs: test
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: ubuntu-latest
     permissions:
@@ -76,6 +81,7 @@ jobs:
 
   android:
     name: Build Android APK
+    needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: android-release
@@ -137,6 +143,7 @@ jobs:
 
   ios:
     name: Build iOS App
+    needs: test
     if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
     runs-on: macos-latest
     steps:
@@ -169,6 +176,7 @@ jobs:
 
   macos:
     name: Build notarized macOS DMG
+    needs: test
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
     environment: macos-release
@@ -304,6 +312,7 @@ jobs:
 
   windows:
     name: Build Windows App
+    needs: test
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -359,9 +368,9 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: [docker, android, ios, macos, windows]
+    needs: [test, docker, android, ios, macos, windows]
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.macos.result == 'success' }}
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.test.result == 'success' && needs.macos.result == 'success' }}
     permissions:
       contents: write
     steps:
