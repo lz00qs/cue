@@ -1,0 +1,10 @@
+services:
+  cue-api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+
+  cue-web:
+    build:
+      context: .
+      dockerfile: Dockerfile

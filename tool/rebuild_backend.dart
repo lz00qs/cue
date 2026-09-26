@@ -132,12 +132,12 @@ final class BackendUpdater {
   Future<ComposeCommand> _findCompose() async {
     final plugin = await _tryRunCaptured('docker', ['compose', 'version']);
     if (plugin != null && plugin.exitCode == 0) {
-      return const ComposeCommand('docker', ['compose']);
+      return const ComposeCommand('docker', ['compose', '-f', 'docker-compose.yml', '-f', 'docker-compose.dev.yml']);
     }
 
     final standalone = await _tryRunCaptured('docker-compose', ['version']);
     if (standalone != null && standalone.exitCode == 0) {
-      return const ComposeCommand('docker-compose', []);
+      return const ComposeCommand('docker-compose', ['-f', 'docker-compose.yml', '-f', 'docker-compose.dev.yml']);
     }
 
     throw ToolFailure('Docker Compose is not installed.');
