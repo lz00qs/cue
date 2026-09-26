@@ -38,7 +38,7 @@ Docker file-sharing permissions can differ on macOS; check the backup logs and f
 ### 2. Start Cue and create the administrator
 
 ```bash
-docker compose up --build -d
+docker compose up -d
 docker compose ps
 curl -fsS http://localhost:8080/api/health
 ```
@@ -63,7 +63,7 @@ The response should include `"initialized":true` and `"setupAvailable":false`. D
 Use HTTPS for access over the internet. Put a valid certificate and private key for your domain at the paths set by `CUE_TLS_CERT_FILE` and `CUE_TLS_KEY_FILE` in `.env`. The defaults are `./certs/fullchain.pem` and `./certs/privkey.pem`. Then start the HTTPS entry point:
 
 ```bash
-docker compose --profile https up --build -d
+docker compose --profile https up -d
 curl -fsS https://your-domain.example/api/health
 ```
 
@@ -90,7 +90,7 @@ If you forget the administrator password, reset it on the server. You can append
 docker compose exec cue-api npm run reset-password -- 'a-new-strong-password'
 ```
 
-Before changing code or updating a deployment, confirm that you have a restorable backup. Then run `docker compose up --build -d`, or `docker compose --profile https up --build -d` if you use the HTTPS profile. `docker compose down` stops and removes containers but retains the database volume.
+Before changing code or updating a deployment, confirm that you have a restorable backup. Then run `docker compose up -d`, or `docker compose --profile https up -d` if you use the HTTPS profile. `docker compose down` stops and removes containers but retains the database volume.
 
 ### Backup and restore
 

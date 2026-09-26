@@ -38,7 +38,7 @@ macOS 的 Docker 文件共享权限可能不同；启动后需检查备份日志
 ### 2. 启动并创建管理员
 
 ```bash
-docker compose up --build -d
+docker compose up -d
 docker compose ps
 curl -fsS http://localhost:8080/api/health
 ```
@@ -63,7 +63,7 @@ curl -fsS http://localhost:8080/api/auth/status
 跨公网访问应使用 HTTPS。将自己域名对应的有效证书和私钥放在 `.env` 指定的 `CUE_TLS_CERT_FILE`、`CUE_TLS_KEY_FILE` 路径；默认路径为 `./certs/fullchain.pem` 和 `./certs/privkey.pem`。然后启动 HTTPS 入口：
 
 ```bash
-docker compose --profile https up --build -d
+docker compose --profile https up -d
 curl -fsS https://your-domain.example/api/health
 ```
 
@@ -90,7 +90,7 @@ curl -fsS http://localhost:8080/api/health
 docker compose exec cue-api npm run reset-password -- '新的强密码'
 ```
 
-更改代码或更新部署前，先确认备份可恢复，再执行 `docker compose up --build -d`；启用了 HTTPS profile 的部署使用 `docker compose --profile https up --build -d`。`docker compose down` 会停止并删除容器，但保留数据库卷。
+更改代码或更新部署前，先确认备份可恢复，再执行 `docker compose up -d`；启用了 HTTPS profile 的部署使用 `docker compose --profile https up -d`。`docker compose down` 会停止并删除容器，但保留数据库卷。
 
 ### 备份与恢复
 
