@@ -36,8 +36,8 @@ test('AuthService unit test suite', async (t) => {
       initialized: false,
       setupAvailable: false,
     });
-    assert.throws(
-      () => controller.setup({ email: 'admin@cue.local', password: 'password-123' }, 'https'),
+    await assert.rejects(
+      controller.setup({ email: 'admin@cue.local', password: 'password-123' }, { secure: false }, {}, 'https'),
       /Admin setup is unavailable over HTTPS/,
     );
   });
