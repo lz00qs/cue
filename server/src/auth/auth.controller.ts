@@ -6,8 +6,11 @@ import {
   Headers,
   Patch,
   Post,
+  Res,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request, Response, CookieOptions } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import {
@@ -26,6 +29,28 @@ import { Public } from './public.decorator';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
+
+  private setCookies(req: Request, res: Response, tokens: { accessToken: string; refreshToken: string }) {
+    const isHttps = req.secure || this.isHttps(req.headers['x-forwarded-proto'] as string | undefined);
+    
+    const options: CookieOptions = {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isHttps,
+      path: '/',
+    };
+    
+    // Access token valid for a reasonable time (e.g. 1h, though JWT might be shorter, we just let cookie live long enough)
+    res.cookie('cue_access_token', tokens.accessToken, { ...options, maxAge: 24 * 60 * 60 * 1000 });
+    // Refresh token valid longer
+    res.cookie('cue_refresh_token', tokens.refreshToken, { ...options, path: '/api/auth', maxAge: 30 * 24 * 60 * 60 * 1000 });
+  }
+
+  private clearCookies(res: Response) {
+    const options: CookieOptions = { httpOnly: true, sameSite: 'lax', path: '/' };
+    res.cookie('cue_access_token', '', { ...options, maxAge: 0 });
+    res.cookie('cue_refresh_token', '', { ...options, path: '/api/auth', maxAge: 0 });
+  }
 
   private isHttps(forwardedProto?: string): boolean {
     return (
@@ -49,32 +74,72 @@ export class AuthController {
 
   @Public()
   @Post('setup')
-  setup(
+  async setup(
     @Body() input: SetupDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
     @Headers('x-forwarded-proto') forwardedProto?: string,
   ) {
     if (this.isHttps(forwardedProto)) {
       throw new ForbiddenException('Admin setup is unavailable over HTTPS');
     }
-    return this.auth.setup(input.email, input.password);
+    const result = await this.auth.setup(input.email, input.password);
+    this.setCookies(req, res, result);
+    return result;
   }
 
   @Public()
   @Post('login')
-  login(@Body() input: LoginDto) {
-    return this.auth.login(input.email, input.password);
+  async login(
+    @Body() input: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.login(input.email, input.password);
+    this.setCookies(req, res, result);
+    return result;
   }
 
   @Public()
   @Post('refresh')
-  refresh(@Body() input: RefreshDto) {
-    return this.auth.refresh(input.refreshToken);
+  async refresh(
+    @Body() input: RefreshDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const rToken = input.refreshToken || req.cookies?.['cue_refresh_token'];
+    if (!rToken) {
+      throw new ForbiddenException('No refresh token provided');
+    }
+    const result = await this.auth.refresh(rToken);
+    this.setCookies(req, res, result);
+    return result;
   }
 
   @Public()
   @Post('logout')
-  logout(@Body() input: RefreshDto) {
-    return this.auth.logout(input.refreshToken);
+  async logout(
+    @Body() input: RefreshDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.clearCookies(res);
+    const rToken = input.refreshToken || req.cookies?.['cue_refresh_token'];
+    if (rToken) {
+      await this.auth.logout(rToken).catch(() => {});
+    }
+    return { success: true };
+  }
+
+  @Get('me')
+  async me(@Req() req: Request): Promise<{ email: string }> {
+    let token = req.headers.authorization?.substring(7);
+    if (!token && req.cookies) {
+      token = req.cookies['cue_access_token'];
+    }
+    if (!token) throw new ForbiddenException('No token');
+    const payload = await this.auth.verifyAccess(token);
+    return { email: payload.email };
   }
 
   @Patch('account')

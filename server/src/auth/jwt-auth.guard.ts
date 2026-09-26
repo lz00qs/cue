@@ -28,10 +28,21 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    if (type !== 'Bearer' || !token) {
-      throw new UnauthorizedException('Bearer token is required');
+    let token: string | undefined;
+
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
     }
+
+    if (!token && request.cookies) {
+      token = request.cookies['cue_access_token'];
+    }
+
+    if (!token) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
     await this.auth.verifyAccess(token);
     return true;
   }

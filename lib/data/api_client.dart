@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -158,6 +159,14 @@ class ApiClient {
   }
 
   Future<String> restoreSession() async {
+    if (kIsWeb) {
+      try {
+        final response = await _dio.get<Map<String, dynamic>>(_url('/auth/me'));
+        return response.data!['email'] as String;
+      } on DioException catch (error) {
+        throw _mapError(error);
+      }
+    }
     final refreshToken = await _tokens.refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) {
       throw const ApiException('No saved session', statusCode: 401);
@@ -174,10 +183,10 @@ class ApiClient {
     }
     final refreshToken = await _tokens.refreshToken;
     try {
-      if (refreshToken != null) {
+      if (refreshToken != null || kIsWeb) {
         await _dio.post<void>(
           _url('/auth/logout'),
-          data: {'refreshToken': refreshToken},
+          data: refreshToken != null ? {'refreshToken': refreshToken} : {},
         );
       }
     } catch (_) {
@@ -281,12 +290,12 @@ class ApiClient {
     try {
       Future<http.StreamedResponse> connect() async {
         final accessToken = await _tokens.accessToken;
-        if (accessToken == null) {
+        if (accessToken == null && !kIsWeb) {
           throw const ApiException('Please sign in again', statusCode: 401);
         }
         final request = http.Request('GET', Uri.parse(_url('/sync/events')))
           ..headers.addAll({
-            'authorization': 'Bearer $accessToken',
+            if (accessToken != null) 'authorization': 'Bearer $accessToken',
             'accept': 'text/event-stream',
             'cache-control': 'no-cache',
           });
@@ -334,11 +343,13 @@ class ApiClient {
   ) async {
     Future<Response<T>> send() async {
       final accessToken = await _tokens.accessToken;
-      if (accessToken == null) {
+      if (accessToken == null && !kIsWeb) {
         throw const ApiException('Please sign in again', statusCode: 401);
       }
       return request(
-        Options(headers: {'authorization': 'Bearer $accessToken'}),
+        Options(headers: {
+          if (accessToken != null) 'authorization': 'Bearer $accessToken',
+        }),
       );
     }
 
@@ -369,13 +380,13 @@ class ApiClient {
 
   Future<void> _refreshTokens() async {
     final refreshToken = await _tokens.refreshToken;
-    if (refreshToken == null) {
+    if (refreshToken == null && !kIsWeb) {
       throw const ApiException('Please sign in again', statusCode: 401);
     }
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         _url('/auth/refresh'),
-        data: {'refreshToken': refreshToken},
+        data: refreshToken != null ? {'refreshToken': refreshToken} : {},
       );
       final data = response.data!;
       final email = _extractEmail(data);
