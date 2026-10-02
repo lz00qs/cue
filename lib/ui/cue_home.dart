@@ -260,10 +260,13 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
   Widget get _pageBody => switch (_view) {
     CueView.board => BoardView(
       onOpenTask: _showTaskDetails,
-      onAddTask: ({group, priority}) => _showAddTaskDialog(
-        prefilledGroup: group,
-        prefilledPriority: priority,
-      ),
+      onAddTask: ({group, priority, dueDate, noDueDate = false}) =>
+          _showAddTaskDialog(
+            prefilledGroup: group,
+            prefilledPriority: priority,
+            prefilledDate: dueDate,
+            noDueDate: noDueDate,
+          ),
     ),
     CueView.calendar => CalendarView(
       onOpenTask: _showTaskDetails,
@@ -325,6 +328,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     DateTime? prefilledDate,
     String? prefilledGroup,
     int? prefilledPriority,
+    bool noDueDate = false,
   }) async {
     await showDialog<void>(
       context: context,
@@ -334,6 +338,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         onRunOperation: _runTaskOperation,
         prefilledDate: prefilledDate,
         prefilledGroup: prefilledGroup,
+        noDueDate: noDueDate,
         prefilledPriority:
             prefilledPriority ?? (_view == CueView.today ? 3 : null),
       ),
@@ -1621,6 +1626,7 @@ class _AddTaskDialog extends StatefulWidget {
     this.prefilledDate,
     this.prefilledGroup,
     this.prefilledPriority,
+    this.noDueDate = false,
   });
 
   final TaskStore store;
@@ -1628,6 +1634,7 @@ class _AddTaskDialog extends StatefulWidget {
   final DateTime? prefilledDate;
   final String? prefilledGroup;
   final int? prefilledPriority;
+  final bool noDueDate;
 
   @override
   State<_AddTaskDialog> createState() => _AddTaskDialogState();
@@ -1656,14 +1663,10 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
         ? initialGroup
         : TaskStore.defaultUngrouped;
     final today = widget.store.today;
-    _dueAt = widget.prefilledDate == null
-        ? DateTime(today.year, today.month, today.day, 18)
-        : DateTime(
-            widget.prefilledDate!.year,
-            widget.prefilledDate!.month,
-            widget.prefilledDate!.day,
-            18,
-          );
+    final initialDate = widget.prefilledDate ?? today;
+    _dueAt = widget.noDueDate
+        ? null
+        : DateTime(initialDate.year, initialDate.month, initialDate.day, 18);
   }
 
   @override

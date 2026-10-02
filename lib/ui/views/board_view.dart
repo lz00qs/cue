@@ -12,11 +12,18 @@ import '../../models/cue_task.dart';
 import '../cue_theme.dart';
 import '../cue_widgets.dart';
 
+typedef BoardTaskCallback = void Function({
+  String? group,
+  int? priority,
+  DateTime? dueDate,
+  bool noDueDate,
+});
+
 class BoardView extends ConsumerStatefulWidget {
   const BoardView({super.key, required this.onOpenTask, this.onAddTask});
 
   final ValueChanged<CueTask> onOpenTask;
-  final void Function({String? group, int? priority})? onAddTask;
+  final BoardTaskCallback? onAddTask;
 
   @override
   ConsumerState<BoardView> createState() => _BoardViewState();
@@ -75,6 +82,7 @@ class _BoardViewState extends ConsumerState<BoardView> {
               store: _store,
               group: _group,
               onOpenTask: widget.onOpenTask,
+              onAddTask: widget.onAddTask,
             ),
           },
         ),
@@ -92,7 +100,7 @@ class _GroupSectionBoard extends StatelessWidget {
 
   final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
-  final void Function({String? group, int? priority})? onAddTask;
+  final BoardTaskCallback? onAddTask;
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +174,7 @@ class _GroupColumn extends StatefulWidget {
   final TaskStore store;
   final ValueChanged<CueTask> onOpenTask;
   final double height;
-  final void Function({String? group, int? priority})? onAddTask;
+  final BoardTaskCallback? onAddTask;
   final bool isColumnDropTarget;
 
   @override
@@ -1213,11 +1221,26 @@ class _GroupedPreview extends StatelessWidget {
     required this.store,
     required this.group,
     required this.onOpenTask,
+    this.onAddTask,
   });
 
   final TaskStore store;
   final BoardGroup group;
   final ValueChanged<CueTask> onOpenTask;
+  final BoardTaskCallback? onAddTask;
+
+  void _addTask(int columnIndex) {
+    if (group == BoardGroup.priority) {
+      onAddTask?.call(priority: columnIndex);
+    } else if (columnIndex == 2) {
+      onAddTask?.call(noDueDate: true);
+    } else {
+      final today = store.today;
+      onAddTask?.call(
+        dueDate: DateTime(today.year, today.month, today.day + columnIndex),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1293,13 +1316,37 @@ class _GroupedPreview extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '${groups[index].$1} · ${groups[index].$2.length}',
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(
-                                color: CueColors.secondary,
-                                fontWeight: FontWeight.w600,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${groups[index].$1} · ${groups[index].$2.length}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(
+                                      color: CueColors.secondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                               ),
+                            ),
+                            if (onAddTask != null)
+                              SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: IconButton(
+                                  key: Key('board-add-${group.name}-$index'),
+                                  padding: EdgeInsets.zero,
+                                  iconSize: 18,
+                                  icon: Icon(
+                                    Icons.add_rounded,
+                                    color: CueColors.secondary,
+                                  ),
+                                  onPressed: () => _addTask(index),
+                                  tooltip: context.l10n.addTask,
+                                ),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 8),
                         Expanded(
