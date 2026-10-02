@@ -2,6 +2,10 @@
   #error AppVersion must be supplied with /DAppVersion
 #endif
 
+#ifndef AssetPrefix
+  #define AssetPrefix "Cue-v" + AppVersion
+#endif
+
 [Setup]
 AppId=top.hylcreative.cue
 AppName=Cue
@@ -16,7 +20,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\cue.exe
 SetupIconFile=..\runner\resources\app_icon.ico
-OutputBaseFilename=Cue-v{#AppVersion}-windows-x64-setup
+OutputBaseFilename={#AssetPrefix}-windows-x64-setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

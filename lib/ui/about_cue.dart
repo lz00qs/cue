@@ -6,17 +6,37 @@ import 'cue_theme.dart';
 
 const cueAuthor = 'lz00qs';
 const cueAuthorEmail = 'lz00qs@gmail.com';
+const cueReleaseChannel = String.fromEnvironment(
+  'CUE_CHANNEL',
+  defaultValue: 'stable',
+);
+const cueReleaseCommit = String.fromEnvironment('CUE_COMMIT');
 
 class CueAppInfo {
-  const CueAppInfo({required this.version, required this.buildNumber});
+  const CueAppInfo({
+    required this.version,
+    required this.buildNumber,
+    this.channel = cueReleaseChannel,
+    this.commit = cueReleaseCommit,
+  });
 
-  const CueAppInfo.fallback() : version = '1.0.1', buildNumber = '2';
+  const CueAppInfo.fallback()
+    : version = '1.0.1',
+      buildNumber = '2',
+      channel = cueReleaseChannel,
+      commit = cueReleaseCommit;
 
   final String version;
   final String buildNumber;
+  final String channel;
+  final String commit;
 
-  String get versionLabel =>
-      buildNumber.isEmpty ? version : '$version ($buildNumber)';
+  String get versionLabel {
+    final label = buildNumber.isEmpty ? version : '$version ($buildNumber)';
+    if (channel != 'dev') return label;
+    final shortCommit = commit.length > 12 ? commit.substring(0, 12) : commit;
+    return 'Dev · $label${shortCommit.isEmpty ? '' : ' · $shortCommit'}';
+  }
 }
 
 Future<CueAppInfo> loadCueAppInfo() async {

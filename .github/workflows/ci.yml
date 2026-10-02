@@ -2,15 +2,23 @@ name: CI
 
 on:
   push:
+    # dev pushes run this workflow through Release, avoiding duplicate test jobs.
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   workflow_call:
 
 permissions:
   contents: read
 
 jobs:
+  release-tools:
+    name: Release tooling tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts/tests -v
+
   flutter:
     name: Flutter analyze and test
     runs-on: ubuntu-latest

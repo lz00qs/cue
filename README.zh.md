@@ -6,6 +6,27 @@ Cue 是一个供个人自行部署的任务管理应用。它由 Web 页面、AP
 
 应用提供 Today、Inbox、Upcoming、看板、月历和四象限等视图，支持中文与英文界面。多个设备可以同步任务；数据保存在你部署的 PostgreSQL 数据卷中。
 
+## 正式版与 Dev 下载
+
+[最新正式版](https://github.com/lz00qs/cue/releases/latest)用于日常使用；测试 bug 修复时，在 [Releases](https://github.com/lz00qs/cue/releases) 中选择最新的 **Cue … Dev** 预发布。Dev 提供 Android APK、已签名并公证的 macOS DMG、Windows 安装包。安装后会替换正式客户端，并沿用其配置；“关于 Cue”中的 Dev 标识、构建编号和 commit 可用于反馈问题。iOS 仍单独通过 App Store 分发，本流程仅检查其编译。
+
+Dev 和正式版使用同一签名及递增构建编号。Android 无法直接覆盖安装构建编号更低的旧包；从 Dev 切回稳定渠道时，可等待后续正式版，或卸载后重装旧版并重新登录。
+
+每份 Release 的 `docker-compose.yml` 都固定到该次 API/Web 镜像摘要，`release.json` 记录源码与构建信息，`SHA256SUMS` 可核对下载内容。对下载的文件运行 `shasum -a 256 文件名`，将结果与 `SHA256SUMS` 中对应的行比较。GHCR 的 `:dev` 指向最近发布的 Dev 镜像，`:latest` 指向正式渠道。测试客户端仍连接你配置的 Cue 服务；如需验证服务端变更，可用该 Dev Release 的部署文件部署测试服务。
+
+### 维护者：发布 Dev
+
+1. 先将发布工作流改动合入 `main`，再从更新后的 `main` 创建或同步 `dev`。在仓库 Settings → Environments 中确认 `android-release` 和 `macos-release` 的 Deployment branches and tags 允许 **dev 分支**及现有正式/演练 tag。沿用已有签名 secrets 和变量；若环境配置了人工审批，每次构建仍需审批。
+2. bug 修复合入 `dev` 后，Release workflow 自动测试、编译并发布独立 Pre-release；也可在 Actions → Release → Run workflow 中选择 `dev` 手动发布。默认不勾选 `windows_only`；勾选时仅验证 Windows，不发布。连续推送会取消过时的 Dev 构建。
+3. 全部客户端检查、签名、公证与 Docker 构建成功后，先上传并校验完整附件，再公开 Release。正式版 Latest 不受 Dev 影响。保留最近 10 个本流程管理的 Dev Release，Actions 临时产物保留 7 天。已公开版本的重跑会被拒绝；新的 Dev 构建请启动新的 workflow run。清理不删除 GHCR 历史镜像，旧镜像可按需另行管理。
+4. 验证通过后合入 `main`，更新版本并推送对应 `vX.Y.Z` tag 发布正式版；随后同步回 `dev`。完整的正式版演练仍使用 `vX.Y.Z-dryrun` tag 手动运行；`main` 上的 `windows_only` 仍只验证安装器。
+
+正式版和 Dev 共用 `.github/workflows/release.yml` 的 `run_number`，平台构建编号为 `1000 + run_number`，重跑保持原编号。不要重命名该入口或为两条渠道分别计算编号；Windows 的编号上限为 65535。平台版本继续使用 `pubspec.yaml` 的数字版本，Dev 后缀只用于发布名称、文件名和应用内标识。
+
+如果旧构建完成前已有更高编号的版本公开，流程会拒绝发布旧编号。Dev 可手动启动新 run；尚未公开的正式版可在 Run workflow 中选择原 `vX.Y.Z` tag 并勾选 `publish_stable`，分配新编号，无需修改 tag。若附件已公开而 Docker 渠道别名更新失败，重跑失败的 release job 会核对原附件后继续更新别名，不改写公开版本。
+
+GitHub 的默认 `GITHUB_TOKEN` 无法为相对默认分支含工作流改动的提交创建/更新 Release。因此修改 `.github/workflows/` 时，先合入 `main` 再同步到 `dev`；普通 bug 修复不需要额外 token。
+
 ## 首次部署
 
 需要 Docker Engine 和 Docker Compose。以下命令在项目根目录执行。

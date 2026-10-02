@@ -7,6 +7,10 @@ if (-not $versionMatch.Success) {
     throw 'Expected a version such as 1.0.0+1 in pubspec.yaml'
 }
 $version = $versionMatch.Groups[1].Value
+$assetPrefix = if ($env:RELEASE_ASSET_PREFIX) { $env:RELEASE_ASSET_PREFIX } else { "Cue-v$version" }
+if ($assetPrefix -notmatch '^Cue-(?:v\d+\.\d+\.\d+|dev-\d+\.\d+\.\d+-\d+-[0-9a-f]{12})$') {
+    throw "Unexpected release asset prefix: $assetPrefix"
+}
 if ($env:GITHUB_REF_TYPE -eq 'tag') {
     $expectedTag = "v$version"
     if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
@@ -63,12 +67,12 @@ if (-not (Test-Path $compiler -PathType Leaf)) {
 $outputDir = Join-Path $projectRoot 'build\release'
 New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
 $script = Join-Path $projectRoot 'windows\installer\Cue.iss'
-& $compiler "/DAppVersion=$version" "/O$outputDir" $script
+& $compiler "/DAppVersion=$version" "/DAssetPrefix=$assetPrefix" "/O$outputDir" $script
 if ($LASTEXITCODE -ne 0) {
     throw "Inno Setup failed with exit code $LASTEXITCODE"
 }
 
-$installer = Join-Path $outputDir "Cue-v$version-windows-x64-setup.exe"
+$installer = Join-Path $outputDir "$assetPrefix-windows-x64-setup.exe"
 if (-not (Test-Path $installer -PathType Leaf)) {
     throw "Inno Setup did not create $installer"
 }

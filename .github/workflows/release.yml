@@ -1,455 +1,111 @@
+# Keep this workflow's name/path and build-number base: both channels share its run_number.
 name: Release
 
 on:
   push:
+    branches: [dev]
     tags:
-      - 'v*' # 当推送带有 v 前缀的 tag 时触发 (例如 v1.0.0)
-      - '!v*-dryrun' # 演练 tag 仅由 workflow_dispatch 触发，不自动发布
-  workflow_dispatch: # 手动运行只构建，不发布镜像或 GitHub Release
+      - 'v*'
+      - '!v*-dryrun'
+  workflow_dispatch:
     inputs:
       windows_only:
-        description: Build only the Windows installer for validation
+        description: Validate only Windows without publishing (main or dev)
+        type: boolean
+        default: false
+      publish_stable:
+        description: Publish the selected matching stable tag (vX.Y.Z) with a new build number
         type: boolean
         default: false
 
-env:
-  FLUTTER_VERSION: '3.47.5' # 根据您的 Dockerfile 使用的 Flutter 版本
+permissions:
+  contents: read
+
+# Only superseded dev builds are cancelled; stable tag builds have separate groups.
+concurrency:
+  group: cue-release-${{ github.ref }}-${{ inputs.windows_only || false }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
 
 jobs:
   prepare:
-    name: Validate release ref
+    name: Validate source and allocate build number
     runs-on: ubuntu-latest
     outputs:
-      asset_prefix: ${{ steps.version.outputs.asset_prefix }}
+      metadata: ${{ steps.version.outputs.metadata }}
+      publish: ${{ steps.version.outputs.publish }}
+      channel: ${{ steps.version.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check version and dry-run tag
+      - name: Prepare release
         id: version
-        shell: bash
         env:
-          WINDOWS_ONLY: ${{ inputs.windows_only }}
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
-            echo '::error::Expected a numeric version in pubspec.yaml'
-            exit 1
-          }
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == "v$version" ]] || {
-              echo "::error::Release tag must be v$version"
-              exit 1
-            }
-          elif [[ "$WINDOWS_ONLY" == true ]]; then
-            [[ "$GITHUB_REF_TYPE" == branch && "$GITHUB_REF_NAME" == main ]] || {
-              echo '::error::Windows-only manual validation requires the main branch'
-              exit 1
-            }
-            echo 'Windows-only manual validation; no publication'
-          else
-            [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" == "v$version-dryrun" ]] || {
-              echo "::error::Full manual validation requires the v$version-dryrun tag"
-              exit 1
-            }
-            echo 'Full manual validation; no publication'
-          fi
-          echo "asset_prefix=Cue-v$version" >> "$GITHUB_OUTPUT"
+          WINDOWS_ONLY: ${{ inputs.windows_only || false }}
+          PUBLISH_STABLE: ${{ inputs.publish_stable || false }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release.py prepare
 
   test:
     name: Release tests
     needs: prepare
     uses: ./.github/workflows/ci.yml
 
-  docker:
-    name: Build Docker images (publish on release tags)
-    needs: [test, android, ios, macos, windows]
-    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
-    runs-on: ubuntu-latest
+  build:
+    name: Build and verify packages
+    needs: [prepare, test]
+    uses: ./.github/workflows/build-release.yml
     permissions:
       contents: read
       packages: write
+    secrets: inherit
+    with:
+      metadata: ${{ needs.prepare.outputs.metadata }}
+      publish: ${{ needs.prepare.outputs.publish == 'true' }}
+      windows_only: ${{ inputs.windows_only || false }}
+
+  release:
+    name: Publish complete release
+    needs: [prepare, test, build]
+    if: ${{ needs.prepare.outputs.publish == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      CUE_RELEASE_METADATA: ${{ needs.prepare.outputs.metadata }}
+      GH_TOKEN: ${{ github.token }}
+      API_DIGEST: ${{ needs.build.outputs.api_digest }}
+      WEB_DIGEST: ${{ needs.build.outputs.web_digest }}
+      CUE_CHANNEL: ${{ needs.prepare.outputs.channel }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Verify, upload to draft, then publish
+        run: python3 scripts/release.py publish
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
+      # Moving Docker aliases are updated only after every package is published.
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lowercase Repository Name
-        id: repo_name
-        run: echo "repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Extract metadata for API
-        id: meta-api
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.repo }}/cue-api
-          tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
-
-      - name: Extract metadata for Web
-        id: meta-web
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.repo }}/cue-web
-          tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
-
-      - name: Build and push API image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./server
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta-api.outputs.tags }}
-          labels: ${{ steps.meta-api.outputs.labels }}
-
-      - name: Build and push Web image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta-web.outputs.tags }}
-          labels: ${{ steps.meta-web.outputs.labels }}
-
-  android:
-    name: Build Android APK
-    needs: [prepare, test]
-    if: ${{ github.event_name == 'push' || !inputs.windows_only }}
-    runs-on: ubuntu-latest
-    environment: android-release
-    env:
-      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-          
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Restore Android release signing key
+      - name: Promote channel images
         env:
-          CUE_ANDROID_KEYSTORE_BASE64: ${{ secrets.CUE_ANDROID_KEYSTORE_BASE64 }}
-          CUE_ANDROID_STORE_PASSWORD: ${{ secrets.CUE_ANDROID_STORE_PASSWORD }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          : "${CUE_ANDROID_KEYSTORE_BASE64:?Missing CUE_ANDROID_KEYSTORE_BASE64 secret}"
-          : "${CUE_ANDROID_STORE_PASSWORD:?Missing CUE_ANDROID_STORE_PASSWORD secret}"
-          umask 077
-          printf '%s' "$CUE_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cue-release.p12"
-          {
-            printf 'storeFile=%s\n' "$RUNNER_TEMP/cue-release.p12"
-            printf 'storePassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
-            printf 'keyAlias=cue-release\n'
-            printf 'keyPassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
-          } > android/key.properties
-
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Verify Android release certificate
-        run: |
-          set -euo pipefail
-          apksigner_path="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner -print | sort -V | tail -n 1)"
-          test -n "$apksigner_path"
-          actual="$("$apksigner_path" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
-          expected="$(tr -d '[:space:]' < android/release-cert.sha256)"
-          if [[ "$actual" != "$expected" ]]; then
-            echo '::error::Android APK certificate does not match android/release-cert.sha256'
-            exit 1
-          fi
-
-      - name: Name release APK
-        run: |
-          mkdir -p build/release
-          cp build/app/outputs/flutter-apk/app-release.apk \
-            "build/release/${RELEASE_ASSET_PREFIX}-android-universal.apk"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: cue-android-apk
-          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
-          if-no-files-found: error
-
-  ios:
-    name: Check iOS build (App Store upload is manual)
-    needs: test
-    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.windows_only }}
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build iOS (No Codesign)
-        # 编译检查；未签名的 .app 不作为用户可安装的 Release 附件。
-        run: flutter build ios --release --no-codesign
-
-  macos:
-    name: Build notarized macOS DMG
-    needs: [prepare, test]
-    if: ${{ github.event_name == 'push' || !inputs.windows_only }}
-    runs-on: macos-latest
-    environment: macos-release
-    timeout-minutes: 120
-    permissions:
-      contents: read
-    env:
-      CUE_MACOS_TEAM_ID: ${{ vars.CUE_MACOS_TEAM_ID }}
-      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check macOS release credentials
-        env:
-          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
-          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
-          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
-          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
-          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
-          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
-          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
-          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
-          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
-          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
-          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
-          app_version="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml | head -n 1)"
-          expected_tag="v$app_version"
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
-            expected_tag+='-dryrun'
-          fi
-          [[ "$GITHUB_REF_NAME" == "$expected_tag" ]] || {
-            echo "::error::Expected tag $expected_tag, got $GITHUB_REF_NAME"
-            exit 1
-          }
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Archive universal macOS app
-        run: |
-          set -euo pipefail
-          flutter build macos --release
-          xcodebuild -workspace macos/Runner.xcworkspace \
-            -scheme Runner -configuration Release \
-            -destination 'generic/platform=macOS' \
-            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
-            CODE_SIGN_IDENTITY='-' archive
-
-      - name: Import Developer ID certificate
-        env:
-          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
-          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
-        run: |
-          set -euo pipefail
-          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
-          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
-          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
-          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
-          umask 077
-          certificate_path="$RUNNER_TEMP/cue-developer-id.p12"
-          keychain_path="$RUNNER_TEMP/cue-signing.keychain-db"
-          trap 'rm -f "$certificate_path"' EXIT
-          printf '%s' "$CUE_MACOS_DEVELOPER_ID_P12_BASE64" | base64 -D > "$certificate_path"
-          keychain_password="$(openssl rand -hex 32)"
-          security create-keychain -p "$keychain_password" "$keychain_path"
-          security set-keychain-settings -lut 21600 "$keychain_path"
-          security unlock-keychain -p "$keychain_password" "$keychain_path"
-          security import "$certificate_path" -P "$CUE_MACOS_DEVELOPER_ID_P12_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$keychain_path"
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "$keychain_password" "$keychain_path"
-          security list-keychains -d user -s "$keychain_path"
-          identity="$(security find-identity -v -p codesigning "$keychain_path" | \
-            awk -v team="$CUE_MACOS_TEAM_ID" \
-              'index($0, "Developer ID Application:") && index($0, "(" team ")") { print $2; exit }')"
-          [[ "$identity" =~ ^[0-9A-Fa-f]{40}$ ]] || {
-            echo '::error::No Developer ID Application identity for the configured team'
-            exit 1
-          }
-          echo "CUE_MACOS_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
-
-      - name: Export Developer ID signed app
-        run: |
-          set -euo pipefail
-          python3 - "$RUNNER_TEMP/CueExportOptions.plist" "$CUE_MACOS_TEAM_ID" "$CUE_MACOS_CODESIGN_IDENTITY" <<'PY'
-          import plistlib
-          import sys
-          with open(sys.argv[1], 'wb') as output:
-              plistlib.dump({
-                  'destination': 'export',
-                  'method': 'developer-id',
-                  'signingCertificate': sys.argv[3],
-                  'signingStyle': 'manual',
-                  'teamID': sys.argv[2],
-              }, output)
-          PY
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/CueExportOptions.plist" \
-            -exportPath "$RUNNER_TEMP/cue-macos-export"
-          test -d "$RUNNER_TEMP/cue-macos-export/Cue.app"
-
-      - name: Sign and notarize DMG
-        env:
-          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
-          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
-          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
-          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
-          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
-          [[ "$GITHUB_REF_NAME" =~ ^v[0-9][A-Za-z0-9._+-]*$ ]]
-          umask 077
-          export CUE_MACOS_NOTARY_API_KEY_PATH="$RUNNER_TEMP/cue-notary-key.p8"
-          trap 'rm -f "$CUE_MACOS_NOTARY_API_KEY_PATH"' EXIT
-          printf '%s' "$CUE_MACOS_NOTARY_API_KEY_BASE64" | base64 -D > "$CUE_MACOS_NOTARY_API_KEY_PATH"
-          scripts/package-macos-dmg.sh \
-            "$RUNNER_TEMP/cue-macos-export/Cue.app" \
-            "build/release/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
-
-      - name: Upload notarized DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: cue-macos-dmg
-          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
-          if-no-files-found: error
-
-  windows:
-    name: Build Windows App
-    needs: [prepare, test]
-    runs-on: windows-2025
-    env:
-      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          
-      - name: Install dependencies
-        run: flutter pub get
-        
-      - name: Build Windows
-        run: flutter build windows --release
-
-      - name: Package Windows installer
-        shell: pwsh
-        run: ./scripts/package-windows.ps1
-
-      - name: Smoke test Windows installer
-        shell: pwsh
-        run: |
-          $installer = Get-Item "build/release/${env:RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
-          if (-not $installer) { throw 'Windows installer is missing' }
-          $target = Join-Path $env:RUNNER_TEMP 'CueInstallerSmoke'
-          $install = Start-Process -FilePath $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOICONS /DIR=`"$target`"" -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
-          foreach ($file in @('cue.exe', 'flutter_windows.dll', 'data/app.so', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
-            if (-not (Test-Path (Join-Path $target $file))) { throw "Installed file missing: $file" }
-          }
-          $uninstaller = Get-ChildItem $target -Filter 'unins*.exe' | Select-Object -First 1
-          if (-not $uninstaller) { throw 'Uninstaller is missing' }
-          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
-          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($uninstall.ExitCode)" }
-          if (Test-Path (Join-Path $target 'cue.exe')) { throw 'Uninstaller left cue.exe behind' }
-        
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: cue-windows-installer
-          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
-          if-no-files-found: error
-
-  release:
-    name: Create GitHub Release
-    needs: [prepare, test, docker, android, ios, macos, windows]
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && needs.test.result == 'success' && needs.docker.result == 'success' && needs.android.result == 'success' && needs.ios.result == 'success' && needs.macos.result == 'success' && needs.windows.result == 'success' }}
-    permissions:
-      contents: write
-    env:
-      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Prepare deployment files
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/cue-deployment
-          cp docker-compose.yml artifacts/cue-deployment/docker-compose.yml
-          cp .env.example artifacts/cue-deployment/example.env
-
-      - name: Verify release artifacts
-        run: |
-          set -euo pipefail
-          test -f "artifacts/cue-android-apk/${RELEASE_ASSET_PREFIX}-android-universal.apk"
-          test -f "artifacts/cue-macos-dmg/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
-          test -f "artifacts/cue-windows-installer/${RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
-          test -f artifacts/cue-deployment/docker-compose.yml
-          test -f artifacts/cue-deployment/example.env
-          
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
-        with:
-          name: Cue ${{ github.ref_name }}
-          body_path: .github/release-notes/${{ github.ref_name }}.md
-          body: |
-            Cue is self-hosted: deploy the Web app, API, and PostgreSQL on your own server before connecting a client. See the [中文部署说明](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.zh.md) or [English setup guide](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.md).
-
-            Assets below contain the macOS DMG, Android APK, Windows installer, and deployment files (`docker-compose.yml` and `example.env`). Copy `example.env` to `.env` and configure it before starting Docker Compose. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
-          files: |
-            artifacts/cue-android-apk/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
-            artifacts/cue-macos-dmg/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
-            artifacts/cue-windows-installer/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
-            artifacts/cue-deployment/docker-compose.yml
-            artifacts/cue-deployment/example.env
-          generate_release_notes: ${{ github.ref_name != 'v1.0.0' }}
-          fail_on_unmatched_files: true
+          repository="${REPOSITORY,,}"
+          alias=latest
+          if [[ "$CUE_CHANNEL" == dev ]]; then alias=dev; fi
+          docker buildx imagetools create \
+            --tag "ghcr.io/$repository/cue-api:$alias" \
+            "ghcr.io/$repository/cue-api@$API_DIGEST"
+          docker buildx imagetools create \
+            --tag "ghcr.io/$repository/cue-web:$alias" \
+            "ghcr.io/$repository/cue-web@$WEB_DIGEST"
+      - name: Retain ten workflow-managed Dev releases
+        if: ${{ needs.prepare.outputs.channel == 'dev' }}
+        continue-on-error: true
+        run: python3 scripts/release.py cleanup

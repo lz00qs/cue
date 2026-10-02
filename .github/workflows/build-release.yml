@@ -1,0 +1,392 @@
+name: Build release packages
+
+on:
+  workflow_call:
+    inputs:
+      metadata:
+        type: string
+        required: true
+      publish:
+        type: boolean
+        required: true
+      windows_only:
+        type: boolean
+        default: false
+    outputs:
+      api_digest:
+        value: ${{ jobs.docker.outputs.api_digest }}
+      web_digest:
+        value: ${{ jobs.docker.outputs.web_digest }}
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.5'
+  CUE_RELEASE_METADATA: ${{ inputs.metadata }}
+  CUE_CHANNEL: ${{ fromJSON(inputs.metadata).channel }}
+  CUE_BUILD_NUMBER: ${{ fromJSON(inputs.metadata).build_number }}
+  CUE_COMMIT: ${{ fromJSON(inputs.metadata).commit }}
+  CUE_IMAGE_TAG: ${{ fromJSON(inputs.metadata).image_tag }}
+  RELEASE_ASSET_PREFIX: ${{ fromJSON(inputs.metadata).asset_prefix }}
+
+jobs:
+  docker:
+    name: Build Docker images (publish fixed tags)
+    needs: [android, ios, macos, windows]
+    if: ${{ !inputs.windows_only }}
+    runs-on: ubuntu-latest
+    outputs:
+      api_digest: ${{ steps.api.outputs.digest }}
+      web_digest: ${{ steps.web.outputs.digest }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: inputs.publish
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase Repository Name
+        id: repo_name
+        run: echo "repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Extract metadata for API
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.repo }}/cue-api
+          tags: |
+            type=raw,value=${{ env.CUE_IMAGE_TAG }}
+
+      - name: Extract metadata for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ env.repo }}/cue-web
+          tags: |
+            type=raw,value=${{ env.CUE_IMAGE_TAG }}
+
+      - name: Build and push API image
+        id: api
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: ${{ inputs.publish }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+
+      - name: Build and push Web image
+        id: web
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          build-args: |
+            CUE_CHANNEL=${{ env.CUE_CHANNEL }}
+            CUE_COMMIT=${{ env.CUE_COMMIT }}
+            CUE_BUILD_NUMBER=${{ env.CUE_BUILD_NUMBER }}
+          push: ${{ inputs.publish }}
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+
+  android:
+    name: Build Android APK
+    if: ${{ !inputs.windows_only }}
+    runs-on: ubuntu-latest
+    environment: android-release
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Restore Android release signing key
+        env:
+          CUE_ANDROID_KEYSTORE_BASE64: ${{ secrets.CUE_ANDROID_KEYSTORE_BASE64 }}
+          CUE_ANDROID_STORE_PASSWORD: ${{ secrets.CUE_ANDROID_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CUE_ANDROID_KEYSTORE_BASE64:?Missing CUE_ANDROID_KEYSTORE_BASE64 secret}"
+          : "${CUE_ANDROID_STORE_PASSWORD:?Missing CUE_ANDROID_STORE_PASSWORD secret}"
+          umask 077
+          printf '%s' "$CUE_ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/cue-release.p12"
+          {
+            printf 'storeFile=%s\n' "$RUNNER_TEMP/cue-release.p12"
+            printf 'storePassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
+            printf 'keyAlias=cue-release\n'
+            printf 'keyPassword=%s\n' "$CUE_ANDROID_STORE_PASSWORD"
+          } > android/key.properties
+
+      - name: Build APK
+        run: |
+          flutter build apk --release --build-number "$CUE_BUILD_NUMBER" \
+            --dart-define "CUE_CHANNEL=$CUE_CHANNEL" --dart-define "CUE_COMMIT=$CUE_COMMIT"
+
+      - name: Verify Android release certificate
+        run: |
+          set -euo pipefail
+          apksigner_path="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner -print | sort -V | tail -n 1)"
+          test -n "$apksigner_path"
+          actual="$("$apksigner_path" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          expected="$(tr -d '[:space:]' < android/release-cert.sha256)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo '::error::Android APK certificate does not match android/release-cert.sha256'
+            exit 1
+          fi
+
+      - name: Name release APK
+        run: |
+          mkdir -p build/release
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "build/release/${RELEASE_ASSET_PREFIX}-android-universal.apk"
+
+      - name: Record build source
+        run: python3 scripts/release.py stamp android
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cue-android-apk
+          path: |
+            build/release/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
+            build/release/android.json
+          retention-days: 7
+          if-no-files-found: error
+
+  ios:
+    name: Check iOS build (App Store upload is manual)
+    if: ${{ !inputs.windows_only }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build iOS (No Codesign)
+        # 编译检查；未签名的 .app 不作为用户可安装的 Release 附件。
+        run: >-
+          flutter build ios --release --no-codesign
+          --build-number "$CUE_BUILD_NUMBER"
+          --dart-define "CUE_CHANNEL=$CUE_CHANNEL"
+          --dart-define "CUE_COMMIT=$CUE_COMMIT"
+
+  macos:
+    name: Build notarized macOS DMG
+    if: ${{ !inputs.windows_only }}
+    runs-on: macos-latest
+    environment: macos-release
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    env:
+      CUE_MACOS_TEAM_ID: ${{ vars.CUE_MACOS_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check macOS release credentials
+        env:
+          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
+          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
+          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
+          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
+          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
+          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
+          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Archive universal macOS app
+        run: |
+          set -euo pipefail
+          flutter build macos --release --build-number "$CUE_BUILD_NUMBER" \
+            --dart-define "CUE_CHANNEL=$CUE_CHANNEL" --dart-define "CUE_COMMIT=$CUE_COMMIT"
+          xcodebuild -workspace macos/Runner.xcworkspace \
+            -scheme Runner -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
+            CODE_SIGN_IDENTITY='-' archive
+
+      - name: Import Developer ID certificate
+        env:
+          CUE_MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_BASE64 }}
+          CUE_MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CUE_MACOS_DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_TEAM_ID:?Missing CUE_MACOS_TEAM_ID environment variable}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_BASE64:?Missing Developer ID certificate secret}"
+          : "${CUE_MACOS_DEVELOPER_ID_P12_PASSWORD:?Missing certificate password secret}"
+          [[ "$CUE_MACOS_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]
+          umask 077
+          certificate_path="$RUNNER_TEMP/cue-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/cue-signing.keychain-db"
+          trap 'rm -f "$certificate_path"' EXIT
+          printf '%s' "$CUE_MACOS_DEVELOPER_ID_P12_BASE64" | base64 -D > "$certificate_path"
+          keychain_password="$(openssl rand -hex 32)"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$CUE_MACOS_DEVELOPER_ID_P12_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | \
+            awk -v team="$CUE_MACOS_TEAM_ID" \
+              'index($0, "Developer ID Application:") && index($0, "(" team ")") { print $2; exit }')"
+          [[ "$identity" =~ ^[0-9A-Fa-f]{40}$ ]] || {
+            echo '::error::No Developer ID Application identity for the configured team'
+            exit 1
+          }
+          echo "CUE_MACOS_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      - name: Export Developer ID signed app
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/CueExportOptions.plist" "$CUE_MACOS_TEAM_ID" "$CUE_MACOS_CODESIGN_IDENTITY" <<'PY'
+          import plistlib
+          import sys
+          with open(sys.argv[1], 'wb') as output:
+              plistlib.dump({
+                  'destination': 'export',
+                  'method': 'developer-id',
+                  'signingCertificate': sys.argv[3],
+                  'signingStyle': 'manual',
+                  'teamID': sys.argv[2],
+              }, output)
+          PY
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/CueExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/cue-macos-export"
+          test -d "$RUNNER_TEMP/cue-macos-export/Cue.app"
+
+      - name: Sign and notarize DMG
+        env:
+          CUE_MACOS_NOTARY_API_KEY_BASE64: ${{ secrets.CUE_MACOS_NOTARY_API_KEY_BASE64 }}
+          CUE_MACOS_NOTARY_KEY_ID: ${{ secrets.CUE_MACOS_NOTARY_KEY_ID }}
+          CUE_MACOS_NOTARY_ISSUER_ID: ${{ secrets.CUE_MACOS_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          : "${CUE_MACOS_NOTARY_API_KEY_BASE64:?Missing notary API key secret}"
+          : "${CUE_MACOS_NOTARY_KEY_ID:?Missing notary key ID secret}"
+          : "${CUE_MACOS_NOTARY_ISSUER_ID:?Missing notary issuer ID secret}"
+          umask 077
+          export CUE_MACOS_NOTARY_API_KEY_PATH="$RUNNER_TEMP/cue-notary-key.p8"
+          trap 'rm -f "$CUE_MACOS_NOTARY_API_KEY_PATH"' EXIT
+          printf '%s' "$CUE_MACOS_NOTARY_API_KEY_BASE64" | base64 -D > "$CUE_MACOS_NOTARY_API_KEY_PATH"
+          scripts/package-macos-dmg.sh \
+            "$RUNNER_TEMP/cue-macos-export/Cue.app" \
+            "build/release/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
+
+      - name: Record build source
+        run: python3 scripts/release.py stamp macos
+
+      - name: Upload notarized DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: cue-macos-dmg
+          path: |
+            build/release/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
+            build/release/macos.json
+          retention-days: 7
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows App
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Build Windows
+        run: >-
+          flutter build windows --release
+          --build-number "$env:CUE_BUILD_NUMBER"
+          --dart-define "CUE_CHANNEL=$env:CUE_CHANNEL"
+          --dart-define "CUE_COMMIT=$env:CUE_COMMIT"
+
+      - name: Package Windows installer
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+
+      - name: Smoke test Windows installer
+        shell: pwsh
+        run: |
+          $installer = Get-Item "build/release/${env:RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
+          if (-not $installer) { throw 'Windows installer is missing' }
+          $target = Join-Path $env:RUNNER_TEMP 'CueInstallerSmoke'
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOICONS /DIR=`"$target`"" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installer failed with exit code $($install.ExitCode)" }
+          foreach ($file in @('cue.exe', 'flutter_windows.dll', 'data/app.so', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
+            if (-not (Test-Path (Join-Path $target $file))) { throw "Installed file missing: $file" }
+          }
+          $uninstaller = Get-ChildItem $target -Filter 'unins*.exe' | Select-Object -First 1
+          if (-not $uninstaller) { throw 'Uninstaller is missing' }
+          $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($uninstall.ExitCode)" }
+          if (Test-Path (Join-Path $target 'cue.exe')) { throw 'Uninstaller left cue.exe behind' }
+        
+      - name: Record build source
+        run: python scripts/release.py stamp windows
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: cue-windows-installer
+          path: |
+            build/release/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
+            build/release/windows.json
+          retention-days: 7
+          if-no-files-found: error
+

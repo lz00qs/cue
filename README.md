@@ -6,6 +6,27 @@ Cue is a personal task manager you host yourself. It consists of a Web app, an A
 
 Cue includes Today, Inbox, Upcoming, board, calendar, and priority quadrant views, with English and Chinese interfaces. Tasks sync across your devices and remain in your PostgreSQL data volume.
 
+## Stable and Dev downloads
+
+Use the [latest stable release](https://github.com/lz00qs/cue/releases/latest) for everyday use. To test bug fixes, choose the newest **Cue … Dev** prerelease on the [Releases page](https://github.com/lz00qs/cue/releases). Dev includes an Android APK, signed and notarized macOS DMG, and Windows installer. It replaces the stable client and uses its existing configuration. About Cue displays the Dev channel, build number, and commit for bug reports. iOS distribution remains separate through the App Store; this workflow only checks its compilation.
+
+Stable and Dev use the same signing identities and an increasing build number. Android prevents installing an older build number over a newer one. To return from Dev to stable, wait for a subsequent stable release, or uninstall and reinstall the older package and sign in again.
+
+Each release's `docker-compose.yml` pins API/Web images to that build's digests. `release.json` records the source and build, and `SHA256SUMS` verifies the downloads. Run `shasum -a 256 filename` for each downloaded file and compare it with the matching line in `SHA256SUMS`. GHCR's `:dev` tracks the published Dev channel; `:latest` tracks stable. Clients still connect to your configured Cue server. Use the matching Dev deployment files for a test server when validating server changes.
+
+### Maintainers: publish Dev
+
+1. Merge workflow changes into `main` first, then create or synchronize `dev` from the updated `main`. Under Settings → Environments, ensure the deployment branch/tag rules for `android-release` and `macos-release` allow the **dev branch** as well as existing release/dry-run tags. Existing signing secrets and variables are reused. Any configured environment approvals still apply.
+2. Push bug fixes to `dev` to test, build, and publish an independent prerelease automatically. Alternatively, select `dev` in Actions → Release → Run workflow. Leave `windows_only` unchecked to publish; checking it validates Windows only. Superseded Dev builds are cancelled.
+3. All client checks, signing, notarization, and Docker builds must pass. Files are uploaded and verified on a draft before publication. Dev does not change stable Latest. The last 10 workflow-managed Dev releases are retained, with temporary Actions artifacts kept for 7 days. Rerunning an already published version is rejected; start a new run for a new Dev build. Cleanup does not delete historical GHCR images; manage those separately when needed.
+4. Once verified, merge into `main`, update the version, and push its matching `vX.Y.Z` tag for a stable release, then synchronize `dev`. Full stable validation still uses a manually dispatched `vX.Y.Z-dryrun` tag; `windows_only` on `main` still validates only the installer.
+
+Both channels share the `run_number` of `.github/workflows/release.yml`; platform build numbers are `1000 + run_number` and remain unchanged on retries. Keep this entry point's name/path and shared numbering scheme. Windows limits the build number to 65535. Platform versions remain numeric values from `pubspec.yaml`; the Dev suffix appears in release names, filenames, and About Cue.
+
+If a higher build number was published while an older build was running, the older publication is rejected. Start a new Dev run, or select the original unpublished stable `vX.Y.Z` tag in Run workflow with `publish_stable` checked to allocate a new number without retagging. If a release was published but channel image promotion failed, retrying the failed release job verifies the original attachments before resuming promotion, without changing public files.
+
+GitHub's default `GITHUB_TOKEN` cannot create/update a release when its source modifies workflows relative to the default branch. Land `.github/workflows/` changes on `main` before synchronizing `dev`; ordinary bug fixes need no additional token.
+
 ## First-time setup
 
 You need Docker Engine and Docker Compose. Run these commands from the project root.

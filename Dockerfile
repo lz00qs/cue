@@ -24,7 +24,12 @@ COPY analysis_options.yaml l10n.yaml ./
 COPY assets ./assets
 COPY lib ./lib
 COPY web ./web
-RUN flutter build web --release
+ARG CUE_CHANNEL=stable
+ARG CUE_COMMIT=
+ARG CUE_BUILD_NUMBER=
+RUN if [ -n "$CUE_BUILD_NUMBER" ]; then set -- --build-number="$CUE_BUILD_NUMBER"; else set --; fi \
+    && flutter build web --release "$@" \
+       --dart-define="CUE_CHANNEL=$CUE_CHANNEL" --dart-define="CUE_COMMIT=$CUE_COMMIT"
 
 FROM nginx:1.27-alpine
 
