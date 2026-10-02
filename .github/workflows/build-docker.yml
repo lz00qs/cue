@@ -20,6 +20,8 @@ permissions:
   packages: write
 
 env:
+  # Release downloads contain Cue packages; Docker build records are not installers.
+  DOCKER_BUILD_RECORD_UPLOAD: 'false'
   CUE_CHANNEL: ${{ fromJSON(inputs.metadata).channel }}
   CUE_BUILD_NUMBER: ${{ fromJSON(inputs.metadata).build_number }}
   CUE_COMMIT: ${{ fromJSON(inputs.metadata).commit }}
@@ -92,4 +94,3 @@ jobs:
           push: ${{ inputs.publish }}
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
-
