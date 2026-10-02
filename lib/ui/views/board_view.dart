@@ -1232,12 +1232,12 @@ class _GroupedPreview extends StatelessWidget {
   void _addTask(int columnIndex) {
     if (group == BoardGroup.priority) {
       onAddTask?.call(priority: columnIndex);
-    } else if (columnIndex == 2) {
+    } else if (columnIndex == 3) {
       onAddTask?.call(noDueDate: true);
     } else {
       final today = store.today;
       onAddTask?.call(
-        dueDate: DateTime(today.year, today.month, today.day + columnIndex),
+        dueDate: DateTime(today.year, today.month, today.day + columnIndex - 1),
       );
     }
   }
@@ -1255,13 +1255,14 @@ class _GroupedPreview extends StatelessWidget {
               ),
           ]
         : <(String, List<CueTask>)>[
+            (context.l10n.overdue, store.overdueTasks),
             (
               context.l10n.today,
               tasks
                   .where(
                     (task) =>
                         task.dueAt != null &&
-                        !TaskStore.dateOnly(task.dueAt!).isAfter(today),
+                        TaskStore.isSameDay(task.dueAt!, today),
                   )
                   .toList(),
             ),
@@ -1330,7 +1331,8 @@ class _GroupedPreview extends StatelessWidget {
                                     ),
                               ),
                             ),
-                            if (onAddTask != null)
+                            if (onAddTask != null &&
+                                (group != BoardGroup.dueDate || index != 0))
                               SizedBox(
                                 width: 28,
                                 height: 28,
@@ -1345,7 +1347,9 @@ class _GroupedPreview extends StatelessWidget {
                                   onPressed: () => _addTask(index),
                                   tooltip: context.l10n.addTask,
                                 ),
-                              ),
+                              )
+                            else
+                              const SizedBox(width: 28, height: 28),
                           ],
                         ),
                         const SizedBox(height: 8),

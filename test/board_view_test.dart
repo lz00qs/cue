@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:cue/data/task_store.dart';
 import 'package:cue/l10n/l10n.dart';
+import 'package:cue/models/cue_task.dart';
 import 'package:cue/state/app_state.dart';
 import 'package:cue/ui/cue_home.dart';
 import 'package:cue/ui/cue_theme.dart';
@@ -58,6 +59,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byIcon(Icons.add_rounded), findsNWidgets(3));
+        expect(find.byKey(const Key('board-add-dueDate-0')), findsNothing);
         final expectedDates = [
           DateTime(2026, 12, 31, 18),
           DateTime(2027, 1, 1, 18),
@@ -67,7 +69,7 @@ void main() {
             ? ['今天', '即将到来', '无截止日期']
             : ['Today', 'Upcoming', 'No due date'];
         for (var index = 0; index < expectedDates.length; index++) {
-          final button = find.byKey(Key('board-add-dueDate-$index'));
+          final button = find.byKey(Key('board-add-dueDate-${index + 1}'));
           await tester.tap(button);
           await tester.pumpAndSettle();
           if (expectedDates[index] == null) {
@@ -92,6 +94,87 @@ void main() {
         }
       },
     );
+
+    testWidgets('due date board separates overdue tasks from today ($locale)', (
+      tester,
+    ) async {
+      CueTask task(
+        String title,
+        DateTime? dueAt, {
+        DateTime? deletedAt,
+        DateTime? completedAt,
+      }) => CueTask(
+        id: title,
+        title: title,
+        note: '',
+        priority: 2,
+        sortOrder: 1000,
+        dueAt: dueAt,
+        createdAt: today,
+        updatedAt: today,
+        deletedAt: deletedAt,
+        completedAt: completedAt,
+      );
+
+      final yesterdayTask = task(
+        'Yesterday task',
+        DateTime(2026, 12, 30, 23, 59),
+      );
+      final store = TaskStore([
+        yesterdayTask,
+        task('Older task', DateTime(2026, 12, 1, 18)),
+        task('Today midnight task', today),
+        task('Today evening task', DateTime(2026, 12, 31, 23, 59)),
+        task('Tomorrow task', DateTime(2027, 1, 1)),
+        task('Unscheduled task', null),
+        task('Deleted task', DateTime(2026, 12, 30), deletedAt: today),
+        task('Completed task', DateTime(2026, 12, 30), completedAt: today),
+      ], today: today);
+      await _pumpBoard(tester, store, locale);
+      await tester.tap(
+        find.widgetWithText(CueViewTab, locale == 'zh' ? '截止日期' : 'Due date'),
+      );
+      await tester.pumpAndSettle();
+
+      final overdueLabel = locale == 'zh' ? '已逾期' : 'Overdue';
+      final todayLabel = locale == 'zh' ? '今天' : 'Today';
+      final upcomingLabel = locale == 'zh' ? '即将到来' : 'Upcoming';
+      final noDueDateLabel = locale == 'zh' ? '无截止日期' : 'No due date';
+
+      void expectColumn(String label, List<String> titles) {
+        final header = find.text('$label · ${titles.length}');
+        expect(header, findsOneWidget);
+        final column = find
+            .ancestor(of: header, matching: find.byType(Column))
+            .first;
+        final cards = find.descendant(
+          of: column,
+          matching: find.byType(CueTaskCard),
+        );
+        expect(
+          tester.widgetList<CueTaskCard>(cards).map((card) => card.task.title),
+          titles,
+        );
+      }
+
+      expectColumn(overdueLabel, ['Older task', 'Yesterday task']);
+      expectColumn(todayLabel, ['Today midnight task', 'Today evening task']);
+      expectColumn(upcomingLabel, ['Tomorrow task']);
+      expectColumn(noDueDateLabel, ['Unscheduled task']);
+      expect(find.text('Deleted task'), findsNothing);
+      expect(find.text('Completed task'), findsNothing);
+      expect(find.byType(CueTaskCard), findsNWidgets(6));
+
+      await store.updateDueAt(yesterdayTask, DateTime(2026, 12, 31, 18));
+      await tester.pumpAndSettle();
+      expectColumn(overdueLabel, ['Older task']);
+      expectColumn(todayLabel, [
+        'Today midnight task',
+        'Yesterday task',
+        'Today evening task',
+      ]);
+      expect(find.byType(CueTaskCard), findsNWidgets(6));
+    });
   }
 }
 
