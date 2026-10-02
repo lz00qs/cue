@@ -26,6 +26,7 @@ env:
   CUE_BUILD_NUMBER: ${{ fromJSON(inputs.metadata).build_number }}
   CUE_COMMIT: ${{ fromJSON(inputs.metadata).commit }}
   CUE_IMAGE_TAG: ${{ fromJSON(inputs.metadata).image_tag }}
+  CUE_RELEASE_METADATA: ${{ inputs.metadata }}
 
 jobs:
   docker:
@@ -94,3 +95,19 @@ jobs:
           push: ${{ inputs.publish }}
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
+
+      - name: Prepare internal server deployment files
+        if: ${{ inputs.publish && !fromJSON(inputs.metadata).publish }}
+        env:
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+        run: python3 scripts/release.py deployment
+
+      - name: Upload internal server deployment files
+        if: ${{ inputs.publish && !fromJSON(inputs.metadata).publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cue-dev-deployment
+          path: build/release/cue-deployment/*
+          retention-days: 7
+          if-no-files-found: error

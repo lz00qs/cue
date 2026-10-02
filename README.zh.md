@@ -26,9 +26,11 @@ Dev 和正式版使用同一签名及递增构建编号。Android 无法直接�
 ### 维护者：发布 Dev
 
 1. 先将发布工作流改动合入 `main`，再从更新后的 `main` 创建或同步 `dev`。在仓库 Settings → Environments 中确认 `android-release` 和 `macos-release` 的 Deployment branches and tags 允许 **dev 分支**及现有正式/演练 tag。沿用已有签名 secrets 和变量；若环境配置了人工审批，每次构建仍需审批。
-2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。在 Actions → Release → Run workflow 中选择 `dev`。**内测**时勾选 `build_only`，再选择 `platform`：`all`、`android`、`macos`、`windows`、`ios` 或 `docker`。所选平台的 Android、已公证 macOS 和 Windows 安装包保存在本次运行的 **Artifacts** 中，保留 7 天；iOS 仅检查编译，Docker 仅检查 API/Web 镜像。选择 `all` 时，内测 Docker 与客户端并行构建。不创建 Git 标签、GitHub Release，也不推送 GHCR 镜像。下载对应的 Artifact ZIP 并解压取得安装包。需要公开的 Dev 预发布时，`build_only` 和 `windows_only` 都不勾选，保持 `platform=all`。已有 `windows_only` 仍可在 `main` 或 `dev` 上仅验证 Windows、不发布；使用它时保持 `platform=all`。同一模式、同一目标的连续运行会取消旧构建；不同内测平台与公开发布分别运行。发布前仍会检查构建提交与 `dev` 当前提交一致。
+2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。在 Actions → Release → Run workflow 中选择 `dev`。**内测**时勾选 `build_only`，再选择 `platform`：`all`、`android`、`macos`、`windows`、`ios` 或 `docker`。所选平台的 Android、已公证 macOS 和 Windows 安装包保存在本次运行的 **Artifacts** 中，保留 7 天；iOS 仅检查编译，Docker 默认仅检查 API/Web 镜像。选择 `all` 时，内测 Docker 与客户端并行构建。不创建 Git 标签或 GitHub Release；默认不推送 GHCR 镜像。下载对应的 Artifact ZIP 并解压取得安装包。需要公开的 Dev 预发布时，`build_only` 和 `windows_only` 都不勾选，保持 `platform=all`。已有 `windows_only` 仍可在 `main` 或 `dev` 上仅验证 Windows、不发布；使用它时保持 `platform=all`。同一模式、同一目标的连续运行会取消旧构建；不同内测平台与公开发布分别运行。发布前仍会检查构建提交与 `dev` 当前提交一致。
 3. 全部客户端检查、签名、公证与 Docker 构建成功后，先上传并校验完整附件，再公开 Release。正式版 Latest 不受 Dev 影响。保留最近 10 个本流程管理的 Dev Release，Actions 临时产物保留 7 天。已公开版本的重跑会被拒绝；新的 Dev 构建请启动新的 workflow run。清理不删除 GHCR 历史镜像，旧镜像可按需另行管理。
 4. 验证通过后合入 `main`，更新版本并推送对应 `vX.Y.Z` tag 发布正式版；随后同步回 `dev`。完整的正式版演练仍使用 `vX.Y.Z-dryrun` tag 手动运行；`main` 上的 `windows_only` 仍只验证安装器。
+
+需要在服务器内测 Docker 时，选择 `dev`、勾选 `build_only`、设置 `platform=docker`（或 `all`），再勾选 `push_dev_images`。API/Web 镜像会推送到 GHCR，标签为 `dev-构建编号-12位commit`；不会创建 Release，也不会更新公开 Dev 的 `:dev` 或正式版的 `:latest`。本次运行的 Docker job Summary 列出镜像地址与摘要，**Artifacts → cue-dev-deployment** 提供固定摘要的 `docker-compose.yml`、`example.env`、`release.json` 和 `SHA256SUMS`，保留 7 天。服务器上解压部署附件，按首次部署说明配置 `.env`（已有服务保留现有 `.env`），然后运行 `docker compose pull cue-api cue-web` 和 `docker compose up -d`；启用 HTTPS 的部署加上 `--profile https`，并保留现有 TLS 配置。镜像沿用现有 GHCR 包的访问权限，内测推送并不增加下载权限隔离。
 
 正式版和 Dev 共用 `.github/workflows/release.yml` 的 `run_number`，平台构建编号为 `1000 + run_number`，重跑保持原编号。不要重命名该入口或为两条渠道分别计算编号；Windows 的编号上限为 65535。平台版本继续使用 `pubspec.yaml` 的数字版本，Dev 后缀只用于发布名称、文件名和应用内标识。
 

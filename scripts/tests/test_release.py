@@ -1,6 +1,8 @@
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -8,7 +10,7 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from release import (DEV_MARKER, PLATFORMS, check_source, old_dev_releases,
-                     package_release, prepare_metadata, publish_release,
+                     deployment_files, package_release, prepare_metadata, publish_release,
                      release_body, release_title)
 
 
@@ -91,6 +93,8 @@ class MetadataTests(unittest.TestCase):
         dev = prepare_metadata(env(), PUBSPEC)
         stable = prepare_metadata(env("v1.0.1", "tag", "push", run_number=43), PUBSPEC)
         self.assertTrue(dev["publish"])
+        self.assertTrue(dev["push_images"])
+        self.assertTrue(stable["push_images"])
         self.assertEqual(dev["tag"], "v1.0.1-dev.1042")
         self.assertEqual(release_title(dev), "Cue v1.0.1-dev.1042")
         self.assertEqual(release_title(stable), "Cue v1.0.1")
@@ -105,6 +109,7 @@ class MetadataTests(unittest.TestCase):
             with self.subTest(ref=ref):
                 metadata = prepare_metadata(env(ref, ref_type, "workflow_dispatch", windows_only=windows), PUBSPEC)
                 self.assertFalse(metadata["publish"])
+                self.assertFalse(metadata["push_images"])
 
     def test_internal_dev_build_uses_shared_numbering_without_publication(self):
         for windows_only in (False, True):
@@ -140,6 +145,7 @@ class MetadataTests(unittest.TestCase):
             with self.subTest(platform=platform):
                 metadata = prepare_metadata(dict(env(), BUILD_ONLY="true", BUILD_PLATFORM=platform), PUBSPEC)
                 self.assertFalse(metadata["publish"])
+                self.assertFalse(metadata["push_images"])
                 self.assertEqual(metadata["platform"], platform)
                 self.assertEqual(metadata["build_number"], 1042)
         self.assertEqual(prepare_metadata(env(windows_only=True), PUBSPEC)["platform"], "windows")
@@ -151,6 +157,27 @@ class MetadataTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "public releases must build all"):
                     prepare_metadata(dict(value, BUILD_PLATFORM="android"), PUBSPEC)
+
+    def test_internal_docker_push_does_not_publish_a_release(self):
+        for platform in ("all", "docker"):
+            with self.subTest(platform=platform):
+                metadata = prepare_metadata(dict(env(), BUILD_ONLY="true", BUILD_PLATFORM=platform,
+                                                 PUSH_DEV_IMAGES="true"), PUBSPEC)
+                self.assertTrue(metadata["push_images"])
+                self.assertFalse(metadata["publish"])
+                self.assertEqual(metadata["channel"], "dev")
+                self.assertEqual(metadata["image_tag"], "dev-1042-abcdef012345")
+
+    def test_internal_docker_push_rejects_incompatible_modes(self):
+        invalid = [env(), dict(env(), BUILD_ONLY="true", BUILD_PLATFORM="android"),
+                   dict(env(), BUILD_ONLY="true", WINDOWS_ONLY="true"),
+                   dict(env("main"), BUILD_ONLY="true"),
+                   env("v1.0.1", "tag", "push"),
+                   dict(env(), BUILD_ONLY="true", PUBLISH_STABLE="true")]
+        for value in invalid:
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    prepare_metadata(dict(value, PUSH_DEV_IMAGES="true"), PUBSPEC)
 
     def test_invalid_and_conflicting_internal_targets_are_rejected(self):
         for platform in ("unknown", "android,windows", ""):
@@ -172,6 +199,59 @@ class MetadataTests(unittest.TestCase):
                       env("v1.0.1", "tag", "workflow_dispatch", windows_only=True)):
             with self.assertRaises(ValueError):
                 prepare_metadata(dict(value, PUBLISH_STABLE="true"), PUBSPEC)
+
+
+class InternalDeploymentTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.metadata = prepare_metadata(dict(env(), BUILD_ONLY="true", BUILD_PLATFORM="docker",
+                                              PUSH_DEV_IMAGES="true"), PUBSPEC)
+        self.api_digest = "sha256:" + "a" * 64
+        self.web_digest = "sha256:" + "b" * 64
+
+    def test_deployment_pins_both_images_without_native_packages(self):
+        files = deployment_files(self.root, self.metadata, "lz00qs/cue", self.api_digest, self.web_digest)
+        self.assertEqual({path.name for path in files}, {"docker-compose.yml", "example.env", "release.json"})
+        compose = (self.root / "docker-compose.yml").read_text()
+        self.assertIn("cue-api@" + self.api_digest, compose)
+        self.assertIn("cue-web@" + self.web_digest, compose)
+        self.assertNotIn("cue-api:latest", compose)
+        self.assertNotIn("cue-web:latest", compose)
+        manifest = json.loads((self.root / "release.json").read_text())
+        self.assertFalse(manifest["publish"])
+        self.assertEqual(manifest["images"], {"api": self.api_digest, "web": self.web_digest})
+        self.assertEqual(manifest["commit"], SHA)
+
+    def test_cli_prepares_checked_deployment_without_a_github_token(self):
+        for source, target in (("docker-compose.yml", "docker-compose.yml"), (".env.example", ".env.example")):
+            (self.root / target).write_bytes(Path(source).read_bytes())
+        summary = self.root / "summary.md"
+        result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "release.py"),
+                                 "deployment"], cwd=self.root, capture_output=True, text=True, env={
+                                     "PATH": os.environ["PATH"],
+                                     "CUE_RELEASE_METADATA": json.dumps(self.metadata),
+                                     "GITHUB_REPOSITORY": "lz00qs/cue",
+                                     "GITHUB_STEP_SUMMARY": str(summary),
+                                     "API_DIGEST": self.api_digest, "WEB_DIGEST": self.web_digest,
+                                 })
+        self.assertEqual(result.returncode, 0, result.stderr)
+        deployment = self.root / "build/release/cue-deployment"
+        checksums = (deployment / "SHA256SUMS").read_text().splitlines()
+        self.assertEqual(len(checksums), 3)
+        for line in checksums:
+            digest, filename = line.split("  ")
+            self.assertEqual(digest, hashlib.sha256((deployment / filename).read_bytes()).hexdigest())
+        self.assertIn("cue-api:dev-1042-abcdef012345", summary.read_text())
+        self.assertIn("cue-dev-deployment", summary.read_text())
+
+    def test_deployment_rejects_missing_or_malformed_published_digests(self):
+        for digests in (("", self.web_digest), (self.api_digest, "sha256:bad")):
+            with self.subTest(digests=digests):
+                with self.assertRaisesRegex(ValueError, "Expected published"):
+                    deployment_files(self.root, self.metadata, "lz00qs/cue", *digests)
+        self.assertEqual(list(self.root.iterdir()), [])
 
 
 class PublicationTests(unittest.TestCase):

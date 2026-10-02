@@ -41,6 +41,7 @@ def prepare_metadata(env, pubspec):
     windows_only = env.get("WINDOWS_ONLY", "false").lower() == "true"
     publish_stable = env.get("PUBLISH_STABLE", "false").lower() == "true"
     build_only = env.get("BUILD_ONLY", "false").lower() == "true"
+    push_dev_images = env.get("PUSH_DEV_IMAGES", "false").lower() == "true"
     platform = env.get("BUILD_PLATFORM", "all")
     if platform not in {"all", "android", "macos", "windows", "ios", "docker"}:
         raise ValueError("Unknown internal build platform")
@@ -53,6 +54,8 @@ def prepare_metadata(env, pubspec):
     if build_only and (event != "workflow_dispatch" or ref_type != "branch"
                        or ref != "dev" or publish_stable):
         raise ValueError("Build-only internal testing requires manually selecting dev without publish_stable")
+    if push_dev_images and (not build_only or windows_only or platform not in {"all", "docker"}):
+        raise ValueError("Internal GHCR push requires build_only with platform all or docker, without windows_only")
     if windows_only and event != "workflow_dispatch":
         raise ValueError("Windows-only validation must be manually dispatched")
     if publish_stable and (event != "workflow_dispatch" or windows_only
@@ -84,6 +87,7 @@ def prepare_metadata(env, pubspec):
         "asset_prefix": f"Cue-{tag}",
         "image_tag": f"dev-{build_number}-{short_sha}" if channel == "dev" else version,
         "publish": publish,
+        "push_images": publish or push_dev_images,
         "platform": "windows" if windows_only else platform,
         "run_number": run_number,
         "run_id": env["GITHUB_RUN_ID"],
@@ -170,13 +174,11 @@ def verify_artifacts(root, metadata):
     return files
 
 
-def package_release(root, metadata, repository, api_digest, web_digest):
-    files = verify_artifacts(root, metadata)
+def deployment_files(deployment, metadata, repository, api_digest, web_digest):
     for digest in (api_digest, web_digest):
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
             raise ValueError("Expected published API and Web image digests")
-    deployment = root / "cue-deployment"
-    deployment.mkdir(exist_ok=True)
+    deployment.mkdir(parents=True, exist_ok=True)
     compose = Path("docker-compose.yml").read_text()
     for name, digest in (("cue-api", api_digest), ("cue-web", web_digest)):
         compose, count = re.subn(
@@ -188,11 +190,19 @@ def package_release(root, metadata, repository, api_digest, web_digest):
     (deployment / "example.env").write_bytes(Path(".env.example").read_bytes())
     manifest = dict(metadata, images={"api": api_digest, "web": web_digest})
     (deployment / "release.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    files.extend(deployment / name for name in ("docker-compose.yml", "example.env", "release.json"))
-    sums = deployment / "SHA256SUMS"
+    return [deployment / name for name in ("docker-compose.yml", "example.env", "release.json")]
+
+
+def with_checksums(files, sums):
     sums.write_text("".join(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n" for path in files))
-    files.append(sums)
-    return files
+    return files + [sums]
+
+
+def package_release(root, metadata, repository, api_digest, web_digest):
+    files = verify_artifacts(root, metadata)
+    deployment = root / "cue-deployment"
+    files.extend(deployment_files(deployment, metadata, repository, api_digest, web_digest))
+    return with_checksums(files, deployment / "SHA256SUMS")
 
 
 def release_title(metadata):
@@ -361,7 +371,7 @@ def old_dev_releases(releases, keep=10):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("prepare", "stamp", "publish", "cleanup"))
+    parser.add_argument("command", choices=("prepare", "stamp", "deployment", "publish", "cleanup"))
     parser.add_argument("platform", nargs="?", choices=PLATFORMS)
     args = parser.parse_args()
     if args.command == "prepare":
@@ -380,6 +390,25 @@ def main():
             parser.error("stamp requires a platform")
         Path("build/release").mkdir(parents=True, exist_ok=True)
         Path(f"build/release/{args.platform}.json").write_text(json.dumps(metadata, sort_keys=True) + "\n")
+        return
+    if args.command == "deployment":
+        if metadata["channel"] != "dev" or metadata["publish"] or not metadata["push_images"]:
+            raise ValueError("Internal deployment files require a Dev GHCR push without Release publication")
+        deployment = Path("build/release/cue-deployment")
+        repository = os.environ["GITHUB_REPOSITORY"].lower()
+        files = deployment_files(deployment, metadata, repository,
+                                 os.environ["API_DIGEST"], os.environ["WEB_DIGEST"])
+        with_checksums(files, deployment / "SHA256SUMS")
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+            summary.write("### Internal Dev server images\n\n")
+            for name, digest in (("cue-api", os.environ["API_DIGEST"]), ("cue-web", os.environ["WEB_DIGEST"])):
+                summary.write(f"- `ghcr.io/{repository}/{name}:{metadata['image_tag']}`\n")
+                summary.write(f"  - Digest: `{digest}`\n")
+            summary.write("\nDownload and extract **cue-dev-deployment** from this run's Artifacts. "
+                          "Its Compose file pins both images to these digests. Configure `.env` using "
+                          "`example.env` (or keep your existing `.env`), then run:\n\n"
+                          "```sh\ndocker compose pull cue-api cue-web\ndocker compose up -d\n```\n\n"
+                          "No GitHub Release was created. The `:dev` and `:latest` aliases were not changed.\n")
         return
     if not metadata["publish"]:
         raise ValueError("This run is validation-only")

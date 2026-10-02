@@ -31,9 +31,9 @@ env:
   RELEASE_ASSET_PREFIX: ${{ fromJSON(inputs.metadata).asset_prefix }}
 
 jobs:
-  # Internal Docker checks run alongside native builds; published images wait for them.
+  # Internal images run alongside native builds; public channel images wait for them.
   docker:
-    name: Check Docker images
+    name: ${{ fromJSON(inputs.metadata).push_images && 'Push internal Docker images' || 'Check Docker images' }}
     if: ${{ !inputs.publish && (inputs.platform == 'all' || inputs.platform == 'docker') }}
     uses: ./.github/workflows/build-docker.yml
     permissions:
@@ -41,7 +41,7 @@ jobs:
       packages: write
     with:
       metadata: ${{ inputs.metadata }}
-      publish: false
+      publish: ${{ fromJSON(inputs.metadata).push_images }}
 
   docker-publish:
     name: Publish Docker images
