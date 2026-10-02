@@ -8,7 +8,7 @@ if (-not $versionMatch.Success) {
 }
 $version = $versionMatch.Groups[1].Value
 $assetPrefix = if ($env:RELEASE_ASSET_PREFIX) { $env:RELEASE_ASSET_PREFIX } else { "Cue-v$version" }
-if ($assetPrefix -notmatch '^Cue-(?:v\d+\.\d+\.\d+|dev-\d+\.\d+\.\d+-\d+-[0-9a-f]{12})$') {
+if ($assetPrefix -notmatch '^Cue-v\d+\.\d+\.\d+(?:-dev\.\d+)?$') {
     throw "Unexpected release asset prefix: $assetPrefix"
 }
 if ($env:GITHUB_REF_TYPE -eq 'tag') {

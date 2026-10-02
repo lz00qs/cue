@@ -2,8 +2,8 @@ name: CI
 
 on:
   push:
-    # dev pushes run this workflow through Release, avoiding duplicate test jobs.
-    branches: [main]
+    # Branch pushes validate changes; Dev packaging is manually dispatched.
+    branches: [main, dev]
   pull_request:
     branches: [main, dev]
   workflow_call:

@@ -8,14 +8,15 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from release import (DEV_MARKER, PLATFORMS, check_source, old_dev_releases,
-                     package_release, prepare_metadata, publish_release)
+                     package_release, prepare_metadata, publish_release,
+                     release_body, release_title)
 
 
 SHA = "abcdef012345" + "0" * 28
 PUBSPEC = "name: cue\nversion: 1.0.1+2\n"
 
 
-def env(ref="dev", ref_type="branch", event="push", run_number=42, windows_only=False):
+def env(ref="dev", ref_type="branch", event="workflow_dispatch", run_number=42, windows_only=False):
     return {
         "GITHUB_SHA": SHA, "GITHUB_REF_NAME": ref, "GITHUB_REF_TYPE": ref_type,
         "GITHUB_EVENT_NAME": event, "GITHUB_RUN_NUMBER": str(run_number),
@@ -38,6 +39,7 @@ class FakeGitHub:
         self.incomplete_listing = False
         self.supersede_on_upload = False
         self.published = False
+        self.commits = []
 
     def optional(self, path):
         if path.startswith("/releases/tags/"):
@@ -58,6 +60,8 @@ class FakeGitHub:
             return {}
         if path == "/releases/generate-notes":
             return {"body": "Changes since the previous release"}
+        if path.startswith("/compare/"):
+            return {"commits": self.commits}
         if path == "/releases" or path == "/releases/1" and data.get("draft"):
             self.existing = {"id": 1, "draft": True, "upload_url": "https://uploads.github.com/assets{?name}"}
             return self.existing
@@ -85,10 +89,11 @@ class FakeGitHub:
 class MetadataTests(unittest.TestCase):
     def test_both_channels_share_build_sequence_and_reruns_are_identical(self):
         dev = prepare_metadata(env(), PUBSPEC)
-        stable = prepare_metadata(env("v1.0.1", "tag", run_number=43), PUBSPEC)
+        stable = prepare_metadata(env("v1.0.1", "tag", "push", run_number=43), PUBSPEC)
         self.assertTrue(dev["publish"])
-        self.assertEqual(dev["tag"], "dev-1.0.1-1042-abcdef012345")
-        self.assertFalse(dev["tag"].startswith("v"))
+        self.assertEqual(dev["tag"], "v1.0.1-dev.1042")
+        self.assertEqual(release_title(dev), "Cue v1.0.1-dev.1042")
+        self.assertEqual(release_title(stable), "Cue v1.0.1")
         self.assertEqual(stable["build_number"], dev["build_number"] + 1)
         self.assertEqual(stable["image_tag"], "1.0.1")
         self.assertEqual(prepare_metadata(env(), PUBSPEC), dev)
@@ -103,8 +108,9 @@ class MetadataTests(unittest.TestCase):
 
     def test_rejects_wrong_refs_events_and_version_numbers(self):
         invalid = [env("main"), env("v1.0.2", "tag"), env("dev", event="pull_request"),
-                   env("v1.0.1-dryrun", "tag"), env(run_number=0), env(run_number=64536),
-                   env(windows_only=True), env("feature/test", event="workflow_dispatch")]
+                   env("v1.0.1-dryrun", "tag", "push"), env(run_number=0), env(run_number=64536),
+                   env("dev", event="push"), env(windows_only=True, event="push"),
+                   env("v1.0.1-dev.1042", "tag", "push"), env("feature/test", event="workflow_dispatch")]
         for value in invalid:
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
@@ -122,7 +128,7 @@ class MetadataTests(unittest.TestCase):
         self.assertTrue(metadata["publish"])
         self.assertEqual(metadata["channel"], "stable")
         for value in (env("dev", event="workflow_dispatch"),
-                      env("v1.0.1", "tag"),
+                      env("v1.0.1", "tag", "push"),
                       env("v1.0.1", "tag", "workflow_dispatch", windows_only=True)):
             with self.assertRaises(ValueError):
                 prepare_metadata(dict(value, PUBLISH_STABLE="true"), PUBSPEC)
@@ -174,6 +180,7 @@ class PublicationTests(unittest.TestCase):
         self.assertTrue(creates[0]["prerelease"])
         self.assertEqual(creates[0]["target_commitish"], SHA)
         self.assertEqual(creates[0]["make_latest"], "false")
+        self.assertEqual(creates[0]["name"], "Cue v1.0.1-dev.1042")
         self.assertIn(DEV_MARKER, creates[0]["body"])
         self.assertEqual(self.api.calls[-1][2], {"draft": False, "prerelease": True, "make_latest": "false"})
         self.assertTrue(self.api.published)
@@ -230,12 +237,49 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Upload verification failed"):
             publish_release(self.api, self.metadata, files)
 
+    def test_both_channels_use_one_notes_layout_and_curated_stable_changes(self):
+        for channel, tag in (("dev", "v1.0.1-dev.1042"), ("stable", "v1.0.1")):
+            body = release_body(dict(self.metadata, channel=channel, tag=tag), self.api.repository)
+            for heading in ("## 本版内容", "## 获取与部署", "## 构建信息", "## English"):
+                self.assertEqual(body.count(heading), 1)
+            self.assertNotIn("# Cue", body)
+            self.assertIn(f"发布标签：`{tag}`", body)
+            self.assertIn("README.zh.md", body)
+            if channel == "stable":
+                self.assertIn("在 Today 视图新建任务时", body)
+
+    def test_notes_keep_existing_filenames_and_do_not_invent_missing_assets(self):
+        old = dict(self.metadata, channel="stable", tag="v1.0.0", image_tag="1.0.0",
+                   assets=["app-release.apk", "Cue-v1.0.0-macos-universal.dmg",
+                           "Cue-v1.0.0-windows-x64-setup.exe", "cue-windows.zip"])
+        body = release_body(old, self.api.repository)
+        self.assertIn("`app-release.apk`", body)
+        self.assertIn("`cue-windows.zip`", body)
+        self.assertNotIn("`release.json`", body)
+        self.assertNotIn("`example.env`", body)
+
+    def test_dev_changes_compare_previous_dev_or_first_stable_without_extra_headings(self):
+        for prerelease in (False, True):
+            with self.subTest(prerelease=prerelease):
+                self.api = FakeGitHub(self.metadata)
+                self.api.history = [{"draft": False, "prerelease": prerelease,
+                                     "tag_name": "v1.0.1-dev.1041" if prerelease else "v1.0.1",
+                                     "body": DEV_MARKER if prerelease else "Stable notes"}]
+                self.api.commits = [{"sha": SHA, "commit": {"message": "fix(ui): handle [empty] tasks\n\nDetails"}}]
+                publish_release(self.api, self.metadata, self.package())
+                payload = next(data for method, path, data in self.api.calls if method == "POST" and path == "/releases")
+                self.assertIn(r"handle \[empty\] tasks", payload["body"])
+                self.assertEqual(payload["body"].count("## 本版内容"), 1)
+                self.assertIn("[完整变更]", payload["body"])
+
 
 class RetentionTests(unittest.TestCase):
     def test_keeps_ten_and_preserves_stable_manual_and_draft_releases(self):
-        managed = [{"id": number, "tag_name": f"dev-1.0.1-{1000 + number}-abcdef012345",
+        managed = [{"id": number, "tag_name": f"v1.0.1-dev.{1000 + number}",
                     "prerelease": True, "draft": False, "body": DEV_MARKER}
                    for number in range(1, 13)]
+        # Legacy releases count toward the same retention limit during migration.
+        managed[0]["tag_name"] = "dev-1.0.1-1001-abcdef012345"
         unrelated = [dict(managed[0], id=100, prerelease=False),
                      dict(managed[0], id=101, draft=True),
                      dict(managed[0], id=102, body="Manually published"),

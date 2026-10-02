@@ -8,7 +8,16 @@ Cue 是一个供个人自行部署的任务管理应用。它由 Web 页面、AP
 
 ## 正式版与 Dev 下载
 
-[最新正式版](https://github.com/lz00qs/cue/releases/latest)用于日常使用；测试 bug 修复时，在 [Releases](https://github.com/lz00qs/cue/releases) 中选择最新的 **Cue … Dev** 预发布。Dev 提供 Android APK、已签名并公证的 macOS DMG、Windows 安装包。安装后会替换正式客户端，并沿用其配置；“关于 Cue”中的 Dev 标识、构建编号和 commit 可用于反馈问题。iOS 仍单独通过 App Store 分发，本流程仅检查其编译。
+[最新正式版](https://github.com/lz00qs/cue/releases/latest)用于日常使用；测试 bug 修复时，在 [Releases](https://github.com/lz00qs/cue/releases) 中选择最新的 **Cue vX.Y.Z-dev.N** 预发布。Dev 提供 Android APK、已签名并公证的 macOS DMG、Windows 安装包。安装后会替换正式客户端，并沿用其配置；“关于 Cue”中的 Dev 标识、构建编号和 commit 可用于反馈问题。iOS 仍单独通过 App Store 分发，本流程仅检查其编译。
+
+发布格式统一如下，提交号放在发布说明的「构建信息」中。
+
+| 渠道 | Tag | 标题 |
+| --- | --- | --- |
+| 正式版 | `v1.0.1` | `Cue v1.0.1` |
+| Dev | `v1.0.1-dev.1010` | `Cue v1.0.1-dev.1010` |
+
+两条渠道的说明使用相同的「本版内容、获取与部署、构建信息、English」结构。正式版更新内容来自 `.github/release-notes/vX.Y.Z.md`；Dev 默认列出相对上一份 Dev（首次则相对正式版）的提交，也可用 `.github/release-notes/dev.md` 编写中文更新内容。
 
 Dev 和正式版使用同一签名及递增构建编号。Android 无法直接覆盖安装构建编号更低的旧包；从 Dev 切回稳定渠道时，可等待后续正式版，或卸载后重装旧版并重新登录。
 
@@ -17,7 +26,7 @@ Dev 和正式版使用同一签名及递增构建编号。Android 无法直接�
 ### 维护者：发布 Dev
 
 1. 先将发布工作流改动合入 `main`，再从更新后的 `main` 创建或同步 `dev`。在仓库 Settings → Environments 中确认 `android-release` 和 `macos-release` 的 Deployment branches and tags 允许 **dev 分支**及现有正式/演练 tag。沿用已有签名 secrets 和变量；若环境配置了人工审批，每次构建仍需审批。
-2. bug 修复合入 `dev` 后，Release workflow 自动测试、编译并发布独立 Pre-release；也可在 Actions → Release → Run workflow 中选择 `dev` 手动发布。默认不勾选 `windows_only`；勾选时仅验证 Windows，不发布。连续推送会取消过时的 Dev 构建。
+2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。需要 Dev 下载包时，在 Actions → Release → Run workflow 中选择 `dev`，手动启动发布。默认不勾选 `windows_only`；勾选时仅验证 Windows，不发布。连续手动发布会取消旧的 Dev 构建；发布前仍会检查构建提交与 `dev` 当前提交一致。
 3. 全部客户端检查、签名、公证与 Docker 构建成功后，先上传并校验完整附件，再公开 Release。正式版 Latest 不受 Dev 影响。保留最近 10 个本流程管理的 Dev Release，Actions 临时产物保留 7 天。已公开版本的重跑会被拒绝；新的 Dev 构建请启动新的 workflow run。清理不删除 GHCR 历史镜像，旧镜像可按需另行管理。
 4. 验证通过后合入 `main`，更新版本并推送对应 `vX.Y.Z` tag 发布正式版；随后同步回 `dev`。完整的正式版演练仍使用 `vX.Y.Z-dryrun` tag 手动运行；`main` 上的 `windows_only` 仍只验证安装器。
 

@@ -8,7 +8,16 @@ Cue includes Today, Inbox, Upcoming, board, calendar, and priority quadrant view
 
 ## Stable and Dev downloads
 
-Use the [latest stable release](https://github.com/lz00qs/cue/releases/latest) for everyday use. To test bug fixes, choose the newest **Cue … Dev** prerelease on the [Releases page](https://github.com/lz00qs/cue/releases). Dev includes an Android APK, signed and notarized macOS DMG, and Windows installer. It replaces the stable client and uses its existing configuration. About Cue displays the Dev channel, build number, and commit for bug reports. iOS distribution remains separate through the App Store; this workflow only checks its compilation.
+Use the [latest stable release](https://github.com/lz00qs/cue/releases/latest) for everyday use. To test bug fixes, choose the newest **Cue vX.Y.Z-dev.N** prerelease on the [Releases page](https://github.com/lz00qs/cue/releases). Dev includes an Android APK, signed and notarized macOS DMG, and Windows installer. It replaces the stable client and uses its existing configuration. About Cue displays the Dev channel, build number, and commit for bug reports. iOS distribution remains separate through the App Store; this workflow only checks its compilation.
+
+Both channels use the following format. Commit IDs appear in the release notes' build information.
+
+| Channel | Tag | Title |
+| --- | --- | --- |
+| Stable | `v1.0.1` | `Cue v1.0.1` |
+| Dev | `v1.0.1-dev.1010` | `Cue v1.0.1-dev.1010` |
+
+Release notes share the same Changes, Downloads and deployment, Build information, and English sections. Stable changes come from `.github/release-notes/vX.Y.Z.md`. Dev lists commits since the previous Dev release (or stable for the first Dev release), unless `.github/release-notes/dev.md` supplies curated changes.
 
 Stable and Dev use the same signing identities and an increasing build number. Android prevents installing an older build number over a newer one. To return from Dev to stable, wait for a subsequent stable release, or uninstall and reinstall the older package and sign in again.
 
@@ -17,7 +26,7 @@ Each release's `docker-compose.yml` pins API/Web images to that build's digests.
 ### Maintainers: publish Dev
 
 1. Merge workflow changes into `main` first, then create or synchronize `dev` from the updated `main`. Under Settings → Environments, ensure the deployment branch/tag rules for `android-release` and `macos-release` allow the **dev branch** as well as existing release/dry-run tags. Existing signing secrets and variables are reused. Any configured environment approvals still apply.
-2. Push bug fixes to `dev` to test, build, and publish an independent prerelease automatically. Alternatively, select `dev` in Actions → Release → Run workflow. Leave `windows_only` unchecked to publish; checking it validates Windows only. Superseded Dev builds are cancelled.
+2. Pushes to `dev` run CI only. To build and publish Dev packages, manually select `dev` in Actions → Release → Run workflow. Leave `windows_only` unchecked to publish; checking it validates Windows only. A newer manual Dev run cancels the older one. Publication still requires the build's commit to match the current `dev` head.
 3. All client checks, signing, notarization, and Docker builds must pass. Files are uploaded and verified on a draft before publication. Dev does not change stable Latest. The last 10 workflow-managed Dev releases are retained, with temporary Actions artifacts kept for 7 days. Rerunning an already published version is rejected; start a new run for a new Dev build. Cleanup does not delete historical GHCR images; manage those separately when needed.
 4. Once verified, merge into `main`, update the version, and push its matching `vX.Y.Z` tag for a stable release, then synchronize `dev`. Full stable validation still uses a manually dispatched `vX.Y.Z-dryrun` tag; `windows_only` on `main` still validates only the installer.
 

@@ -49,7 +49,7 @@ def prepare_metadata(env, pubspec):
         raise ValueError("Manual stable publication requires its matching vX.Y.Z tag and all platforms")
     channel = "stable"
     publish = False
-    if ref_type == "branch" and ref == "dev":
+    if event == "workflow_dispatch" and ref_type == "branch" and ref == "dev":
         channel = "dev"
         publish = not windows_only
     elif event == "push" and ref_type == "tag" and ref == f"v{version}":
@@ -61,9 +61,9 @@ def prepare_metadata(env, pubspec):
     elif event == "workflow_dispatch" and not windows_only and ref_type == "tag" and ref == f"v{version}-dryrun":
         pass
     else:
-        raise ValueError("Use dev, a matching stable tag, main/windows_only, or a matching -dryrun tag")
+        raise ValueError("Manually select dev, push a matching stable tag, or manually validate main/windows_only or a matching -dryrun tag")
     short_sha = commit[:12]
-    tag = f"dev-{version}-{build_number}-{short_sha}" if channel == "dev" else f"v{version}"
+    tag = f"v{version}-dev.{build_number}" if channel == "dev" else f"v{version}"
     return {
         "version": version,
         "build_number": build_number,
@@ -183,31 +183,97 @@ def package_release(root, metadata, repository, api_digest, web_digest):
     return files
 
 
-def release_body(metadata, repository):
+def release_title(metadata):
+    return f"Cue {metadata['tag']}"
+
+
+def release_body(metadata, repository, changes=None, previous_tag=None):
+    """Render one layout for both channels, including existing release assets."""
     commit, tag = metadata["commit"], metadata["tag"]
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    body = (
-        f"<!-- cue-release-build:{metadata['build_number']} -->\n\n"
-        f"Version: {metadata['version']} · Build: {metadata['build_number']} · Channel: {metadata['channel']}\n\n"
-        f"Commit: [{commit[:12]}](https://github.com/{repository}/commit/{commit})\n\n"
-        f"Built by [Release run {metadata['run_number']}](https://github.com/{repository}/actions/runs/{metadata['run_id']}). "
-        f"Prepared at {now}.\n\n"
-        "Download the Android APK, notarized macOS DMG, or Windows installer below. "
-        "These packages use the same application identity as the stable version and replace it when installed. "
-        "Android cannot install an older build number over a newer build.\n\n"
-        "Cue is self-hosted. The attached docker-compose.yml pins API and Web images to this build's digests. "
-        "Copy example.env to .env and configure it before starting Docker Compose. "
-        f"See the [中文部署说明](https://github.com/{repository}/blob/{commit}/README.zh.md) "
-        f"or [English setup guide](https://github.com/{repository}/blob/{commit}/README.md). "
-        "iOS distribution is separate; there is no installable iOS package in this release. "
-        "SHA256SUMS and release.json identify the files and source used for this build.\n"
-    )
-    if metadata["channel"] == "dev":
-        body = DEV_MARKER + "\n\n**Development preview for testing bug fixes.**\n\n" + body
-    notes = Path(f".github/release-notes/{tag}.md")
+    dev = metadata["channel"] == "dev"
+    intro = "这是用于验证 bug 修复的开发预览版本。" if dev else "本版本为 Cue 正式版。"
+    notes = Path(f".github/release-notes/{'dev' if dev else tag}.md")
+    english_changes = ""
     if notes.is_file():
-        body += "\n" + notes.read_text()
+        content = re.sub(r"^# [^\n]+\n+", "", notes.read_text()).strip()
+        section = re.search(r"^## (?:本版内容|更新内容)\s*\n(.*?)(?=^## |\Z)", content, re.M | re.S)
+        if section:
+            intro = content[:section.start()].strip() or intro
+            changes = section[1].strip()
+        english = re.search(r"^## English\s*\n(.*)", content, re.M | re.S)
+        if english:
+            english_changes = "\n".join(line for line in english[1].splitlines() if line.startswith("- "))
+    changes = changes or "- 本次构建用于验证当前版本，请结合完整变更反馈问题。"
+    assets = metadata.get("assets")
+    package_names = {}
+    for platform, (_, suffix) in PLATFORMS.items():
+        extension = suffix.rsplit(".", 1)[-1]
+        package_names[platform] = (next((name for name in assets if name.endswith('.' + extension)), None)
+                                   if assets is not None else f"{metadata['asset_prefix']}-{suffix}")
+    download = lambda platform: f"`{package_names[platform]}`" if package_names[platform] else "本版本未提供"
+    windows = download("windows")
+    if assets and "cue-windows.zip" in assets:
+        windows += "；便携版 `cue-windows.zip`"
+    has_deployment = assets is None or {"docker-compose.yml", "example.env"} <= set(assets)
+    deployment = "`docker-compose.yml` 与 `example.env`" if has_deployment else "使用本版本源码中的 Docker Compose 配置"
+    markers = DEV_MARKER + "\n" if dev else ""
+    if "build_number" in metadata:
+        markers += f"<!-- cue-release-build:{metadata['build_number']} -->\n"
+    body = (
+        markers + f"\n{intro}\n\n## 本版内容\n\n{changes}\n\n"
+        "## 获取与部署\n\n"
+        "| 平台 | 获取方式 |\n| --- | --- |\n"
+        f"| macOS | {download('macos')}（已公证，Apple Silicon 与 Intel 通用） |\n"
+        f"| Windows | {windows} |\n"
+        f"| Android | {download('android')} |\n"
+        f"| Web 与 API | {deployment}；镜像版本为 `{metadata['image_tag']}` |\n"
+        "| iOS | 由开发者另行通过 App Store 交付 |\n\n"
+        "**使用客户端前，先部署自己的服务端。** 按 "
+        f"[中文部署说明](https://github.com/{repository}/blob/{commit}/README.zh.md)或 "
+        f"[English setup guide](https://github.com/{repository}/blob/{commit}/README.md)配置服务端。"
+    )
+    if has_deployment:
+        body += "将 `example.env` 复制为 `.env`，与 `docker-compose.yml` 放在同一目录；部署附件固定到本次 API/Web 镜像。"
+    body += "跨公网访问应启用 HTTPS；升级前请确认备份可恢复。iOS 编译检查通过不代表 App Store 版本已可下载。\n"
+    if dev:
+        body += "\nDev 与正式版使用相同的应用标识和签名，安装时会替换现有客户端。Android 无法覆盖安装构建编号更低的旧包。\n"
+    if assets is None or "SHA256SUMS" in assets:
+        body += "\n`SHA256SUMS` 可校验下载内容，`release.json` 记录本次源码、构建编号与镜像摘要。\n"
+    body += "\n## 构建信息\n\n"
+    body += f"- 发布标签：`{tag}`\n- 发布渠道：{'Dev 开发版' if dev else '正式版'}\n"
+    if "build_number" in metadata:
+        body += f"- 构建编号：`{metadata['build_number']}`\n"
+    body += f"- 源码：[{commit[:12]}](https://github.com/{repository}/commit/{commit})\n"
+    if metadata.get("run_id"):
+        label = f"Release #{metadata['run_number']}" if metadata.get("run_number") else "构建验证"
+        body += f"- 构建流程：[{label}](https://github.com/{repository}/actions/runs/{metadata['run_id']})\n"
+    prepared_at = metadata.get("prepared_at") or datetime.now(timezone.utc).isoformat(timespec="seconds")
+    body += f"- 发布时间：`{prepared_at}`\n"
+    if previous_tag:
+        body += f"\n[完整变更](https://github.com/{repository}/compare/{previous_tag}...{tag})\n"
+    body += "\n## English\n\n"
+    if english_changes:
+        body += english_changes + "\n\n"
+    body += ("Development preview for testing bug fixes. " if dev else "Stable release of Cue. ")
+    body += (
+        "Download the Android APK, notarized universal macOS DMG, or Windows installer below. "
+        f"Deploy your own server using the [English setup guide](https://github.com/{repository}/blob/{commit}/README.md) before connecting clients. "
+        "iOS is distributed separately through the App Store.\n"
+    )
     return body
+
+
+def commit_notes(api, metadata, previous):
+    if not previous:
+        return None
+    comparison = api.request("GET", f"/compare/{quote(previous['tag_name'], safe='')}...{metadata['commit']}")
+    lines = []
+    for item in comparison["commits"]:
+        title = item["commit"]["message"].splitlines()[0]
+        title = re.sub(r"([\\`*_{}\[\]<>])", r"\\\1", title)
+        sha = item["sha"]
+        lines.append(f"- {title} ([{sha[:12]}](https://github.com/{api.repository}/commit/{sha}))")
+    return "\n".join(lines) or "- 本次构建沿用上一版源码，用于重新验证与反馈问题。"
 
 
 def publish_release(api, metadata, files):
@@ -232,19 +298,16 @@ def publish_release(api, metadata, files):
         print(f"Verified already published {metadata['tag']}; resuming channel promotion")
         return
     dev = metadata["channel"] == "dev"
-    body = release_body(metadata, api.repository)
-    previous = next((release for release in api.releases()
-                     if not release["draft"] and release["prerelease"] == dev
+    history = [release for release in api.releases() if not release["draft"]]
+    previous = next((release for release in history if release["prerelease"] == dev
                      and (not dev or DEV_MARKER in (release.get("body") or ""))), None)
-    if previous:
-        notes = api.request("POST", "/releases/generate-notes", {
-            "tag_name": metadata["tag"], "target_commitish": metadata["commit"],
-            "previous_tag_name": previous["tag_name"],
-        })
-        body += "\n" + notes["body"]
+    if not previous and dev:
+        previous = next((release for release in history if not release["prerelease"]), None)
+    body = release_body(metadata, api.repository, commit_notes(api, metadata, previous),
+                        previous["tag_name"] if previous else None)
     payload = {
         "tag_name": metadata["tag"], "target_commitish": metadata["commit"],
-        "name": f"Cue {metadata['version']} Dev · {metadata['build_number']} · {metadata['commit'][:12]}" if dev else f"Cue {metadata['tag']}",
+        "name": release_title(metadata),
         "body": body, "draft": True, "prerelease": dev, "make_latest": "false",
     }
     if existing:
@@ -276,10 +339,10 @@ def publish_release(api, metadata, files):
 def old_dev_releases(releases, keep=10):
     managed = []
     for release in releases:
-        match = re.fullmatch(r"dev-\d+\.\d+\.\d+-(\d+)-[0-9a-f]{12}", release["tag_name"])
+        match = re.fullmatch(r"(?:v\d+\.\d+\.\d+-dev\.(\d+)|dev-\d+\.\d+\.\d+-(\d+)-[0-9a-f]{12})", release["tag_name"])
         if (match and release["prerelease"] and not release["draft"]
                 and DEV_MARKER in (release.get("body") or "")):
-            managed.append((int(match[1]), release))
+            managed.append((int(match[1] or match[2]), release))
     managed.sort(key=lambda item: item[0], reverse=True)
     return [release for _, release in managed[keep:]]
 
