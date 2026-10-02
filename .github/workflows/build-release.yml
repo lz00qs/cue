@@ -82,8 +82,8 @@ jobs:
           channel: 'stable'
           cache: true
           pub-cache: true
-          # Native targets cache their downloaded engine artifacts independently.
-          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          # Reuse one SDK per OS/architecture instead of duplicating multi-GB archives.
+          cache-key: 'cue-flutter-v2-:os:-:channel:-:version:-:arch:'
           pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies
@@ -156,10 +156,13 @@ jobs:
           channel: 'stable'
           cache: true
           pub-cache: true
-          # Native targets cache their downloaded engine artifacts independently.
-          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          # Reuse one SDK per OS/architecture instead of duplicating multi-GB archives.
+          cache-key: 'cue-flutter-v2-:os:-:channel:-:version:-:arch:'
           pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
+      - name: Prepare shared Apple engine cache
+        run: flutter precache --ios --macos
+
       - name: Install dependencies
         run: flutter pub get
         
@@ -208,10 +211,13 @@ jobs:
           channel: 'stable'
           cache: true
           pub-cache: true
-          # Native targets cache their downloaded engine artifacts independently.
-          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          # Reuse one SDK per OS/architecture instead of duplicating multi-GB archives.
+          cache-key: 'cue-flutter-v2-:os:-:channel:-:version:-:arch:'
           pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
+      - name: Prepare shared Apple engine cache
+        run: flutter precache --ios --macos
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -313,8 +319,14 @@ jobs:
               raise SystemExit('Exported macOS version does not match this build')
           print(f"Verified macOS version {info['CFBundleShortVersionString']}+{info['CFBundleVersion']}")
           PY
-          lipo -verify_arch arm64 x86_64 "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Frameworks/App.framework/App"
-          lipo -verify_arch arm64 x86_64 "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Frameworks/FlutterMacOS.framework/FlutterMacOS"
+          for framework in App FlutterMacOS; do
+            architectures="$(lipo -archs "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Frameworks/$framework.framework/$framework")"
+            [[ " $architectures " == *' arm64 '* && " $architectures " == *' x86_64 '* ]] || {
+              echo "::error::$framework must contain both arm64 and x86_64"
+              exit 1
+            }
+            echo "Verified $framework architectures: $architectures"
+          done
 
       - name: Sign and notarize DMG
         env:
@@ -361,8 +373,8 @@ jobs:
           channel: 'stable'
           cache: true
           pub-cache: true
-          # Native targets cache their downloaded engine artifacts independently.
-          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          # Reuse one SDK per OS/architecture instead of duplicating multi-GB archives.
+          cache-key: 'cue-flutter-v2-:os:-:channel:-:version:-:arch:'
           pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies

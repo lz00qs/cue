@@ -30,9 +30,11 @@ jobs:
           channel: stable
           cache: true
           pub-cache: true
-          # Separate SDK targets so cached CI tools do not hide missing native artifacts.
-          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-ci
+          # Share the Linux SDK with Android builds; precache engines before saving.
+          cache-key: 'cue-flutter-v2-:os:-:channel:-:version:-:arch:'
           pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
+      - name: Prepare shared Android engine cache
+        run: flutter precache --android
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
