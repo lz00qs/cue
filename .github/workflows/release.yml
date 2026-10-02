@@ -420,12 +420,21 @@ jobs:
         with:
           path: artifacts
 
+      - name: Prepare deployment files
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cue-deployment
+          cp docker-compose.yml artifacts/cue-deployment/docker-compose.yml
+          cp .env.example artifacts/cue-deployment/example.env
+
       - name: Verify release artifacts
         run: |
           set -euo pipefail
           test -f "artifacts/cue-android-apk/${RELEASE_ASSET_PREFIX}-android-universal.apk"
           test -f "artifacts/cue-macos-dmg/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
           test -f "artifacts/cue-windows-installer/${RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
+          test -f artifacts/cue-deployment/docker-compose.yml
+          test -f artifacts/cue-deployment/example.env
           
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -435,10 +444,12 @@ jobs:
           body: |
             Cue is self-hosted: deploy the Web app, API, and PostgreSQL on your own server before connecting a client. See the [中文部署说明](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.zh.md) or [English setup guide](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.md).
 
-            Assets below contain the macOS DMG, Android APK, and Windows installer. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
+            Assets below contain the macOS DMG, Android APK, Windows installer, and deployment files (`docker-compose.yml` and `example.env`). Copy `example.env` to `.env` and configure it before starting Docker Compose. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
           files: |
             artifacts/cue-android-apk/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
             artifacts/cue-macos-dmg/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
             artifacts/cue-windows-installer/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
+            artifacts/cue-deployment/docker-compose.yml
+            artifacts/cue-deployment/example.env
           generate_release_notes: ${{ github.ref_name != 'v1.0.0' }}
           fail_on_unmatched_files: true
