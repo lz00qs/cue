@@ -10,6 +10,7 @@ import '../../l10n/l10n.dart';
 import '../../models/cue_task.dart';
 import '../cue_date_picker.dart';
 import '../cue_theme.dart';
+import '../cue_widgets.dart';
 import '../account_settings.dart';
 import '../about_cue.dart';
 import '../appearance_menu.dart';
@@ -2639,6 +2640,7 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
     final store = ref.watch(taskStoreProvider)!;
     final matches = store.tasks.where((item) => item.id == widget.task.id);
     final task = matches.isEmpty ? widget.task : matches.first;
+    final group = cueTaskGroupLabel(task);
     _currentTask = task;
     return Dialog(
       key: const Key('task-details-dialog'),
@@ -2821,7 +2823,12 @@ class _TaskDetailsDialogState extends ConsumerState<_TaskDetailsDialog> {
                 0,
               ),
               child: Text(
-                '${_area(context, task)} · ${context.l10n.createdOn(_createdLabel(context, task, store.today))}',
+                [
+                  ?group,
+                  context.l10n.createdOn(
+                    _createdLabel(context, task, store.today),
+                  ),
+                ].join(' · '),
                 style: TextStyle(color: CueColors.secondary, fontSize: 13),
               ),
             ),
@@ -3206,18 +3213,21 @@ TextStyle get _mobileSectionStyle => TextStyle(
 
 String _mobileTaskMeta(BuildContext context, CueTask task, DateTime today) {
   final l10n = context.l10n;
+  final String dateLabel;
   if (task.isCompleted && task.completedAt != null) {
-    return l10n.completedAt(_time(task.completedAt!));
+    dateLabel = l10n.completedAt(_time(task.completedAt!));
+  } else if (task.dueAt == null) {
+    dateLabel = l10n.noTime;
+  } else if (TaskStore.isSameDay(task.dueAt!, today)) {
+    dateLabel = _hasTime(task.dueAt!) ? _time(task.dueAt!) : l10n.today;
+  } else if (!task.isCompleted &&
+      TaskStore.dateOnly(task.dueAt!).isBefore(TaskStore.dateOnly(today))) {
+    dateLabel = formatShortYearMonthDay(context, task.dueAt!);
+  } else {
+    dateLabel = formatShortMonthDay(context, task.dueAt!);
   }
-  if (task.dueAt == null) return l10n.noTime;
-  final time = _hasTime(task.dueAt!) ? _time(task.dueAt!) : null;
-  if (TaskStore.isSameDay(task.dueAt!, today)) {
-    return '${time ?? l10n.today} · ${_area(context, task)}';
-  }
-  if (!task.isCompleted && TaskStore.dateOnly(task.dueAt!).isBefore(TaskStore.dateOnly(today))) {
-    return '${formatShortYearMonthDay(context, task.dueAt!)} · ${_area(context, task)}';
-  }
-  return '${formatShortMonthDay(context, task.dueAt!)} · ${_area(context, task)}';
+  final group = cueTaskGroupLabel(task);
+  return group == null ? dateLabel : '$dateLabel · $group';
 }
 
 String _mobileCompactMeta(BuildContext context, CueTask task, DateTime today) {
@@ -3248,18 +3258,6 @@ String _serverLabel(String serverUrl) {
   final uri = Uri.tryParse(serverUrl);
   if (uri == null || uri.host.isEmpty) return serverUrl;
   return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
-}
-
-String _area(BuildContext context, CueTask task) {
-  final l10n = context.l10n;
-  final title = task.title.toLowerCase();
-  if (title.contains('pcb')) return l10n.hardware;
-  if (title.contains('thermal') || title.contains('signal')) {
-    return l10n.simulation;
-  }
-  if (title.contains('report')) return l10n.writing;
-  if (title.contains('lab')) return l10n.operations;
-  return l10n.product;
 }
 
 bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;

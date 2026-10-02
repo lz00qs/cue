@@ -343,18 +343,23 @@ class _CueTaskCardState extends State<CueTaskCard> {
 
 String cueTaskMeta(BuildContext context, CueTask task, {DateTime? today}) {
   final l10n = context.l10n;
-  if (task.isCompleted && task.completedAt != null) {
-    return '${l10n.completedAt(_time(task.completedAt!))} · ${l10n.product}';
-  }
-  if (task.dueAt == null) return '${l10n.noDueDate} · ${l10n.personal}';
   final reference = TaskStore.dateOnly(today ?? DateTime.now());
-  if (TaskStore.isSameDay(task.dueAt!, reference)) {
-    return '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''} · ${cueTaskArea(context, task)}';
+  final String dateLabel;
+  if (task.isCompleted && task.completedAt != null) {
+    dateLabel = l10n.completedAt(_time(task.completedAt!));
+  } else if (task.dueAt == null) {
+    dateLabel = l10n.noDueDate;
+  } else if (TaskStore.isSameDay(task.dueAt!, reference)) {
+    dateLabel =
+        '${l10n.today}${_hasTime(task.dueAt!) ? ', ${_time(task.dueAt!)}' : ''}';
+  } else if (!task.isCompleted &&
+      TaskStore.dateOnly(task.dueAt!).isBefore(reference)) {
+    dateLabel = formatShortYearMonthDay(context, task.dueAt!);
+  } else {
+    dateLabel = formatShortMonthDay(context, task.dueAt!);
   }
-  if (!task.isCompleted && TaskStore.dateOnly(task.dueAt!).isBefore(reference)) {
-    return '${formatShortYearMonthDay(context, task.dueAt!)} · ${cueTaskArea(context, task)}';
-  }
-  return '${formatShortMonthDay(context, task.dueAt!)} · ${cueTaskArea(context, task)}';
+  final group = cueTaskGroupLabel(task);
+  return group == null ? dateLabel : '$dateLabel · $group';
 }
 
 String cueCompactTaskMeta(
@@ -396,15 +401,12 @@ String cueDueLabel(BuildContext context, CueTask task) {
   return formatShortMonthDay(context, task.dueAt!);
 }
 
-String cueTaskArea(BuildContext context, CueTask task) {
-  final l10n = context.l10n;
-  if (task.title.contains('PCB')) return l10n.hardware;
-  if (task.title.contains('thermal') || task.title.contains('signal')) {
-    return l10n.simulation;
+String? cueTaskGroupLabel(CueTask task) {
+  final group = task.group?.trim();
+  if (group == null || group.isEmpty || group == TaskStore.defaultUngrouped) {
+    return null;
   }
-  if (task.title.contains('report')) return l10n.writing;
-  if (task.title.contains('lab')) return l10n.operations;
-  return l10n.product;
+  return group;
 }
 
 bool _hasTime(DateTime date) => date.hour != 0 || date.minute != 0;

@@ -1355,12 +1355,6 @@ class _TaskListView extends StatelessWidget {
                       key: ValueKey(task.id),
                       task: task,
                       referenceDate: store.today,
-                      metaOverride:
-                          view == CueView.today &&
-                              filter == CueListFilter.today &&
-                              task.id == 'lab-calibration'
-                          ? '${context.l10n.noTime} · ${context.l10n.operations}'
-                          : null,
                       onToggle: () async {
                         try {
                           await store.toggleComplete(task);
