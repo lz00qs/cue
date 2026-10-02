@@ -248,14 +248,10 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     var priority = _destination == MobileDestination.today ? 3 : 2;
     String? reminder;
     String? recurrence;
-    DateTime? dueAt = prefilledDate == null
-        ? DateTime(today.year, today.month, today.day, 18)
-        : DateTime(
-            prefilledDate.year,
-            prefilledDate.month,
-            prefilledDate.day,
-            18,
-          );
+    final initialDate = prefilledDate ?? today;
+    DateTime? dueAt = TaskStore.isSameDay(initialDate, today)
+        ? DateTime(initialDate.year, initialDate.month, initialDate.day, 23, 59)
+        : DateTime(initialDate.year, initialDate.month, initialDate.day, 18);
 
     await showModalBottomSheet<void>(
       context: context,

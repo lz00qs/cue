@@ -41,7 +41,7 @@ void main() {
           expect(task.title, title);
           expect(task.priority, priority);
           expect(task.group, isNull);
-          expect(task.dueAt, DateTime(2026, 12, 31, 18));
+          expect(task.dueAt, DateTime(2026, 12, 31, 23, 59));
           expect(find.text(title), findsOneWidget);
           expect(find.text('P$priority · 1'), findsOneWidget);
         }
@@ -61,7 +61,7 @@ void main() {
         expect(find.byIcon(Icons.add_rounded), findsNWidgets(3));
         expect(find.byKey(const Key('board-add-dueDate-0')), findsNothing);
         final expectedDates = [
-          DateTime(2026, 12, 31, 18),
+          DateTime(2026, 12, 31, 23, 59),
           DateTime(2027, 1, 1, 18),
           null,
         ];
