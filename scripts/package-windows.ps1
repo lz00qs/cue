@@ -13,7 +13,9 @@ if ($assetPrefix -notmatch '^Cue-(?:v\d+\.\d+\.\d+|dev-\d+\.\d+\.\d+-\d+-[0-9a-f
 }
 if ($env:GITHUB_REF_TYPE -eq 'tag') {
     $expectedTag = "v$version"
-    if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+    # The release entry point validates whether a stable manual publication is
+    # allowed. Only dry-run refs need the suffix when naming Windows packages.
+    if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch' -and $env:GITHUB_REF_NAME -eq "$expectedTag-dryrun") {
         $expectedTag += '-dryrun'
     }
     if ($env:GITHUB_REF_NAME -ne $expectedTag) {
