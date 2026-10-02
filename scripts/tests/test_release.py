@@ -106,6 +106,21 @@ class MetadataTests(unittest.TestCase):
                 metadata = prepare_metadata(env(ref, ref_type, "workflow_dispatch", windows_only=windows), PUBSPEC)
                 self.assertFalse(metadata["publish"])
 
+    def test_internal_dev_build_uses_shared_numbering_without_publication(self):
+        for windows_only in (False, True):
+            with self.subTest(windows_only=windows_only):
+                metadata = prepare_metadata(dict(env(windows_only=windows_only), BUILD_ONLY="true"), PUBSPEC)
+                self.assertFalse(metadata["publish"])
+                self.assertEqual(metadata["channel"], "dev")
+                self.assertEqual(metadata["build_number"], 1042)
+                self.assertEqual(metadata["asset_prefix"], "Cue-v1.0.1-dev.1042")
+        for value in (env("main"), env("v1.0.1", "tag", "workflow_dispatch"),
+                      env("v1.0.1", "tag", "push"), env(event="push"),
+                      dict(env(), PUBLISH_STABLE="true")):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    prepare_metadata(dict(value, BUILD_ONLY="true"), PUBSPEC)
+
     def test_rejects_wrong_refs_events_and_version_numbers(self):
         invalid = [env("main"), env("v1.0.2", "tag"), env("dev", event="pull_request"),
                    env("v1.0.1-dryrun", "tag", "push"), env(run_number=0), env(run_number=64536),

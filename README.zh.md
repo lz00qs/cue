@@ -26,11 +26,13 @@ Dev 和正式版使用同一签名及递增构建编号。Android 无法直接�
 ### 维护者：发布 Dev
 
 1. 先将发布工作流改动合入 `main`，再从更新后的 `main` 创建或同步 `dev`。在仓库 Settings → Environments 中确认 `android-release` 和 `macos-release` 的 Deployment branches and tags 允许 **dev 分支**及现有正式/演练 tag。沿用已有签名 secrets 和变量；若环境配置了人工审批，每次构建仍需审批。
-2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。需要 Dev 下载包时，在 Actions → Release → Run workflow 中选择 `dev`，手动启动发布。默认不勾选 `windows_only`；勾选时仅验证 Windows，不发布。连续手动发布会取消旧的 Dev 构建；发布前仍会检查构建提交与 `dev` 当前提交一致。
+2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。在 Actions → Release → Run workflow 中选择 `dev`。**内测**时勾选 `build_only`：Android、已公证 macOS 和 Windows 安装包保存在本次运行的 **Artifacts** 中，保留 7 天；iOS 和 Docker 做构建验证，不创建 Git 标签、GitHub Release，也不推送 GHCR 镜像。下载对应的 Artifact ZIP 并解压取得安装包。需要公开的 Dev 预发布时，`build_only` 和 `windows_only` 都不勾选。勾选 `windows_only` 时仅验证 Windows，不发布。同一模式的连续运行会取消旧构建；内测构建与公开发布分别运行。发布前仍会检查构建提交与 `dev` 当前提交一致。
 3. 全部客户端检查、签名、公证与 Docker 构建成功后，先上传并校验完整附件，再公开 Release。正式版 Latest 不受 Dev 影响。保留最近 10 个本流程管理的 Dev Release，Actions 临时产物保留 7 天。已公开版本的重跑会被拒绝；新的 Dev 构建请启动新的 workflow run。清理不删除 GHCR 历史镜像，旧镜像可按需另行管理。
 4. 验证通过后合入 `main`，更新版本并推送对应 `vX.Y.Z` tag 发布正式版；随后同步回 `dev`。完整的正式版演练仍使用 `vX.Y.Z-dryrun` tag 手动运行；`main` 上的 `windows_only` 仍只验证安装器。
 
 正式版和 Dev 共用 `.github/workflows/release.yml` 的 `run_number`，平台构建编号为 `1000 + run_number`，重跑保持原编号。不要重命名该入口或为两条渠道分别计算编号；Windows 的编号上限为 65535。平台版本继续使用 `pubspec.yaml` 的数字版本，Dev 后缀只用于发布名称、文件名和应用内标识。
+
+内测构建也沿用这套编号。当前仓库公开，登录 GitHub 且有仓库读取权限的用户可以下载 Actions Artifacts（见 [GitHub 说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)）。如需将下载权限限定到指定内测人员，应使用私有仓库或有访问控制的独立分发服务。
 
 如果旧构建完成前已有更高编号的版本公开，流程会拒绝发布旧编号。Dev 可手动启动新 run；尚未公开的正式版可在 Run workflow 中选择原 `vX.Y.Z` tag 并勾选 `publish_stable`，分配新编号，无需修改 tag。若附件已公开而 Docker 渠道别名更新失败，重跑失败的 release job 会核对原附件后继续更新别名，不改写公开版本。
 

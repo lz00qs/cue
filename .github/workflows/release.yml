@@ -1,5 +1,6 @@
 # Keep this workflow's name/path and build-number base: both channels share its run_number.
 name: Release
+run-name: ${{ github.ref_name }} · ${{ inputs.build_only && 'Internal build' || inputs.windows_only && 'Windows validation' || 'Release' }}
 
 on:
   push:
@@ -8,6 +9,10 @@ on:
       - '!v*-*'
   workflow_dispatch:
     inputs:
+      build_only:
+        description: Build dev packages for internal testing (Artifacts only, no Release or GHCR push)
+        type: boolean
+        default: false
       windows_only:
         description: Validate only Windows without publishing (main or dev)
         type: boolean
@@ -20,9 +25,10 @@ on:
 permissions:
   contents: read
 
-# Only superseded dev builds are cancelled; stable tag builds have separate groups.
+# Internal builds, public releases, and Windows validation have separate groups.
+# Only superseded dev builds in the same mode are cancelled.
 concurrency:
-  group: cue-release-${{ github.ref }}-${{ inputs.windows_only || false }}
+  group: cue-release-${{ github.ref }}-${{ inputs.build_only || false }}-${{ inputs.windows_only || false }}
   cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
 
 jobs:
@@ -38,6 +44,7 @@ jobs:
       - name: Prepare release
         id: version
         env:
+          BUILD_ONLY: ${{ inputs.build_only || false }}
           WINDOWS_ONLY: ${{ inputs.windows_only || false }}
           PUBLISH_STABLE: ${{ inputs.publish_stable || false }}
           GH_TOKEN: ${{ github.token }}
