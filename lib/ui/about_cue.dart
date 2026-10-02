@@ -10,7 +10,7 @@ const cueAuthorEmail = 'lz00qs@gmail.com';
 class CueAppInfo {
   const CueAppInfo({required this.version, required this.buildNumber});
 
-  const CueAppInfo.fallback() : version = '1.0.0', buildNumber = '1';
+  const CueAppInfo.fallback() : version = '1.0.1', buildNumber = '2';
 
   final String version;
   final String buildNumber;
