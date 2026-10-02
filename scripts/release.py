@@ -40,8 +40,12 @@ def prepare_metadata(env, pubspec):
         "GITHUB_EVENT_NAME", "GITHUB_REF_TYPE", "GITHUB_REF_NAME"))
     windows_only = env.get("WINDOWS_ONLY", "false").lower() == "true"
     publish_stable = env.get("PUBLISH_STABLE", "false").lower() == "true"
+    build_only = env.get("BUILD_ONLY", "false").lower() == "true"
     if event not in ("push", "workflow_dispatch"):
         raise ValueError("Unsupported release event")
+    if build_only and (event != "workflow_dispatch" or ref_type != "branch"
+                       or ref != "dev" or publish_stable):
+        raise ValueError("Build-only internal testing requires manually selecting dev without publish_stable")
     if windows_only and event != "workflow_dispatch":
         raise ValueError("Windows-only validation must be manually dispatched")
     if publish_stable and (event != "workflow_dispatch" or windows_only
@@ -51,7 +55,7 @@ def prepare_metadata(env, pubspec):
     publish = False
     if event == "workflow_dispatch" and ref_type == "branch" and ref == "dev":
         channel = "dev"
-        publish = not windows_only
+        publish = not (windows_only or build_only)
     elif event == "push" and ref_type == "tag" and ref == f"v{version}":
         publish = True
     elif publish_stable:

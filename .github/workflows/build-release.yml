@@ -32,7 +32,7 @@ env:
 
 jobs:
   docker:
-    name: Build Docker images (publish fixed tags)
+    name: Build Docker images
     needs: [android, ios, macos, windows]
     if: ${{ !inputs.windows_only }}
     runs-on: ubuntu-latest
@@ -389,4 +389,3 @@ jobs:
             build/release/windows.json
           retention-days: 7
           if-no-files-found: error
-
