@@ -9,14 +9,14 @@ on:
       publish:
         type: boolean
         required: true
-      windows_only:
-        type: boolean
-        default: false
+      platform:
+        type: string
+        default: all
     outputs:
       api_digest:
-        value: ${{ jobs.docker.outputs.api_digest }}
+        value: ${{ jobs.docker-publish.outputs.api_digest || jobs.docker.outputs.api_digest }}
       web_digest:
-        value: ${{ jobs.docker.outputs.web_digest }}
+        value: ${{ jobs.docker-publish.outputs.web_digest || jobs.docker.outputs.web_digest }}
 
 permissions:
   contents: read
@@ -31,77 +31,33 @@ env:
   RELEASE_ASSET_PREFIX: ${{ fromJSON(inputs.metadata).asset_prefix }}
 
 jobs:
+  # Internal Docker checks run alongside native builds; published images wait for them.
   docker:
-    name: Build Docker images
-    needs: [android, ios, macos, windows]
-    if: ${{ !inputs.windows_only }}
-    runs-on: ubuntu-latest
-    outputs:
-      api_digest: ${{ steps.api.outputs.digest }}
-      web_digest: ${{ steps.web.outputs.digest }}
+    name: Check Docker images
+    if: ${{ !inputs.publish && (inputs.platform == 'all' || inputs.platform == 'docker') }}
+    uses: ./.github/workflows/build-docker.yml
     permissions:
       contents: read
       packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    with:
+      metadata: ${{ inputs.metadata }}
+      publish: false
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: inputs.publish
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Lowercase Repository Name
-        id: repo_name
-        run: echo "repo=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Extract metadata for API
-        id: meta-api
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.repo }}/cue-api
-          tags: |
-            type=raw,value=${{ env.CUE_IMAGE_TAG }}
-
-      - name: Extract metadata for Web
-        id: meta-web
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.repo }}/cue-web
-          tags: |
-            type=raw,value=${{ env.CUE_IMAGE_TAG }}
-
-      - name: Build and push API image
-        id: api
-        uses: docker/build-push-action@v5
-        with:
-          context: ./server
-          push: ${{ inputs.publish }}
-          tags: ${{ steps.meta-api.outputs.tags }}
-          labels: ${{ steps.meta-api.outputs.labels }}
-
-      - name: Build and push Web image
-        id: web
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          build-args: |
-            CUE_CHANNEL=${{ env.CUE_CHANNEL }}
-            CUE_COMMIT=${{ env.CUE_COMMIT }}
-            CUE_BUILD_NUMBER=${{ env.CUE_BUILD_NUMBER }}
-          push: ${{ inputs.publish }}
-          tags: ${{ steps.meta-web.outputs.tags }}
-          labels: ${{ steps.meta-web.outputs.labels }}
+  docker-publish:
+    name: Publish Docker images
+    needs: [android, ios, macos, windows]
+    if: ${{ inputs.publish }}
+    uses: ./.github/workflows/build-docker.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      metadata: ${{ inputs.metadata }}
+      publish: true
 
   android:
     name: Build Android APK
-    if: ${{ !inputs.windows_only }}
+    if: ${{ inputs.publish || inputs.platform == 'all' || inputs.platform == 'android' }}
     runs-on: ubuntu-latest
     environment: android-release
     steps:
@@ -112,12 +68,23 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle*
+            android/gradle/wrapper/gradle-wrapper.properties
+            android/gradle.properties
+            pubspec.lock
           
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
+          pub-cache: true
+          # Native targets cache their downloaded engine artifacts independently.
+          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies
         run: flutter pub get
@@ -177,7 +144,7 @@ jobs:
 
   ios:
     name: Check iOS build (App Store upload is manual)
-    if: ${{ !inputs.windows_only }}
+    if: ${{ inputs.publish || inputs.platform == 'all' || inputs.platform == 'ios' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -187,6 +154,11 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
+          pub-cache: true
+          # Native targets cache their downloaded engine artifacts independently.
+          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies
         run: flutter pub get
@@ -201,7 +173,7 @@ jobs:
 
   macos:
     name: Build notarized macOS DMG
-    if: ${{ !inputs.windows_only }}
+    if: ${{ inputs.publish || inputs.platform == 'all' || inputs.platform == 'macos' }}
     runs-on: macos-latest
     environment: macos-release
     timeout-minutes: 120
@@ -234,20 +206,47 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
+          pub-cache: true
+          # Native targets cache their downloaded engine artifacts independently.
+          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Prepare macOS archive configuration
+        run: |
+          set -euo pipefail
+          flutter build macos --config-only --release --build-number "$CUE_BUILD_NUMBER" \
+            --dart-define "CUE_CHANNEL=$CUE_CHANNEL" --dart-define "CUE_COMMIT=$CUE_COMMIT"
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          from pathlib import Path
+          metadata = json.loads(os.environ['CUE_RELEASE_METADATA'])
+          config = Path('macos/Flutter/ephemeral/Flutter-Generated.xcconfig')
+          settings = dict(line.split('=', 1) for line in config.read_text().splitlines() if '=' in line)
+          expected = {'FLUTTER_BUILD_NAME': metadata['version'],
+                      'FLUTTER_BUILD_NUMBER': str(metadata['build_number'])}
+          for key, value in expected.items():
+              if settings.get(key) != value:
+                  raise SystemExit(f'Unexpected {key}: {settings.get(key)}')
+          defines = {base64.b64decode(value).decode() for value in settings.get('DART_DEFINES', '').split(',') if value}
+          if not {f"CUE_CHANNEL={metadata['channel']}", f"CUE_COMMIT={metadata['commit']}"} <= defines:
+              raise SystemExit('Missing channel or commit in generated macOS configuration')
+          print('macOS archive configuration matches this build')
+          PY
+
       - name: Archive universal macOS app
         run: |
           set -euo pipefail
-          flutter build macos --release --build-number "$CUE_BUILD_NUMBER" \
-            --dart-define "CUE_CHANNEL=$CUE_CHANNEL" --dart-define "CUE_COMMIT=$CUE_COMMIT"
           xcodebuild -workspace macos/Runner.xcworkspace \
             -scheme Runner -configuration Release \
             -destination 'generic/platform=macOS' \
             -archivePath "$RUNNER_TEMP/Cue.xcarchive" \
-            CODE_SIGN_IDENTITY='-' archive
+            ONLY_ACTIVE_ARCH=NO ARCHS='arm64 x86_64' CODE_SIGN_IDENTITY='-' archive
 
       - name: Import Developer ID certificate
         env:
@@ -302,6 +301,20 @@ jobs:
             -exportOptionsPlist "$RUNNER_TEMP/CueExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/cue-macos-export"
           test -d "$RUNNER_TEMP/cue-macos-export/Cue.app"
+          python3 - "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Info.plist" <<'PY'
+          import json
+          import os
+          import plistlib
+          import sys
+          metadata = json.loads(os.environ['CUE_RELEASE_METADATA'])
+          with open(sys.argv[1], 'rb') as source:
+              info = plistlib.load(source)
+          if (info['CFBundleShortVersionString'], info['CFBundleVersion']) != (metadata['version'], str(metadata['build_number'])):
+              raise SystemExit('Exported macOS version does not match this build')
+          print(f"Verified macOS version {info['CFBundleShortVersionString']}+{info['CFBundleVersion']}")
+          PY
+          lipo -verify_arch arm64 x86_64 "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Frameworks/App.framework/App"
+          lipo -verify_arch arm64 x86_64 "$RUNNER_TEMP/cue-macos-export/Cue.app/Contents/Frameworks/FlutterMacOS.framework/FlutterMacOS"
 
       - name: Sign and notarize DMG
         env:
@@ -336,6 +349,7 @@ jobs:
 
   windows:
     name: Build Windows App
+    if: ${{ inputs.publish || inputs.platform == 'all' || inputs.platform == 'windows' }}
     runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
@@ -345,6 +359,11 @@ jobs:
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
+          cache: true
+          pub-cache: true
+          # Native targets cache their downloaded engine artifacts independently.
+          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-${{ github.job }}
+          pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
           
       - name: Install dependencies
         run: flutter pub get

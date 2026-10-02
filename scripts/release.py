@@ -41,6 +41,13 @@ def prepare_metadata(env, pubspec):
     windows_only = env.get("WINDOWS_ONLY", "false").lower() == "true"
     publish_stable = env.get("PUBLISH_STABLE", "false").lower() == "true"
     build_only = env.get("BUILD_ONLY", "false").lower() == "true"
+    platform = env.get("BUILD_PLATFORM", "all")
+    if platform not in {"all", "android", "macos", "windows", "ios", "docker"}:
+        raise ValueError("Unknown internal build platform")
+    if platform != "all" and not build_only:
+        raise ValueError("Selecting a single platform requires build_only; public releases must build all platforms")
+    if windows_only and platform not in {"all", "windows"}:
+        raise ValueError("windows_only conflicts with the selected internal build platform")
     if event not in ("push", "workflow_dispatch"):
         raise ValueError("Unsupported release event")
     if build_only and (event != "workflow_dispatch" or ref_type != "branch"
@@ -77,6 +84,7 @@ def prepare_metadata(env, pubspec):
         "asset_prefix": f"Cue-{tag}",
         "image_tag": f"dev-{build_number}-{short_sha}" if channel == "dev" else version,
         "publish": publish,
+        "platform": "windows" if windows_only else platform,
         "run_number": run_number,
         "run_id": env["GITHUB_RUN_ID"],
     }

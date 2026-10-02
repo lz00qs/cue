@@ -26,11 +26,13 @@ Dev 和正式版使用同一签名及递增构建编号。Android 无法直接�
 ### 维护者：发布 Dev
 
 1. 先将发布工作流改动合入 `main`，再从更新后的 `main` 创建或同步 `dev`。在仓库 Settings → Environments 中确认 `android-release` 和 `macos-release` 的 Deployment branches and tags 允许 **dev 分支**及现有正式/演练 tag。沿用已有签名 secrets 和变量；若环境配置了人工审批，每次构建仍需审批。
-2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。在 Actions → Release → Run workflow 中选择 `dev`。**内测**时勾选 `build_only`：Android、已公证 macOS 和 Windows 安装包保存在本次运行的 **Artifacts** 中，保留 7 天；iOS 和 Docker 做构建验证，不创建 Git 标签、GitHub Release，也不推送 GHCR 镜像。下载对应的 Artifact ZIP 并解压取得安装包。需要公开的 Dev 预发布时，`build_only` 和 `windows_only` 都不勾选。勾选 `windows_only` 时仅验证 Windows，不发布。同一模式的连续运行会取消旧构建；内测构建与公开发布分别运行。发布前仍会检查构建提交与 `dev` 当前提交一致。
+2. bug 修复合入 `dev` 后只运行 CI，不编译发布包。在 Actions → Release → Run workflow 中选择 `dev`。**内测**时勾选 `build_only`，再选择 `platform`：`all`、`android`、`macos`、`windows`、`ios` 或 `docker`。所选平台的 Android、已公证 macOS 和 Windows 安装包保存在本次运行的 **Artifacts** 中，保留 7 天；iOS 仅检查编译，Docker 仅检查 API/Web 镜像。选择 `all` 时，内测 Docker 与客户端并行构建。不创建 Git 标签、GitHub Release，也不推送 GHCR 镜像。下载对应的 Artifact ZIP 并解压取得安装包。需要公开的 Dev 预发布时，`build_only` 和 `windows_only` 都不勾选，保持 `platform=all`。已有 `windows_only` 仍可在 `main` 或 `dev` 上仅验证 Windows、不发布；使用它时保持 `platform=all`。同一模式、同一目标的连续运行会取消旧构建；不同内测平台与公开发布分别运行。发布前仍会检查构建提交与 `dev` 当前提交一致。
 3. 全部客户端检查、签名、公证与 Docker 构建成功后，先上传并校验完整附件，再公开 Release。正式版 Latest 不受 Dev 影响。保留最近 10 个本流程管理的 Dev Release，Actions 临时产物保留 7 天。已公开版本的重跑会被拒绝；新的 Dev 构建请启动新的 workflow run。清理不删除 GHCR 历史镜像，旧镜像可按需另行管理。
 4. 验证通过后合入 `main`，更新版本并推送对应 `vX.Y.Z` tag 发布正式版；随后同步回 `dev`。完整的正式版演练仍使用 `vX.Y.Z-dryrun` tag 手动运行；`main` 上的 `windows_only` 仍只验证安装器。
 
 正式版和 Dev 共用 `.github/workflows/release.yml` 的 `run_number`，平台构建编号为 `1000 + run_number`，重跑保持原编号。不要重命名该入口或为两条渠道分别计算编号；Windows 的编号上限为 65535。平台版本继续使用 `pubspec.yaml` 的数字版本，Dev 后缀只用于发布名称、文件名和应用内标识。
+
+Flutter SDK 缓存按系统、架构、SDK 版本和构建目标区分，Pub 依赖按 lockfile 区分；Android 还缓存 Gradle 依赖与可复用的构建任务结果，Docker API/Web 使用各自的 BuildKit 缓存。首次运行填充缓存，后续兼容的构建复用缓存。macOS 先生成 Flutter 配置，再仅做一次通用架构 Xcode 归档。缓存保存构建工具和依赖，签名安装包仍保存为 Actions Artifacts。工作流不会调高仓库的缓存容量上限。
 
 内测构建也沿用这套编号。当前仓库公开，登录 GitHub 且有仓库读取权限的用户可以下载 Actions Artifacts（见 [GitHub 说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)）。如需将下载权限限定到指定内测人员，应使用私有仓库或有访问控制的独立分发服务。
 
