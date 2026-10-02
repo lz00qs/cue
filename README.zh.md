@@ -32,7 +32,7 @@ Dev 和正式版使用同一签名及递增构建编号。Android 无法直接�
 
 正式版和 Dev 共用 `.github/workflows/release.yml` 的 `run_number`，平台构建编号为 `1000 + run_number`，重跑保持原编号。不要重命名该入口或为两条渠道分别计算编号；Windows 的编号上限为 65535。平台版本继续使用 `pubspec.yaml` 的数字版本，Dev 后缀只用于发布名称、文件名和应用内标识。
 
-Flutter SDK 缓存按系统、架构、SDK 版本和构建目标区分，Pub 依赖按 lockfile 区分；Android 还缓存 Gradle 依赖与可复用的构建任务结果，Docker API/Web 使用各自的 BuildKit 缓存。首次运行填充缓存，后续兼容的构建复用缓存。macOS 先生成 Flutter 配置，再仅做一次通用架构 Xcode 归档。缓存保存构建工具和依赖，签名安装包仍保存为 Actions Artifacts。工作流不会调高仓库的缓存容量上限。
+Flutter SDK 缓存按系统、架构和 SDK 版本共用；Linux CI 预先准备 Android 引擎，Apple 构建预先准备 iOS/macOS 引擎，减少重复的完整 SDK 缓存。Pub 依赖按 lockfile 区分；Android 还缓存 Gradle 依赖与可复用的构建任务结果，Docker API/Web 使用各自的 BuildKit 缓存。首次运行填充缓存，后续兼容的构建复用缓存。macOS 先生成 Flutter 配置，再仅做一次通用架构 Xcode 归档。缓存保存构建工具和依赖，签名安装包仍保存为 Actions Artifacts。工作流不会调高仓库的缓存容量上限。
 
 内测构建也沿用这套编号。当前仓库公开，登录 GitHub 且有仓库读取权限的用户可以下载 Actions Artifacts（见 [GitHub 说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)）。如需将下载权限限定到指定内测人员，应使用私有仓库或有访问控制的独立分发服务。
 
