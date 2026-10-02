@@ -135,6 +135,31 @@ class MetadataTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             prepare_metadata(env(), "version: 1.0.1+1043")
 
+    def test_selected_internal_platform_never_publishes(self):
+        for platform in ("all", "android", "macos", "windows", "ios", "docker"):
+            with self.subTest(platform=platform):
+                metadata = prepare_metadata(dict(env(), BUILD_ONLY="true", BUILD_PLATFORM=platform), PUBSPEC)
+                self.assertFalse(metadata["publish"])
+                self.assertEqual(metadata["platform"], platform)
+                self.assertEqual(metadata["build_number"], 1042)
+        self.assertEqual(prepare_metadata(env(windows_only=True), PUBSPEC)["platform"], "windows")
+        self.assertEqual(prepare_metadata(env(), PUBSPEC)["platform"], "all")
+
+    def test_public_releases_cannot_select_a_subset_of_platforms(self):
+        for value in (env(), env("v1.0.1", "tag", "push"),
+                      dict(env("v1.0.1", "tag"), PUBLISH_STABLE="true")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "public releases must build all"):
+                    prepare_metadata(dict(value, BUILD_PLATFORM="android"), PUBSPEC)
+
+    def test_invalid_and_conflicting_internal_targets_are_rejected(self):
+        for platform in ("unknown", "android,windows", ""):
+            with self.subTest(platform=platform):
+                with self.assertRaisesRegex(ValueError, "Unknown"):
+                    prepare_metadata(dict(env(), BUILD_ONLY="true", BUILD_PLATFORM=platform), PUBSPEC)
+        with self.assertRaisesRegex(ValueError, "conflicts"):
+            prepare_metadata(dict(env(windows_only=True), BUILD_ONLY="true", BUILD_PLATFORM="macos"), PUBSPEC)
+
     def test_manual_stable_publication_allocates_a_new_number_without_retagging(self):
         manual = env("v1.0.1", "tag", "workflow_dispatch", run_number=44)
         manual["PUBLISH_STABLE"] = "true"

@@ -1,6 +1,6 @@
 # Keep this workflow's name/path and build-number base: both channels share its run_number.
 name: Release
-run-name: ${{ github.ref_name }} · ${{ inputs.build_only && 'Internal build' || inputs.windows_only && 'Windows validation' || 'Release' }}
+run-name: ${{ github.ref_name }} · ${{ inputs.build_only && 'Internal build' || inputs.windows_only && 'Windows validation' || 'Release' }} · ${{ inputs.windows_only && 'windows' || inputs.platform || 'all' }}
 
 on:
   push:
@@ -13,6 +13,17 @@ on:
         description: Build dev packages for internal testing (Artifacts only, no Release or GHCR push)
         type: boolean
         default: false
+      platform:
+        description: Internal build target (requires build_only; public releases use all)
+        type: choice
+        default: all
+        options:
+          - all
+          - android
+          - macos
+          - windows
+          - ios
+          - docker
       windows_only:
         description: Validate only Windows without publishing (main or dev)
         type: boolean
@@ -25,10 +36,10 @@ on:
 permissions:
   contents: read
 
-# Internal builds, public releases, and Windows validation have separate groups.
-# Only superseded dev builds in the same mode are cancelled.
+# Internal targets, public releases, and Windows validation have separate groups.
+# Only superseded dev builds in the same mode and target are cancelled.
 concurrency:
-  group: cue-release-${{ github.ref }}-${{ inputs.build_only || false }}-${{ inputs.windows_only || false }}
+  group: cue-release-${{ github.ref }}-${{ inputs.build_only || false }}-${{ inputs.windows_only || false }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
 
 jobs:
@@ -39,6 +50,7 @@ jobs:
       metadata: ${{ steps.version.outputs.metadata }}
       publish: ${{ steps.version.outputs.publish }}
       channel: ${{ steps.version.outputs.channel }}
+      platform: ${{ steps.version.outputs.platform }}
     steps:
       - uses: actions/checkout@v4
       - name: Prepare release
@@ -47,6 +59,7 @@ jobs:
           BUILD_ONLY: ${{ inputs.build_only || false }}
           WINDOWS_ONLY: ${{ inputs.windows_only || false }}
           PUBLISH_STABLE: ${{ inputs.publish_stable || false }}
+          BUILD_PLATFORM: ${{ inputs.platform || 'all' }}
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/release.py prepare
 
@@ -66,7 +79,7 @@ jobs:
     with:
       metadata: ${{ needs.prepare.outputs.metadata }}
       publish: ${{ needs.prepare.outputs.publish == 'true' }}
-      windows_only: ${{ inputs.windows_only || false }}
+      platform: ${{ needs.prepare.outputs.platform }}
 
   release:
     name: Publish complete release

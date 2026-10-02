@@ -28,6 +28,11 @@ jobs:
         with:
           flutter-version: '3.47.5'
           channel: stable
+          cache: true
+          pub-cache: true
+          # Separate SDK targets so cached CI tools do not hide missing native artifacts.
+          cache-key: cue-flutter-v1-:os:-:channel:-:version:-:arch:-ci
+          pub-cache-key: 'cue-pub-v1-:os:-:version:-:arch:'
       - run: flutter pub get
       - run: flutter analyze
       - run: flutter test
