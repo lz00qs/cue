@@ -63,6 +63,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(store.tasks.single.group, isNull);
+        expect(store.tasks.single.priority, 3);
         expect(store.tasks.single.dueAt, DateTime(2026, 10, 2, 18));
         expect(find.text('test'), findsOneWidget);
         final dateLabel = entry.mobile

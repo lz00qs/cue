@@ -245,7 +245,7 @@ class _MobileCueHomeState extends ConsumerState<MobileCueHome> {
     var title = '';
     var note = '';
     final today = _store.today;
-    var priority = 2;
+    var priority = _destination == MobileDestination.today ? 3 : 2;
     String? reminder;
     String? recurrence;
     DateTime? dueAt = prefilledDate == null

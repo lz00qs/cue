@@ -297,6 +297,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
     final succeeded = await _runTaskOperation(
       () => _store.addTask(
         title: title,
+        priority: _view == CueView.today ? 3 : 2,
         dueAt: DateTime(today.year, today.month, today.day, 18),
       ),
     );
@@ -333,7 +334,8 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
         onRunOperation: _runTaskOperation,
         prefilledDate: prefilledDate,
         prefilledGroup: prefilledGroup,
-        prefilledPriority: prefilledPriority,
+        prefilledPriority:
+            prefilledPriority ?? (_view == CueView.today ? 3 : null),
       ),
     );
   }
