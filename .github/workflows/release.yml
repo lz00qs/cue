@@ -19,9 +19,12 @@ jobs:
   prepare:
     name: Validate release ref
     runs-on: ubuntu-latest
+    outputs:
+      asset_prefix: ${{ steps.version.outputs.asset_prefix }}
     steps:
       - uses: actions/checkout@v4
       - name: Check version and dry-run tag
+        id: version
         shell: bash
         env:
           WINDOWS_ONLY: ${{ inputs.windows_only }}
@@ -50,6 +53,7 @@ jobs:
             }
             echo 'Full manual validation; no publication'
           fi
+          echo "asset_prefix=Cue-v$version" >> "$GITHUB_OUTPUT"
 
   test:
     name: Release tests
@@ -119,10 +123,12 @@ jobs:
 
   android:
     name: Build Android APK
-    needs: test
+    needs: [prepare, test]
     if: ${{ github.event_name == 'push' || !inputs.windows_only }}
     runs-on: ubuntu-latest
     environment: android-release
+    env:
+      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
     steps:
       - uses: actions/checkout@v4
       
@@ -173,11 +179,17 @@ jobs:
             exit 1
           fi
 
+      - name: Name release APK
+        run: |
+          mkdir -p build/release
+          cp build/app/outputs/flutter-apk/app-release.apk \
+            "build/release/${RELEASE_ASSET_PREFIX}-android-universal.apk"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: cue-android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
           if-no-files-found: error
 
   ios:
@@ -203,7 +215,7 @@ jobs:
 
   macos:
     name: Build notarized macOS DMG
-    needs: test
+    needs: [prepare, test]
     if: ${{ github.event_name == 'push' || !inputs.windows_only }}
     runs-on: macos-latest
     environment: macos-release
@@ -212,6 +224,7 @@ jobs:
       contents: read
     env:
       CUE_MACOS_TEAM_ID: ${{ vars.CUE_MACOS_TEAM_ID }}
+      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -331,19 +344,21 @@ jobs:
           printf '%s' "$CUE_MACOS_NOTARY_API_KEY_BASE64" | base64 -D > "$CUE_MACOS_NOTARY_API_KEY_PATH"
           scripts/package-macos-dmg.sh \
             "$RUNNER_TEMP/cue-macos-export/Cue.app" \
-            "build/release/Cue-${GITHUB_REF_NAME}-macos-universal.dmg"
+            "build/release/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
 
       - name: Upload notarized DMG
         uses: actions/upload-artifact@v4
         with:
           name: cue-macos-dmg
-          path: build/release/*.dmg
+          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
           if-no-files-found: error
 
   windows:
     name: Build Windows App
-    needs: test
+    needs: [prepare, test]
     runs-on: windows-2025
+    env:
+      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
     steps:
       - uses: actions/checkout@v4
       
@@ -366,7 +381,7 @@ jobs:
       - name: Smoke test Windows installer
         shell: pwsh
         run: |
-          $installer = Get-ChildItem build/release/Cue-*-windows-x64-setup.exe | Select-Object -First 1
+          $installer = Get-Item "build/release/${env:RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
           if (-not $installer) { throw 'Windows installer is missing' }
           $target = Join-Path $env:RUNNER_TEMP 'CueInstallerSmoke'
           $install = Start-Process -FilePath $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /NOICONS /DIR=`"$target`"" -Wait -PassThru
@@ -380,30 +395,22 @@ jobs:
           if ($uninstall.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($uninstall.ExitCode)" }
           if (Test-Path (Join-Path $target 'cue.exe')) { throw 'Uninstaller left cue.exe behind' }
         
-      - name: Compress Windows Build
-        run: Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath cue-windows.zip
-        
-      - name: Upload Windows App
-        uses: actions/upload-artifact@v4
-        with:
-          name: cue-windows-app
-          path: cue-windows.zip
-          if-no-files-found: error
-
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: cue-windows-installer
-          path: build/release/Cue-*-windows-x64-setup.exe
+          path: build/release/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
           if-no-files-found: error
 
   release:
     name: Create GitHub Release
-    needs: [test, docker, android, ios, macos, windows]
+    needs: [prepare, test, docker, android, ios, macos, windows]
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && needs.test.result == 'success' && needs.docker.result == 'success' && needs.android.result == 'success' && needs.ios.result == 'success' && needs.macos.result == 'success' && needs.windows.result == 'success' }}
     permissions:
       contents: write
+    env:
+      RELEASE_ASSET_PREFIX: ${{ needs.prepare.outputs.asset_prefix }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -416,10 +423,9 @@ jobs:
       - name: Verify release artifacts
         run: |
           set -euo pipefail
-          test -f artifacts/cue-android-apk/app-release.apk
-          test -f artifacts/cue-windows-app/cue-windows.zip
-          compgen -G 'artifacts/cue-macos-dmg/*.dmg' >/dev/null
-          compgen -G 'artifacts/cue-windows-installer/*.exe' >/dev/null
+          test -f "artifacts/cue-android-apk/${RELEASE_ASSET_PREFIX}-android-universal.apk"
+          test -f "artifacts/cue-macos-dmg/${RELEASE_ASSET_PREFIX}-macos-universal.dmg"
+          test -f "artifacts/cue-windows-installer/${RELEASE_ASSET_PREFIX}-windows-x64-setup.exe"
           
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -429,11 +435,10 @@ jobs:
           body: |
             Cue is self-hosted: deploy the Web app, API, and PostgreSQL on your own server before connecting a client. See the [中文部署说明](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.zh.md) or [English setup guide](https://github.com/lz00qs/cue/blob/${{ github.ref_name }}/README.md).
 
-            Assets below contain the macOS DMG, Android APK, and Windows installer/portable ZIP. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
+            Assets below contain the macOS DMG, Android APK, and Windows installer. API and Web Docker images are published to GHCR. The iOS app is distributed separately through the App Store after review; there is no installable iOS ZIP in this release.
           files: |
-            artifacts/cue-android-apk/app-release.apk
-            artifacts/cue-macos-dmg/*.dmg
-            artifacts/cue-windows-installer/*.exe
-            artifacts/cue-windows-app/cue-windows.zip
+            artifacts/cue-android-apk/${{ env.RELEASE_ASSET_PREFIX }}-android-universal.apk
+            artifacts/cue-macos-dmg/${{ env.RELEASE_ASSET_PREFIX }}-macos-universal.dmg
+            artifacts/cue-windows-installer/${{ env.RELEASE_ASSET_PREFIX }}-windows-x64-setup.exe
           generate_release_notes: ${{ github.ref_name != 'v1.0.0' }}
           fail_on_unmatched_files: true
