@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       build_only:
-        description: Build dev packages for internal testing (Artifacts only, no Release or GHCR push)
+        description: Build dev packages for internal testing without creating a Release
         type: boolean
         default: false
       platform:
@@ -24,6 +24,10 @@ on:
           - windows
           - ios
           - docker
+      push_dev_images:
+        description: Push internal API/Web images to GHCR (requires build_only and platform all or docker)
+        type: boolean
+        default: false
       windows_only:
         description: Validate only Windows without publishing (main or dev)
         type: boolean
@@ -39,7 +43,7 @@ permissions:
 # Internal targets, public releases, and Windows validation have separate groups.
 # Only superseded dev builds in the same mode and target are cancelled.
 concurrency:
-  group: cue-release-${{ github.ref }}-${{ inputs.build_only || false }}-${{ inputs.windows_only || false }}-${{ inputs.platform || 'all' }}
+  group: cue-release-${{ github.ref }}-${{ inputs.build_only || false }}-${{ inputs.windows_only || false }}-${{ inputs.platform || 'all' }}-${{ inputs.push_dev_images || false }}
   cancel-in-progress: ${{ github.ref == 'refs/heads/dev' }}
 
 jobs:
@@ -57,6 +61,7 @@ jobs:
         id: version
         env:
           BUILD_ONLY: ${{ inputs.build_only || false }}
+          PUSH_DEV_IMAGES: ${{ inputs.push_dev_images || false }}
           WINDOWS_ONLY: ${{ inputs.windows_only || false }}
           PUBLISH_STABLE: ${{ inputs.publish_stable || false }}
           BUILD_PLATFORM: ${{ inputs.platform || 'all' }}
