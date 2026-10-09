@@ -79,10 +79,90 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  # Keep the check inline so release deployment files remain self-contained.
+  backup-permissions-check:
+    image: prodrigestivill/postgres-backup-local:17
+    restart: "no"
+    user: "${CUE_UID:-999}:${CUE_GID:-999}"
+    volumes:
+      - ./backups:/backups
+    network_mode: none
+    healthcheck:
+      disable: true
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        umask 077
+        backup_dir=/backups
+        check_path=$$backup_dir
+        container_uid=$$(id -u)
+        container_gid=$$(id -g)
+        temp_dir=
+
+        fail() {
+          printf '%s\n' \
+            '[CUE] Backup directory permission check failed.' \
+            "Path: $$check_path" \
+            "Container UID: $$container_uid" \
+            "Container GID: $$container_gid" \
+            "Reason: $$1" \
+            '' \
+            'Please ensure the host backup directory is' \
+            'writable by the configured UID/GID.' \
+            '' \
+            'Check:' \
+            '  CUE_UID' \
+            '  CUE_GID' \
+            '  ./backups ownership and permissions (including NAS ACLs)' \
+            '  POSIX hard-link and symbolic-link support' >&2
+          exit 1
+        }
+
+        cleanup() {
+          if [ -n "$$temp_dir" ]; then
+            rm -f "$$temp_dir/file" "$$temp_dir/hardlink" "$$temp_dir/symlink" &&
+              rmdir "$$temp_dir"
+          fi
+        }
+        trap 'status=$$?; if ! cleanup; then printf "%s\n" "[CUE] Could not clean temporary test directory: $$temp_dir" >&2; status=1; fi; exit "$$status"' 0
+        trap 'exit 1' 1 2 15
+
+        check() {
+          operation=$$1
+          shift
+          if detail=$$("$$@" 2>&1); then return; fi
+          fail "$$operation: $$detail"
+        }
+
+        [ "$$container_uid" -ne 0 ] || fail 'CUE_UID must be a non-root numeric UID.'
+        [ -d "$$backup_dir" ] || fail 'Backup path does not exist or is not a directory.'
+        # Existing rotation directories may have different owners or ACLs.
+        for check_path in "$$backup_dir" "$$backup_dir/last" "$$backup_dir/daily" "$$backup_dir/weekly" "$$backup_dir/monthly"; do
+          if [ "$$check_path" != "$$backup_dir" ] && [ ! -e "$$check_path" ] && [ ! -L "$$check_path" ]; then continue; fi
+          [ -d "$$check_path" ] || fail 'Backup path is not a directory.'
+          if detail=$$(cd "$$check_path" 2>&1); then :; else fail "Cannot enter directory: $$detail"; fi
+          if temp_dir=$$(mktemp -d "$$check_path/.cue-permissions.XXXXXX" 2>&1); then :; else
+            detail=$$temp_dir
+            temp_dir=
+            fail "Cannot create temporary test directory: $$detail"
+          fi
+          check 'Cannot write test file' sh -c 'printf "%s\n" cue > "$$1"' sh "$$temp_dir/file"
+          check 'Cannot create hard link' ln "$$temp_dir/file" "$$temp_dir/hardlink"
+          check 'Cannot create symbolic link' ln -s file "$$temp_dir/symlink"
+          check 'Cannot read hard link' cmp "$$temp_dir/file" "$$temp_dir/hardlink"
+          check 'Cannot read symbolic link' cmp "$$temp_dir/file" "$$temp_dir/symlink"
+          [ -L "$$temp_dir/symlink" ] || fail 'Filesystem did not create a symbolic link.'
+          check 'Cannot delete temporary test files' rm "$$temp_dir/symlink" "$$temp_dir/hardlink" "$$temp_dir/file"
+          check 'Cannot delete temporary test directory' rmdir "$$temp_dir"
+          temp_dir=
+        done
+        printf '%s\n' "[CUE] Backup directory permission check passed: $$backup_dir (UID: $$container_uid, GID: $$container_gid)"
+
   db-backup:
     image: prodrigestivill/postgres-backup-local:17
     restart: always
-    user: postgres:postgres
+    user: "${CUE_UID:-999}:${CUE_GID:-999}"
     volumes:
       - ./backups:/backups
     environment:
@@ -98,6 +178,8 @@ services:
       - BACKUP_KEEP_MONTHS=3 # 保留过去 3 个月的每月备份
       - HEALTHCHECK_PORT=8080
     depends_on:
+      backup-permissions-check:
+        condition: service_completed_successfully
       cue-db:
         condition: service_healthy
 

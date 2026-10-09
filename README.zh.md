@@ -44,7 +44,7 @@ GitHub 的默认 `GITHUB_TOKEN` 无法为相对默认分支含工作流改动的
 
 ## 首次部署
 
-需要 Docker Engine 和 Docker Compose。以下命令在项目根目录执行。
+需要 Docker Engine 和 Docker Compose 插件（`docker compose`，v2 或更新版本），并支持 `depends_on: condition: service_completed_successfully`。不支持旧版 `docker-compose` 或 Swarm 部署。以下命令在项目根目录执行。
 
 ### 1. 配置环境变量
 
@@ -61,7 +61,7 @@ cp .env.example .env
 
 管理员邮箱和密码在网页中创建，**不要写进 `.env`**。
 
-Linux 首次启动前，为备份容器准备目录：
+Linux 首次启动前，为备份容器准备一个**全新的空目录**。以下命令使用默认备份 UID/GID `999:999`：
 
 ```bash
 mkdir -p backups
@@ -69,7 +69,7 @@ sudo chown 999:999 backups
 sudo chmod 700 backups
 ```
 
-macOS 的 Docker 文件共享权限可能不同；启动后需检查备份日志和实际文件。
+自定义 UID/GID 或使用已有目录时，请参阅[备份目录权限](#备份目录权限)。macOS 的 Docker 文件共享权限可能不同；启动后需检查备份日志和实际文件。
 
 ### 2. 启动并创建管理员
 
@@ -130,12 +130,13 @@ docker compose exec cue-api npm run reset-password -- '新的强密码'
 
 ### 备份与恢复
 
-Compose 中的 `db-backup` 服务启动后立即备份一次，此后每小时备份。文件存放在项目的 `./backups` 目录。先确认它确实在运行且已产生文件：
+Compose 中的 `db-backup` 服务启动后立即备份一次，此后每小时备份。文件存放在项目的 `./backups` 目录，保留策略仍为过去 24 小时的每小时备份、7 天的每日备份、4 周的每周备份和 3 个月的每月备份。先确认它确实在运行且已产生**近期**文件（修改过 `POSTGRES_DB` 时，将下面的 `cue` 替换为实际数据库名）：
 
 ```bash
-docker compose ps db-backup
+docker compose ps -a
 docker compose logs --tail=30 db-backup
 ls -lh backups/last/cue-latest.sql.gz
+gzip -t backups/last/cue-latest.sql.gz
 ```
 
 可用隔离的一次性 PostgreSQL 17 容器验证备份能否还原；脚本不会连接或修改当前数据库：
@@ -157,6 +158,76 @@ docker compose up -d
 ```
 
 执行恢复前，应将同一份项目配置、`.env` 和备份文件安全地复制到目标服务器。`.env` 中的密码和 JWT 密钥也需要妥善保存。
+
+#### 备份目录权限
+
+`CUE_UID`、`CUE_GID` 只作用于 `db-backup` 和 `backup-permissions-check`，未设置或为空时均默认为 `999`，与 Debian 备份镜像的 PostgreSQL 用户一致。它们是 **Linux 数字用户 ID 和组 ID，不是用户名**；容器内无需存在对应账号。请使用非 root UID。设置变量**不会自动改变**宿主机目录的所有权、权限或 ACL，也不会改变 PostgreSQL 数据卷。
+
+普通 Linux 环境中，先检查账号和目录：
+
+```bash
+id
+id -u
+id -g
+ls -ldn ./backups
+```
+
+例如，准备使用的备份账号是 `1000:1000`，在 `.env` 中配置下面的值，并由该账号创建备份目录：
+
+```ini
+CUE_UID=1000
+CUE_GID=1000
+```
+
+Synology DSM 环境中，通过 SSH 以准备使用的账号运行 `id`，在部署目录（例如 `/volume1/docker/cue`）运行 `ls -ldn ./backups`。如果实际 UID 为 `1026`、GID 为 `100`，配置为：
+
+```ini
+CUE_UID=1026
+CUE_GID=100
+```
+
+上述数值仅为示例，请以自己的账号为准。还需检查 DSM 控制面板 / File Station 的共享文件夹权限和继承 ACL：即使 Unix 权限位看起来正确，DSM ACL 仍可能拒绝访问。Unraid 也应按实际账号和备份共享目录检查。备份目录必须支持 POSIX 硬链接与符号链接；SMB/CIFS、FAT、exFAT 等挂载可能不适用。建议先写入本地 Linux 文件系统，再将完成的备份复制到远端存储。
+
+`docker compose up -d` 自动运行 `backup-permissions-check`，使用与备份服务相同的镜像、UID/GID 和 `./backups:/backups` 挂载。它检查目录能否进入、实际创建和删除文件、硬链接和符号链接，也检查已有的 `last`、`daily`、`weekly`、`monthly` 子目录。仅创建随机命名的临时测试目录和文件，在成功或可处理的失败退出时清理，不修改已有备份。成功状态为 `Exited (0)`；失败时非零退出，并输出路径、容器实际 UID/GID 和原因。预检不自动重启，也不接收数据库凭据。`db-backup` 等待预检成功后启动；API/Web 的依赖关系保持不变。
+
+单独运行预检（不会启动数据库或备份调度器），或查看自动预检失败原因：
+
+```bash
+docker compose run --rm --no-deps backup-permissions-check
+docker compose ps -a
+docker compose logs backup-permissions-check
+docker compose logs --tail=50 db-backup
+ls -ldn ./backups ./backups/last ./backups/daily ./backups/weekly ./backups/monthly
+```
+
+首次备份前，部分轮转子目录可能尚不存在。`Permission denied` 表示需要检查日志指出的目录；链接检查中的 `Operation not supported` 通常表示文件系统或挂载不适用。已有实例如处于重启循环，先执行 `docker compose stop db-backup`。优先配置已有目录所属且有访问权限的 UID/GID。如确实需要修改所有权，先保留备份并逐个核对受影响路径，再做定点修改，例如：
+
+```bash
+# 仅为示例：使用自己实际配置的 UID/GID。
+sudo chown 1026:100 ./backups
+sudo chmod u+rwx ./backups
+```
+
+只对预检报错的具体轮转目录按需重复定点修复；备份日志仍报错时，再检查已有文件权限。DSM 还需在系统界面修复相应 ACL。不要使用 `chmod -R 777`，不要未经核对递归修改所有权，也不要为了修复备份权限删除 PostgreSQL 数据卷。
+
+升级已有实例时，保留原 `.env`、备份目录和数据库卷；更新部署文件，并按需补充 `CUE_UID` / `CUE_GID`。先确认已有备份可恢复，再执行：
+
+```bash
+docker compose stop db-backup
+docker compose config --quiet
+docker compose pull
+docker compose run --rm --no-deps backup-permissions-check
+docker compose up -d --force-recreate backup-permissions-check db-backup
+docker compose up -d
+docker compose ps -a
+docker compose logs --tail=50 db-backup
+ls -lh backups/last/cue-latest.sql.gz
+gzip -t backups/last/cue-latest.sql.gz
+```
+
+任一步预检失败时，停止后续操作并先修复。启用了 HTTPS 的实例，在 `pull` 和最后的 `up` 命令中加上 `--profile https`。此次升级**绝对不要使用 `docker compose down -v`**，该命令会删除数据库卷。确认最新备份的时间戳持续更新，并执行上文的隔离恢复验证；仅调度器健康不能证明数据库备份成功。
+
+保留 `db-backup` 原有的 `restart: always`，让调度器异常和宿主机重启后仍能自动恢复；正常备份错误仍记录在日志中，需要同时监控最新文件时间。预检在首次启动前阻止权限错误导致的重启循环，但不是持续监控：后续权限变更、NAS 故障、清理期间被强制终止、Docker daemon 重启，或 `docker compose start` / `restart` / `up --no-deps db-backup` 都可能跳过新的预检。修改存储或身份后，应先停止备份服务再重新预检。NAS 自带的 Compose 实现如拒绝 `service_completed_successfully`，请升级兼容的 Compose 插件，不要删除依赖来绕过错误。
 
 ## 本地开发
 

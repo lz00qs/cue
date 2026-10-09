@@ -64,11 +64,11 @@ void main() {
 
         expect(store.tasks.single.group, isNull);
         expect(store.tasks.single.priority, 3);
-        expect(store.tasks.single.dueAt, DateTime(2026, 10, 2, 18));
+        expect(store.tasks.single.dueAt, DateTime(2026, 10, 2, 23, 59));
         expect(find.text('test'), findsOneWidget);
         final dateLabel = entry.mobile
-            ? '18:00'
-            : '${locale == 'zh' ? '今天' : 'Today'}, 18:00';
+            ? '23:59'
+            : '${locale == 'zh' ? '今天' : 'Today'}, 23:59';
         expect(find.text(dateLabel), findsOneWidget);
 
         await store.updateGroup(store.tasks.single, '实际分组');

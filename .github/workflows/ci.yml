@@ -13,11 +13,13 @@ permissions:
 
 jobs:
   release-tools:
-    name: Release tooling tests
+    name: Release tooling and backup tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: python3 -m unittest discover -s scripts/tests -v
+        env:
+          CUE_TEST_DOCKER: '1'
 
   flutter:
     name: Flutter analyze and test

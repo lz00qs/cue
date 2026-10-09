@@ -21,8 +21,8 @@ class CueAppInfo {
   });
 
   const CueAppInfo.fallback()
-    : version = '1.0.1',
-      buildNumber = '2',
+    : version = '1.0.2',
+      buildNumber = '3',
       channel = cueReleaseChannel,
       commit = cueReleaseCommit;
 

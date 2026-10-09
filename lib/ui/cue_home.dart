@@ -301,7 +301,7 @@ class _CueHomeState extends ConsumerState<CueHome> with WidgetsBindingObserver {
       () => _store.addTask(
         title: title,
         priority: _view == CueView.today ? 3 : 2,
-        dueAt: DateTime(today.year, today.month, today.day, 18),
+        dueAt: DateTime(today.year, today.month, today.day, 23, 59),
       ),
     );
     if (succeeded && mounted) {
@@ -1666,6 +1666,8 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     final initialDate = widget.prefilledDate ?? today;
     _dueAt = widget.noDueDate
         ? null
+        : TaskStore.isSameDay(initialDate, today)
+        ? DateTime(initialDate.year, initialDate.month, initialDate.day, 23, 59)
         : DateTime(initialDate.year, initialDate.month, initialDate.day, 18);
   }
 
