@@ -19,7 +19,7 @@ COMPOSE = (ROOT / "docker-compose.yml").read_text()
 SERVICES = dict(re.findall(
     r"^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|^volumes:|\Z)",
     COMPOSE, re.MULTILINE | re.DOTALL))
-SCRIPT = textwrap.dedent(SERVICES["backup-permissions-check"].split(
+SCRIPT = textwrap.dedent(SERVICES["db-backup"].split(
     "    command:\n      - |\n", 1)[1]).replace("$$", "$").strip() + "\n"
 
 
@@ -34,6 +34,7 @@ class PreflightTests(unittest.TestCase):
         self.backups.mkdir()
         self.env = os.environ.copy()
         self.env["LC_ALL"] = "C"
+        self.env["CUE_BACKUP_CHECK_ONLY"] = "true"
         self.script = SCRIPT.replace("backup_dir=/backups", "backup_dir=" + shlex.quote(str(self.backups)), 1)
 
     def run_check(self):
@@ -141,6 +142,17 @@ class PreflightTests(unittest.TestCase):
         self.assertIn("CUE_UID must be a non-root numeric UID.", result.stderr)
         self.assertEqual(list(self.backups.iterdir()), [])
 
+    def test_success_executes_scheduler_after_cleanup_without_changing_umask(self):
+        scheduler = self.root / "test scheduler.sh"
+        scheduler.write_text('#!/bin/sh\nprintf "SCHEDULER_UMASK=%s\\n" "$(umask)"\n')
+        scheduler.chmod(0o755)
+        self.env.pop("CUE_BACKUP_CHECK_ONLY")
+        self.script = "umask 022\n" + self.script.replace("exec /init.sh", "exec " + shlex.quote(str(scheduler)))
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("SCHEDULER_UMASK=0022", result.stdout)
+        self.assert_clean()
+
 
 class ComposeTests(unittest.TestCase):
     @classmethod
@@ -174,13 +186,11 @@ class ComposeTests(unittest.TestCase):
         for ids in ((None, None), ("", "")):
             with self.subTest(ids=ids):
                 services = self.config(*ids)["services"]
-                for name in ("db-backup", "backup-permissions-check"):
-                    self.assertEqual(services[name]["user"], "999:999")
+                self.assertEqual(services["db-backup"]["user"], "999:999")
 
     def test_custom_ids_reach_only_backup_services(self):
         services = self.config("1026", "100")["services"]
-        for name in ("db-backup", "backup-permissions-check"):
-            self.assertEqual(services[name]["user"], "1026:100")
+        self.assertEqual(services["db-backup"]["user"], "1026:100")
         for name in ("cue-db", "cue-api", "cue-web", "cue-https"):
             self.assertNotIn("user", services[name])
 
@@ -189,29 +199,23 @@ class ComposeTests(unittest.TestCase):
             env_file = Path(directory) / ".env"
             env_file.write_text("CUE_UID=1026\nCUE_GID=100\n")
             services = self.config(env_file=env_file)["services"]
-        for name in ("db-backup", "backup-permissions-check"):
-            self.assertEqual(services[name]["user"], "1026:100")
+        self.assertEqual(services["db-backup"]["user"], "1026:100")
 
-    def test_preflight_gates_only_backup_and_uses_the_same_mount_and_image(self):
+    def test_preflight_runs_inside_backup_and_leaves_other_service_dependencies_unchanged(self):
         services = self.config()["services"]
         backup = services["db-backup"]
-        check = services["backup-permissions-check"]
+        self.assertNotIn("backup-permissions-check", services)
         self.assertEqual(backup["image"], "prodrigestivill/postgres-backup-local:17")
-        self.assertEqual(check["image"], backup["image"])
-        self.assertEqual(check["volumes"], backup["volumes"])
-        self.assertEqual(check["volumes"][0]["source"], str(ROOT / "backups"))
-        self.assertEqual(check["volumes"][0]["target"], "/backups")
-        self.assertEqual(check["restart"], "no")
-        self.assertEqual(check["network_mode"], "none")
-        self.assertTrue(check["healthcheck"]["disable"])
-        self.assertNotIn("environment", check)
-        self.assertEqual(check["entrypoint"], ["/bin/sh", "-c"])
+        self.assertEqual(backup["volumes"][0]["source"], str(ROOT / "backups"))
+        self.assertEqual(backup["volumes"][0]["target"], "/backups")
+        self.assertEqual(backup["entrypoint"], ["/bin/sh", "-c"])
+        self.assertIn("curl -fsS", backup["healthcheck"]["test"][1])
+        self.assertEqual(backup["healthcheck"]["interval"], "10s")
         # `config` re-escapes dollars for its reusable serialized output.
-        self.assertEqual([value.replace("$$", "$") for value in check["command"]], [SCRIPT])
-        self.assertNotRegex(SERVICES["backup-permissions-check"].split("      - |\n", 1)[1],
+        self.assertEqual([value.replace("$$", "$") for value in backup["command"]], [SCRIPT])
+        self.assertNotRegex(SERVICES["db-backup"].split("      - |\n", 1)[1],
                             r"(?<!\$)\$(?!\$)")
-        self.assertEqual(backup["depends_on"]["backup-permissions-check"]["condition"],
-                         "service_completed_successfully")
+        self.assertEqual(set(backup["depends_on"]), {"cue-db"})
         self.assertEqual(backup["depends_on"]["cue-db"]["condition"], "service_healthy")
         for name in ("cue-db", "cue-api", "cue-web", "cue-https"):
             self.assertNotIn("backup-permissions-check", services[name].get("depends_on", {}))
@@ -244,24 +248,20 @@ class DockerPreflightTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "compose.json"
         self.image = "prodrigestivill/postgres-backup-local:17"
-        model = ComposeTests().config("999", "999")
-        check = model["services"]["backup-permissions-check"]
+        backup = ComposeTests().config("999", "999")["services"]["db-backup"]
+        # Keep the exact startup wrapper, replacing only the scheduler with a probe.
+        backup["command"] = [value.replace("set -eu\n", "set -eu\nrm -f /tmp/backup-started\n", 1).replace(
+            "exec /init.sh", "exec sh -c 'echo CUE_TEST_BACKUP_STARTED; touch /tmp/backup-started; exec /usr/local/bin/go-cron -s @hourly -p 8080 -- /bin/true'")
+            for value in backup["command"]]
+        backup["healthcheck"] = {"test": ["CMD", "test", "-f", "/tmp/backup-started"],
+                                 "interval": "1s", "timeout": "1s", "retries": 2}
+        backup.pop("depends_on")
+        backup.pop("networks", None)
+        backup["network_mode"] = "none"
         # An isolated Docker volume makes these tests independent of host ACLs.
-        check["volumes"] = ["test-backups:/backups"]
-        self.fixture = {
-            "name": self.name,
-            "services": {
-                "backup-permissions-check": check,
-                "db-backup": {
-                    "image": self.image, "user": "999:999", "restart": "no",
-                    "network_mode": "none", "healthcheck": {"disable": True},
-                    "entrypoint": ["/bin/sh", "-c"],
-                    "command": ["printf '%s\\n' CUE_TEST_BACKUP_STARTED"],
-                    "depends_on": {"backup-permissions-check": {"condition": "service_completed_successfully"}},
-                },
-            },
-            "volumes": {"test-backups": {"external": True, "name": self.volume}},
-        }
+        backup["volumes"] = ["test-backups:/backups"]
+        self.fixture = {"name": self.name, "services": {"db-backup": backup},
+                        "volumes": {"test-backups": {"external": True, "name": self.volume}}}
         self.path.write_text(json.dumps(self.fixture))
         result = self.command("docker", "volume", "create", self.volume)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -285,39 +285,87 @@ class DockerPreflightTests(unittest.TestCase):
                               self.image, "-c", 'test -z "$(ls -A /backups)"')
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_writable_volume_allows_dependent_service_to_start(self):
+    def inspect_backup(self):
+        container = self.compose("ps", "-a", "-q", "db-backup").stdout.strip()
+        self.assertTrue(container)
+        return json.loads(self.command("docker", "inspect", container).stdout)[0]
+
+    def wait_for_health(self, status):
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            backup = self.inspect_backup()
+            if backup["State"].get("Health", {}).get("Status") == status:
+                return backup
+            time.sleep(0.5)
+        self.fail("Backup container did not become " + status)
+
+    def test_writable_volume_starts_scheduler_without_a_one_shot_container(self):
         self.prepare_volume("700")
         result = self.compose("up", "-d")
         self.assertEqual(result.returncode, 0, result.stderr)
-        container = self.compose("ps", "-a", "-q", "db-backup").stdout.strip()
-        self.assertTrue(container)
-        self.command("docker", "wait", container)
+        backup = self.wait_for_health("healthy")
+        self.assertTrue(backup["State"]["Running"])
+        self.assertEqual(backup["RestartCount"], 0)
         logs = self.compose("logs", "db-backup").stdout
         self.assertIn("CUE_TEST_BACKUP_STARTED", logs)
-        check_logs = self.compose("logs", "backup-permissions-check").stdout
-        self.assertIn("permission check passed", check_logs)
+        self.assertIn("permission check passed", logs)
         self.assert_volume_empty()
 
-    def test_unwritable_volume_blocks_dependent_service_without_restarts(self):
+    def test_unwritable_volume_blocks_scheduler_without_exit_or_restart_loop(self):
         self.prepare_volume("500")
         result = self.compose("up", "-d")
-        self.assertNotEqual(result.returncode, 0)
-        check_id = self.compose("ps", "-a", "-q", "backup-permissions-check").stdout.strip()
-        self.assertTrue(check_id)
-        check = json.loads(self.command("docker", "inspect", check_id).stdout)[0]
-        self.assertNotEqual(check["State"]["ExitCode"], 0)
-        self.assertEqual(check["RestartCount"], 0)
-        self.assertEqual(check["HostConfig"]["RestartPolicy"]["Name"], "no")
-        logs = self.compose("logs", "backup-permissions-check").stdout
-        self.assertIn("Container UID: 999", logs)
-        self.assertIn("Container GID: 999", logs)
-        self.assertIn("Permission denied", logs)
-        backup_id = self.compose("ps", "-a", "-q", "db-backup").stdout.strip()
-        if backup_id:
-            backup = json.loads(self.command("docker", "inspect", backup_id).stdout)[0]
-            self.assertEqual(backup["State"]["StartedAt"], "0001-01-01T00:00:00Z")
-        self.assertNotIn("CUE_TEST_BACKUP_STARTED", self.compose("logs", "db-backup").stdout)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        backup = self.wait_for_health("unhealthy")
+        self.assertTrue(backup["State"]["Running"])
+        self.assertEqual(backup["RestartCount"], 0)
+        self.assertEqual(backup["HostConfig"]["RestartPolicy"]["Name"], "always")
+        logs = self.compose("logs", "db-backup").stdout
+        for value in ("Container UID: 999", "Container GID: 999", "Permission denied", "scheduler is blocked"):
+            self.assertIn(value, logs)
+        self.assertNotIn("CUE_TEST_BACKUP_STARTED", logs)
         self.assert_volume_empty()
+        result = self.compose("stop", "-t", "3", "db-backup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        backup = self.inspect_backup()
+        self.assertFalse(backup["State"]["Running"])
+        self.assertEqual(backup["State"]["ExitCode"], 0)
+
+    def test_permission_check_runs_again_on_container_start(self):
+        self.prepare_volume("700")
+        result = self.compose("up", "-d")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.wait_for_health("healthy")
+        result = self.compose("stop", "db-backup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.prepare_volume("500")
+        result = self.compose("start", "db-backup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.wait_for_health("unhealthy")
+        self.assertIn("scheduler is blocked", self.compose("logs", "db-backup").stdout)
+        result = self.compose("exec", "-T", "db-backup", "test", "!", "-e", "/tmp/backup-started")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assert_volume_empty()
+
+    def test_permission_failure_recovers_after_fix_and_recreate(self):
+        self.prepare_volume("500")
+        result = self.compose("up", "-d")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.wait_for_health("unhealthy")
+        self.prepare_volume("700")
+        result = self.compose("up", "-d", "--force-recreate", "db-backup")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.wait_for_health("healthy")
+        self.assertIn("CUE_TEST_BACKUP_STARTED", self.compose("logs", "db-backup").stdout)
+        self.assert_volume_empty()
+
+    def test_check_only_mode_returns_exit_status_without_starting_scheduler(self):
+        for mode, expected in (("700", 0), ("500", 1)):
+            with self.subTest(mode=mode):
+                self.prepare_volume(mode)
+                result = self.compose("run", "--rm", "--no-deps", "-e", "CUE_BACKUP_CHECK_ONLY=true", "db-backup")
+                self.assertEqual(result.returncode, expected, result.stderr)
+                self.assertNotIn("CUE_TEST_BACKUP_STARTED", result.stdout + result.stderr)
+                self.assert_volume_empty()
 
     def test_real_postgresql_startup_backup_with_custom_numeric_ids(self):
         self.prepare_volume("700", "1026:100")
@@ -328,7 +376,6 @@ class DockerPreflightTests(unittest.TestCase):
         # Actual PostgreSQL initialization uses disposable tmpfs, never Cue's named volume.
         database["volumes"] = [{"type": "tmpfs", "target": "/var/lib/postgresql/data"}]
         database["restart"] = "no"
-        self.fixture["services"]["backup-permissions-check"]["user"] = "1026:100"
         self.fixture["services"]["db-backup"] = backup
         self.fixture["services"]["cue-db"] = database
         self.path.write_text(json.dumps(self.fixture))
@@ -347,6 +394,9 @@ class DockerPreflightTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, "Startup backup was not produced within 30 seconds")
         self.assertTrue(result.stdout.startswith("1026:100\n"))
         self.assertIn("PostgreSQL database dump", result.stdout)
+        result = self.compose("exec", "-T", "db-backup", "/bin/sh", "-c", 'tr "\\0" " " < /proc/1/cmdline')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("go-cron", result.stdout)
         for name in ("last", "daily", "weekly", "monthly"):
             result = self.compose("exec", "-T", "db-backup", "test", "-s", "/backups/" + name + "/cue-latest.sql.gz")
             self.assertEqual(result.returncode, 0, result.stderr)

@@ -44,7 +44,7 @@ GitHub's default `GITHUB_TOKEN` cannot create/update a release when its source m
 
 ## First-time setup
 
-You need Docker Engine and the Docker Compose plugin (`docker compose`, v2 or later), including support for `depends_on: condition: service_completed_successfully`. Legacy `docker-compose` and Swarm deployment are not supported. Run these commands from the project root.
+You need Docker Engine and the Docker Compose plugin (`docker compose`, v2 or later). Legacy `docker-compose` and Swarm deployment are not supported. Run these commands from the project root.
 
 ### 1. Configure the environment
 
@@ -161,7 +161,7 @@ Before restoring, securely copy the matching project configuration, `.env`, and 
 
 #### Backup directory permissions
 
-`CUE_UID` and `CUE_GID` apply only to `db-backup` and `backup-permissions-check`. Both default to `999` when unset or empty, matching the Debian backup image's PostgreSQL user. They are **numeric Linux user and group IDs**, not usernames; the IDs need no matching account inside the container. Use a non-root UID. Setting these variables does **not** change host ownership, permissions, or ACLs, or the PostgreSQL data volume.
+`CUE_UID` and `CUE_GID` apply only to `db-backup`. Both default to `999` when unset or empty, matching the Debian backup image's PostgreSQL user. They are **numeric Linux user and group IDs**, not usernames; the IDs need no matching account inside the container. Use a non-root UID. Setting these variables does **not** change host ownership, permissions, or ACLs, or the PostgreSQL data volume.
 
 For ordinary Linux, inspect your account and directory:
 
@@ -188,19 +188,20 @@ CUE_GID=100
 
 These are examples; use your actual IDs. Check DSM Control Panel / File Station shared-folder permissions and inherited ACLs as well: DSM ACLs can deny access even when Unix mode bits look correct. On Unraid, follow the same process with the account and share you use for backups. The directory must support POSIX hard links and symbolic links; SMB/CIFS, FAT, and exFAT mounts can be unsuitable. Prefer a local Linux filesystem and copy completed backups to remote storage separately.
 
-`docker compose up -d` automatically runs `backup-permissions-check` with the same image, UID/GID and `./backups:/backups` mount. It checks directory traversal, actual file creation/deletion, hard links and symbolic links, including existing `last`, `daily`, `weekly` and `monthly` directories. It only creates randomly named temporary test directories/files, cleans them on success or handled failure, and never changes existing backups. Success is `Exited (0)`; failure exits nonzero with the path, actual container UID/GID and reason. The check has no restart policy or database credentials. `db-backup` waits for successful completion; the API/Web dependency chains are unchanged.
+Every `db-backup` start runs the permission check inside the backup container, using its configured UID/GID and `./backups:/backups` mount. It checks directory traversal, actual file creation/deletion, hard links and symbolic links, including existing `last`, `daily`, `weekly` and `monthly` directories. It only creates randomly named temporary test directories/files, cleans them on success or handled failure, and never changes existing backups. After success, the same container starts the image's original backup scheduler. There is no separate one-shot container that exits after a successful check, avoiding that stop event in Synology Container Manager. The API/Web dependency chains are unchanged.
 
-Run a standalone check without starting the database or backup scheduler, or inspect a failed automatic check:
+On failure, the logs report the path, actual container UID/GID and reason. The scheduler is blocked; the container stays running and becomes `unhealthy` instead of repeatedly exiting and restarting. Repair the permissions and recreate `db-backup` to retry. `docker compose up -d` may still return successfully, so always inspect container health and logs. The health check monitors the scheduler every 10 seconds; healthy status alone does not prove a dump succeeded.
+
+Run a standalone check without starting the database or backup scheduler, or inspect a failed startup check:
 
 ```bash
-docker compose run --rm --no-deps backup-permissions-check
+docker compose run --rm --no-deps -e CUE_BACKUP_CHECK_ONLY=true db-backup
 docker compose ps -a
-docker compose logs backup-permissions-check
 docker compose logs --tail=50 db-backup
 ls -ldn ./backups ./backups/last ./backups/daily ./backups/weekly ./backups/monthly
 ```
 
-Some rotation directories will not exist until the first backup. A `Permission denied` error identifies the directory to investigate; `Operation not supported` during a link check suggests an unsuitable filesystem or mount. For an existing deployment, first stop a looping backup container with `docker compose stop db-backup`. Prefer configuring an ID that already owns and can access the directory. If ownership must change, preserve your backups and review each affected path before making a targeted change, for example:
+The standalone check exits 0 on success and nonzero on failure; DSM may report its intentional stop during this manual diagnostic. Normal deployment keeps the backup container running. Some rotation directories will not exist until the first backup. A `Permission denied` error identifies the directory to investigate; `Operation not supported` during a link check suggests an unsuitable filesystem or mount. For an existing deployment, first stop a looping backup container with `docker compose stop db-backup`. Prefer configuring an ID that already owns and can access the directory. If ownership must change, preserve your backups and review each affected path before making a targeted change, for example:
 
 ```bash
 # Example only: use the UID/GID you actually configured.
@@ -216,18 +217,18 @@ To upgrade an existing instance, keep its `.env`, backups and database volume; u
 docker compose stop db-backup
 docker compose config --quiet
 docker compose pull
-docker compose run --rm --no-deps backup-permissions-check
-docker compose up -d --force-recreate backup-permissions-check db-backup
-docker compose up -d
+docker compose run --rm --no-deps -e CUE_BACKUP_CHECK_ONLY=true db-backup
+docker compose up -d --force-recreate db-backup
+docker compose up -d --remove-orphans
 docker compose ps -a
 docker compose logs --tail=50 db-backup
 ls -lh backups/last/cue-latest.sql.gz
 gzip -t backups/last/cue-latest.sql.gz
 ```
 
-Stop and fix any failed check before continuing. Add `--profile https` to the `pull` and final `up` commands if HTTPS is enabled. **Never run `docker compose down -v` for this upgrade**; it removes the database volume. Check that the latest backup timestamp advances and run the isolated restore verification above. A healthy scheduler alone does not prove that a database dump succeeded.
+Stop and fix any failed check before continuing. `--remove-orphans` removes the old `backup-permissions-check` container from this Compose project when upgrading from the earlier deployment configuration. Add `--profile https` to the `pull` and final `up` commands if HTTPS is enabled. **Never run `docker compose down -v` for this upgrade**; it removes the database volume. Check that the latest backup timestamp advances and run the isolated restore verification above. A healthy scheduler alone does not prove that a database dump succeeded.
 
-Keep `db-backup`'s existing `restart: always` so scheduler failures and host restarts retain automatic recovery; regular backup errors remain in its logs and must be monitored with the latest file timestamp. The preflight prevents initial permission failures from starting a restart loop. It is a startup check, not continuous monitoring: later permission changes, NAS outages, forced termination during cleanup, daemon restarts, or `docker compose start`/`restart`/`up --no-deps db-backup` can bypass a fresh check. Stop the backup service and rerun the check after storage or identity changes. If a NAS Compose implementation rejects `service_completed_successfully`, upgrade to a compatible Compose plugin; do not remove the dependency to bypass the error.
+Keep `db-backup`'s existing `restart: always` so scheduler failures and host restarts retain automatic recovery. Each container start, including `start`, `restart`, or a daemon-driven restart, performs the permission check before the scheduler can run. A blocked startup stays unhealthy until you repair permissions and restart the container; it does not retry or log errors in a loop. Regular backup errors remain in the logs and must be monitored with the latest file timestamp. Later permission changes or NAS outages are not continuously checked by the startup probe. Forced termination or lost access during cleanup can leave a temporary test directory; inspect the diagnostic before removing only that reported temporary path.
 
 ## Local development
 

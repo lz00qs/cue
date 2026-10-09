@@ -44,7 +44,7 @@ GitHub 的默认 `GITHUB_TOKEN` 无法为相对默认分支含工作流改动的
 
 ## 首次部署
 
-需要 Docker Engine 和 Docker Compose 插件（`docker compose`，v2 或更新版本），并支持 `depends_on: condition: service_completed_successfully`。不支持旧版 `docker-compose` 或 Swarm 部署。以下命令在项目根目录执行。
+需要 Docker Engine 和 Docker Compose 插件（`docker compose`，v2 或更新版本）。不支持旧版 `docker-compose` 或 Swarm 部署。以下命令在项目根目录执行。
 
 ### 1. 配置环境变量
 
@@ -161,7 +161,7 @@ docker compose up -d
 
 #### 备份目录权限
 
-`CUE_UID`、`CUE_GID` 只作用于 `db-backup` 和 `backup-permissions-check`，未设置或为空时均默认为 `999`，与 Debian 备份镜像的 PostgreSQL 用户一致。它们是 **Linux 数字用户 ID 和组 ID，不是用户名**；容器内无需存在对应账号。请使用非 root UID。设置变量**不会自动改变**宿主机目录的所有权、权限或 ACL，也不会改变 PostgreSQL 数据卷。
+`CUE_UID`、`CUE_GID` 只作用于 `db-backup`，未设置或为空时均默认为 `999`，与 Debian 备份镜像的 PostgreSQL 用户一致。它们是 **Linux 数字用户 ID 和组 ID，不是用户名**；容器内无需存在对应账号。请使用非 root UID。设置变量**不会自动改变**宿主机目录的所有权、权限或 ACL，也不会改变 PostgreSQL 数据卷。
 
 普通 Linux 环境中，先检查账号和目录：
 
@@ -188,19 +188,20 @@ CUE_GID=100
 
 上述数值仅为示例，请以自己的账号为准。还需检查 DSM 控制面板 / File Station 的共享文件夹权限和继承 ACL：即使 Unix 权限位看起来正确，DSM ACL 仍可能拒绝访问。Unraid 也应按实际账号和备份共享目录检查。备份目录必须支持 POSIX 硬链接与符号链接；SMB/CIFS、FAT、exFAT 等挂载可能不适用。建议先写入本地 Linux 文件系统，再将完成的备份复制到远端存储。
 
-`docker compose up -d` 自动运行 `backup-permissions-check`，使用与备份服务相同的镜像、UID/GID 和 `./backups:/backups` 挂载。它检查目录能否进入、实际创建和删除文件、硬链接和符号链接，也检查已有的 `last`、`daily`、`weekly`、`monthly` 子目录。仅创建随机命名的临时测试目录和文件，在成功或可处理的失败退出时清理，不修改已有备份。成功状态为 `Exited (0)`；失败时非零退出，并输出路径、容器实际 UID/GID 和原因。预检不自动重启，也不接收数据库凭据。`db-backup` 等待预检成功后启动；API/Web 的依赖关系保持不变。
+`db-backup` 每次启动时，都在备份容器内部使用其配置的 UID/GID 和 `./backups:/backups` 挂载执行权限检查。它检查目录能否进入、实际创建和删除文件、硬链接和符号链接，也检查已有的 `last`、`daily`、`weekly`、`monthly` 子目录。仅创建随机命名的临时测试目录和文件，在成功或可处理的失败退出时清理，不修改已有备份。检查成功后，同一容器继续运行镜像原有的备份调度器，正常部署不会产生独立预检容器完成后退出的事件，避免群晖 Container Manager 因该事件告警。API/Web 的依赖关系保持不变。
 
-单独运行预检（不会启动数据库或备份调度器），或查看自动预检失败原因：
+检查失败时，日志输出路径、容器实际 UID/GID 和原因；备份调度器不会启动，容器保持运行并显示 `unhealthy`，不会反复退出和重启。修复权限后，重新创建 `db-backup` 再次检查。`docker compose up -d` 此时仍可能返回成功，因此必须检查容器健康状态和日志。健康检查每 10 秒检查调度器；仅显示健康不能证明数据库备份成功。
+
+单独运行权限检查（不会启动数据库或备份调度器），或查看启动检查失败原因：
 
 ```bash
-docker compose run --rm --no-deps backup-permissions-check
+docker compose run --rm --no-deps -e CUE_BACKUP_CHECK_ONLY=true db-backup
 docker compose ps -a
-docker compose logs backup-permissions-check
 docker compose logs --tail=50 db-backup
 ls -ldn ./backups ./backups/last ./backups/daily ./backups/weekly ./backups/monthly
 ```
 
-首次备份前，部分轮转子目录可能尚不存在。`Permission denied` 表示需要检查日志指出的目录；链接检查中的 `Operation not supported` 通常表示文件系统或挂载不适用。已有实例如处于重启循环，先执行 `docker compose stop db-backup`。优先配置已有目录所属且有访问权限的 UID/GID。如确实需要修改所有权，先保留备份并逐个核对受影响路径，再做定点修改，例如：
+手动检查成功时退出码为 0，失败时非零退出；DSM 可能对此次手动诊断的正常停止发出通知。正常部署中的备份容器会继续运行。首次备份前，部分轮转子目录可能尚不存在。`Permission denied` 表示需要检查日志指出的目录；链接检查中的 `Operation not supported` 通常表示文件系统或挂载不适用。已有实例如处于重启循环，先执行 `docker compose stop db-backup`。优先配置已有目录所属且有访问权限的 UID/GID。如确实需要修改所有权，先保留备份并逐个核对受影响路径，再做定点修改，例如：
 
 ```bash
 # 仅为示例：使用自己实际配置的 UID/GID。
@@ -216,18 +217,18 @@ sudo chmod u+rwx ./backups
 docker compose stop db-backup
 docker compose config --quiet
 docker compose pull
-docker compose run --rm --no-deps backup-permissions-check
-docker compose up -d --force-recreate backup-permissions-check db-backup
-docker compose up -d
+docker compose run --rm --no-deps -e CUE_BACKUP_CHECK_ONLY=true db-backup
+docker compose up -d --force-recreate db-backup
+docker compose up -d --remove-orphans
 docker compose ps -a
 docker compose logs --tail=50 db-backup
 ls -lh backups/last/cue-latest.sql.gz
 gzip -t backups/last/cue-latest.sql.gz
 ```
 
-任一步预检失败时，停止后续操作并先修复。启用了 HTTPS 的实例，在 `pull` 和最后的 `up` 命令中加上 `--profile https`。此次升级**绝对不要使用 `docker compose down -v`**，该命令会删除数据库卷。确认最新备份的时间戳持续更新，并执行上文的隔离恢复验证；仅调度器健康不能证明数据库备份成功。
+任一步预检失败时，停止后续操作并先修复。从旧配置升级时，`--remove-orphans` 会清理本 Compose 项目中已移除的 `backup-permissions-check` 容器。启用了 HTTPS 的实例，在 `pull` 和最后的 `up` 命令中加上 `--profile https`。此次升级**绝对不要使用 `docker compose down -v`**，该命令会删除数据库卷。确认最新备份的时间戳持续更新，并执行上文的隔离恢复验证；仅调度器健康不能证明数据库备份成功。
 
-保留 `db-backup` 原有的 `restart: always`，让调度器异常和宿主机重启后仍能自动恢复；正常备份错误仍记录在日志中，需要同时监控最新文件时间。预检在首次启动前阻止权限错误导致的重启循环，但不是持续监控：后续权限变更、NAS 故障、清理期间被强制终止、Docker daemon 重启，或 `docker compose start` / `restart` / `up --no-deps db-backup` 都可能跳过新的预检。修改存储或身份后，应先停止备份服务再重新预检。NAS 自带的 Compose 实现如拒绝 `service_completed_successfully`，请升级兼容的 Compose 插件，不要删除依赖来绕过错误。
+保留 `db-backup` 原有的 `restart: always`，让调度器异常和宿主机重启后仍能自动恢复。每次容器启动，包括 `start`、`restart` 或 Docker daemon 自动重启，都先检查权限，再启动调度器。权限阻塞时，容器保持 `unhealthy`，需修复后重新启动；不会循环重试或反复输出相同错误。正常备份错误仍记录在日志中，需要同时监控最新文件时间。启动检查不会持续探测后续权限变化或 NAS 故障；清理过程中被强制终止或失去访问权限，可能遗留临时测试目录，应按诊断核对后只删除日志指出的临时测试路径。
 
 ## 本地开发
 
